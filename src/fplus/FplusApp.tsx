@@ -15,6 +15,12 @@ import CampaignDetail from './pages/Campaigns/CampaignDetail';
 import CalendarView from './pages/Calendar/CalendarView';
 import PublicationList from './pages/Publications/PublicationList';
 import LeadsPipeline from './pages/Leads/LeadsPipeline';
+// Portal screens
+import PortalDashboard from './pages/Portal/PortalDashboard';
+import Cronopost from './pages/Portal/Cronopost';
+import { PortalApprovalsList, PortalApprovalDetail } from './pages/Portal/PortalApprovals';
+import PortalCalendar from './pages/Portal/PortalCalendar';
+import PortalMultimedia from './pages/Portal/PortalMultimedia';
 
 // Placeholder for modules to be built in next sprints
 import Placeholder from './pages/Placeholder';
@@ -46,16 +52,16 @@ export default function FplusApp() {
       <Route
         path="portal/*"
         element={
-          <PortalLayout clientName="Clínica Smile" agencyName="Mi Agencia" isPremium={false}>
+          <PortalLayout clientName="Clínica Smile" agencyName="Mi Agencia" isPremium={false} clientId="1">
             <Routes>
-              <Route path="approvals" element={<Placeholder />} />
-              <Route path="approvals/:token" element={<Placeholder />} />
-              <Route path="history" element={<Placeholder />} />
-              <Route path="calendar" element={<Placeholder />} />
+              <Route index element={<PortalDashboard />} />
+              <Route path="cronopost" element={<Cronopost />} />
+              <Route path="approvals" element={<PortalApprovalsList />} />
+              <Route path="approvals/:id" element={<PortalApprovalDetail />} />
+              <Route path="calendar" element={<PortalCalendar />} />
+              <Route path="multimedia" element={<PortalMultimedia />} />
               <Route path="metrics" element={<Placeholder />} />
-              <Route path="campaigns" element={<Placeholder />} />
               <Route path="profile" element={<Placeholder />} />
-              <Route index element={<Navigate to="approvals" replace />} />
             </Routes>
           </PortalLayout>
         }

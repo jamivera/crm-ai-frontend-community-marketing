@@ -1,59 +1,93 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, CheckSquare, Calendar, BarChart3, Megaphone, User } from 'lucide-react';
+import { Home, Layers, CheckCircle, Calendar, ImageIcon, BarChart3 } from 'lucide-react';
+import { mockContent } from '../../mock';
+import type { ContentState } from '../../types';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
   clientName?: string;
   agencyName?: string;
   isPremium?: boolean;
+  clientId?: string;
 }
 
-export function PortalLayout({ children, clientName = 'Cliente', agencyName = 'FPLUS', isPremium = false }: PortalLayoutProps) {
+const PORTAL_PENDING_STATES: ContentState[] = ['enviado_cliente', 'en_revision_cliente'];
+
+export function PortalLayout({
+  children,
+  clientName = 'Cliente',
+  agencyName = 'FPLUS',
+  isPremium = false,
+  clientId = '1',
+}: PortalLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const pendingCount = mockContent.filter(
+    cp => cp.client_id === clientId && PORTAL_PENDING_STATES.includes(cp.estado)
+  ).length;
+
   const navItems = [
-    { label: 'Pendientes', href: '/fplus/portal/approvals', icon: Clock },
-    { label: 'Aprobados', href: '/fplus/portal/history', icon: CheckSquare },
+    { label: 'Inicio', href: '/fplus/portal', icon: Home, exact: true },
+    { label: 'Cronopost', href: '/fplus/portal/cronopost', icon: Layers },
+    { label: 'Aprobar', href: '/fplus/portal/approvals', icon: CheckCircle, badge: pendingCount },
     { label: 'Calendario', href: '/fplus/portal/calendar', icon: Calendar },
+    { label: 'Archivos', href: '/fplus/portal/multimedia', icon: ImageIcon },
     ...(isPremium ? [
       { label: 'Resultados', href: '/fplus/portal/metrics', icon: BarChart3 },
-      { label: 'Campañas', href: '/fplus/portal/campaigns', icon: Megaphone },
     ] : []),
   ];
 
+  const isActive = (item: typeof navItems[0]) => {
+    if ('exact' in item && item.exact) return location.pathname === item.href;
+    return location.pathname.startsWith(item.href);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col max-w-lg mx-auto">
+    <div className="min-h-screen bg-slate-50 flex flex-col max-w-lg mx-auto relative">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div>
-          <div className="text-xs text-slate-400">{agencyName}</div>
+          <div className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{agencyName}</div>
           <div className="text-sm font-semibold text-slate-800">{clientName}</div>
         </div>
-        <button className="p-2 rounded-full bg-slate-100 text-slate-600">
-          <User className="w-4 h-4" />
-        </button>
+        <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
+          {clientName.charAt(0)}
+        </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 pb-20">
+      <main className="flex-1 pb-20 overflow-y-auto">
         {children}
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white border-t border-slate-200 flex">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-slate-200 flex z-10">
         {navItems.map(item => {
-          const active = location.pathname === item.href;
+          const active = isActive(item);
           const Icon = item.icon;
+          const badge = 'badge' in item ? item.badge : 0;
           return (
             <button
               key={item.href}
               onClick={() => navigate(item.href)}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors ${active ? 'text-blue-600' : 'text-slate-400'}`}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors relative ${
+                active ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+              }`}
             >
-              <Icon className="w-5 h-5" />
-              {item.label}
+              <div className="relative">
+                <Icon className={`w-5 h-5 transition-transform ${active ? 'scale-110' : ''}`} />
+                {badge != null && badge > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {badge}
+                  </span>
+                )}
+              </div>
+              <span>{item.label}</span>
+              {active && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-blue-600 rounded-b-full" />
+              )}
             </button>
           );
         })}
