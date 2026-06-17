@@ -1,13 +1,14 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { FplusMainLayout } from './components/layout/FplusMainLayout';
-import { PortalLayout } from './components/layout/PortalLayout';
 import { SuperAdminLayout } from './components/layout/SuperAdminLayout';
+import { PortalRouteWrapper } from './pages/Portal/PortalContext';
 
 // Pages — implemented
 import Dashboard from './pages/Dashboard';
 import ClientList from './pages/Clients/ClientList';
 import ClientDetail from './pages/Clients/ClientDetail';
+import BriefMaestro from './pages/Clients/BriefMaestro';
 import ContentList from './pages/Content/ContentList';
 import ContentDetail from './pages/Content/ContentDetail';
 import CampaignList from './pages/Campaigns/CampaignList';
@@ -15,12 +16,6 @@ import CampaignDetail from './pages/Campaigns/CampaignDetail';
 import CalendarView from './pages/Calendar/CalendarView';
 import PublicationList from './pages/Publications/PublicationList';
 import LeadsPipeline from './pages/Leads/LeadsPipeline';
-// Portal screens
-import PortalDashboard from './pages/Portal/PortalDashboard';
-import Cronopost from './pages/Portal/Cronopost';
-import { PortalApprovalsList, PortalApprovalDetail } from './pages/Portal/PortalApprovals';
-import PortalCalendar from './pages/Portal/PortalCalendar';
-import PortalMultimedia from './pages/Portal/PortalMultimedia';
 
 // Placeholder for modules to be built in next sprints
 import Placeholder from './pages/Placeholder';
@@ -48,24 +43,9 @@ export default function FplusApp() {
         }
       />
 
-      {/* ── Portal del Cliente (isolated layout) ── */}
-      <Route
-        path="portal/*"
-        element={
-          <PortalLayout clientName="Clínica Smile" agencyName="Mi Agencia" isPremium={false} clientId="1">
-            <Routes>
-              <Route index element={<PortalDashboard />} />
-              <Route path="cronopost" element={<Cronopost />} />
-              <Route path="approvals" element={<PortalApprovalsList />} />
-              <Route path="approvals/:id" element={<PortalApprovalDetail />} />
-              <Route path="calendar" element={<PortalCalendar />} />
-              <Route path="multimedia" element={<PortalMultimedia />} />
-              <Route path="metrics" element={<Placeholder />} />
-              <Route path="profile" element={<Placeholder />} />
-            </Routes>
-          </PortalLayout>
-        }
-      />
+      {/* ── Portal del Cliente (dynamic :clientId) ── */}
+      <Route path="portal" element={<Navigate to="portal/1" replace />} />
+      <Route path="portal/:clientId/*" element={<PortalRouteWrapper />} />
 
       {/* ── Main App (agency layout) ── */}
       <Route
@@ -80,7 +60,7 @@ export default function FplusApp() {
               <Route path="clients" element={<ClientList />} />
               <Route path="clients/new" element={<Placeholder />} />
               <Route path="clients/:id" element={<ClientDetail />} />
-              <Route path="clients/:id/brief" element={<Placeholder />} />
+              <Route path="clients/:id/brief" element={<BriefMaestro />} />
 
               {/* Campaigns */}
               <Route path="campaigns" element={<CampaignList />} />

@@ -193,21 +193,78 @@ export interface Lead {
 
 export interface Publication {
   id: string;
+  // Relations
   content_piece_id: string;
   content_piece_nombre: string;
   client_id: string;
   client_nombre: string;
   campaign_id?: string;
+  // Scheduling
   plataforma: Platform;
   fecha_programada: string;
-  estado: 'planificada' | 'publicada' | 'sin_confirmar' | 'cancelada';
+  hora_programada?: string;
+  timezone?: string;
+  // Content
+  copy_final?: string;
+  hashtags?: string[];
+  menciones?: string[];
+  call_to_action?: string;
+  media_urls?: string[];
+  formato?: string;
+  duracion_segundos?: number;
+  // UTMs
+  utm_source?: string;
+  utm_medium?: string;
   utm_campaign?: string;
   utm_content?: string;
+  utm_term?: string;
+  // Status
+  estado: 'planificada' | 'publicada' | 'sin_confirmar' | 'cancelada';
+  // Post-publication
+  external_post_id?: string;
   url_publicacion?: string;
+  publicada_at?: string;
   thumbnail_url?: string;
+  // Attribution
   leads_atribuidos: number;
   engagement_rate?: number;
   roas?: number;
+  // Blueprint — base para Content Intelligence futura
+  objetivo?: string;
+  pilar?: string;
+  hook?: string;
+  oferta?: string;
+}
+
+// ─── Brief Maestro ────────────────────────────────────────────────────────────
+
+export interface BriefMaestro {
+  client_id: string;
+  // Negocio
+  propuesta_valor: string;
+  diferenciadores: string;
+  competencia: string;
+  historia_marca: string;
+  // Audiencia
+  perfil_cliente: string;
+  rango_edad: string;
+  ubicacion: string;
+  pain_points: string;
+  motivaciones: string;
+  objeciones: string;
+  // Contenido
+  pilares: string[];
+  tono: string[];
+  formatos_preferidos: ContentType[];
+  que_no_hacer: string;
+  hashtags_habituales: string[];
+  // Canales
+  plataformas_activas: Platform[];
+  frecuencia_semanal: number;
+  horarios_preferidos: string;
+  objetivo_principal: string;
+  url_landing?: string;
+  updated_at: string;
 }
 
 // Preparado para futura integración — no implementado aún

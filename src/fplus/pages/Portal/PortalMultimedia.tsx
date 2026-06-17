@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, MessageSquare, CheckCircle2, Clock } from 'lucide-react';
-import { mockContent } from '../../mock';
+import { usePortalContext } from './PortalContext';
+import { useFplusStore } from '../../store';
 import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
 import type { ContentType, ContentState } from '../../types';
-
-const PORTAL_CLIENT_ID = '1';
 
 const PORTAL_VISIBLE_STATES: ContentState[] = [
   'enviado_cliente', 'en_revision_cliente', 'cambios_solicitados',
@@ -43,11 +42,13 @@ const STATE_ICON: Partial<Record<ContentState, React.ReactNode>> = {
 
 export default function PortalMultimedia() {
   const navigate = useNavigate();
+  const { clientId } = usePortalContext();
+  const contentPieces = useFplusStore(s => s.contentPieces);
   const [activeTab, setActiveTab] = useState<FilterTab>('todos');
   const [preview, setPreview] = useState<typeof pieces[0] | null>(null);
 
-  const pieces = mockContent.filter(
-    cp => cp.client_id === PORTAL_CLIENT_ID && PORTAL_VISIBLE_STATES.includes(cp.estado)
+  const pieces = contentPieces.filter(
+    cp => cp.client_id === clientId && PORTAL_VISIBLE_STATES.includes(cp.estado)
   );
 
   const filtered = pieces.filter(cp => {

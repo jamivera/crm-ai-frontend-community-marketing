@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, CheckCircle2, AlertTriangle, ExternalLink, X } from 'lucide-react';
-import { mockPublications, mockContent } from '../../mock';
+import { Search, CheckCircle2, AlertTriangle, ExternalLink, X, Plus } from 'lucide-react';
+import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
+import PublicationForm from './PublicationForm';
 import type { Publication } from '../../types';
 
 const PUB_STATE = {
@@ -15,10 +16,13 @@ const PUB_STATE = {
 
 export default function PublicationList() {
   const navigate = useNavigate();
+  const publications = useFplusStore(s => s.publications);
+  const contentPieces = useFplusStore(s => s.contentPieces);
+  const confirmPublication = useFplusStore(s => s.confirmPublication);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<Publication['estado'] | 'todos'>('todos');
   const [confirmingPub, setConfirmingPub] = useState<Publication | null>(null);
-  const [publications, setPublications] = useState(mockPublications);
+  const [showForm, setShowForm] = useState(false);
 
   const filtered = publications.filter(p => {
     const matchSearch =
@@ -39,9 +43,7 @@ export default function PublicationList() {
   const sinConfirmar = publications.filter(p => p.estado === 'sin_confirmar');
 
   function handleConfirm(pub: Publication, url: string) {
-    setPublications(prev =>
-      prev.map(p => p.id === pub.id ? { ...p, estado: 'publicada', url_publicacion: url } : p)
-    );
+    confirmPublication(pub.id, url);
     setConfirmingPub(null);
   }
 
@@ -53,6 +55,12 @@ export default function PublicationList() {
           <h1 className="text-xl font-semibold text-slate-800">Publicaciones</h1>
           <p className="text-sm text-slate-500 mt-0.5">{publications.length} publicaciones en total</p>
         </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Nueva publicación
+        </button>
       </div>
 
       {/* Sin confirmar alert */}
@@ -119,7 +127,7 @@ export default function PublicationList() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.map(pub => {
-              const piece = mockContent.find(cp => cp.id === pub.content_piece_id);
+              const piece = contentPieces.find(cp => cp.id === pub.content_piece_id);
               const isOverdue = pub.estado === 'sin_confirmar' && new Date(pub.fecha_programada) < new Date();
               return (
                 <tr key={pub.id} className="hover:bg-slate-50">
@@ -187,6 +195,9 @@ export default function PublicationList() {
           </div>
         )}
       </div>
+
+      {/* New Publication Form */}
+      {showForm && <PublicationForm onClose={() => setShowForm(false)} />}
 
       {/* Confirmation Modal */}
       {confirmingPub && (

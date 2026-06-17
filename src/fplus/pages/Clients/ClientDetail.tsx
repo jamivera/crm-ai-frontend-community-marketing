@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, ExternalLink, FileImage, Megaphone,
+  ArrowLeft, Plus, Eye, Share2, FileImage, Megaphone,
   TrendingUp, BarChart3, BookOpen, AlertTriangle,
 } from 'lucide-react';
 import { HealthLight } from '../../components/ui/HealthLight';
-import { ContentStateChip } from '../../components/ui/StateChip';
+import { ContentStateChip, LeadStateChip } from '../../components/ui/StateChip';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { mockClients, mockContent, mockCampaigns, mockLeads } from '../../mock';
+import { useFplusStore } from '../../store';
 
 type Tab = 'resumen' | 'contenido' | 'campanas' | 'leads' | 'brief';
 
@@ -17,7 +17,13 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
 
-  const client = mockClients.find(c => c.id === id);
+  const clients = useFplusStore(s => s.clients);
+  const contentPieces = useFplusStore(s => s.contentPieces);
+  const campaigns = useFplusStore(s => s.campaigns);
+  const leads = useFplusStore(s => s.leads);
+  const brief = useFplusStore(s => s.getBrief(id!));
+
+  const client = clients.find(c => c.id === id);
   if (!client) {
     return (
       <div className="p-6">
@@ -29,9 +35,9 @@ export default function ClientDetail() {
     );
   }
 
-  const clientContent = mockContent.filter(c => c.client_id === id);
-  const clientCampaigns = mockCampaigns.filter(c => c.client_id === id);
-  const clientLeads = mockLeads.filter(l => l.client_id === id);
+  const clientContent = contentPieces.filter(c => c.client_id === id);
+  const clientCampaigns = campaigns.filter(c => c.client_id === id);
+  const clientLeads = leads.filter(l => l.client_id === id);
 
   const TABS: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = [
     { id: 'resumen', label: 'Resumen', icon: BarChart3 },
@@ -78,8 +84,20 @@ export default function ClientDetail() {
             >
               <Plus className="w-4 h-4" /> Nueva pieza
             </button>
-            <button className="flex items-center gap-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm px-3 py-2 rounded-lg transition-colors">
-              <ExternalLink className="w-4 h-4" /> Portal
+            <button
+              onClick={() => navigate(`/fplus/portal/${id}`)}
+              className="flex items-center gap-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm px-3 py-2 rounded-lg transition-colors"
+            >
+              <Eye className="w-4 h-4" /> Ver como cliente
+            </button>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/fplus/portal/${id}`;
+                navigator.clipboard.writeText(url);
+              }}
+              className="flex items-center gap-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm px-3 py-2 rounded-lg transition-colors"
+            >
+              <Share2 className="w-4 h-4" /> Compartir portal
             </button>
           </div>
         </div>
@@ -120,7 +138,7 @@ export default function ClientDetail() {
         {tab === 'contenido' && <ContenidoTab pieces={clientContent} onNavigate={navigate} />}
         {tab === 'campanas' && <CampanasTab campaigns={clientCampaigns} onNavigate={navigate} />}
         {tab === 'leads' && <LeadsTab leads={clientLeads} />}
-        {tab === 'brief' && <BriefTab clientId={id!} onNavigate={navigate} />}
+        {tab === 'brief' && <BriefTab clientId={id!} hasBrief={!!brief} onNavigate={navigate} />}
       </div>
     </div>
   );
@@ -266,7 +284,6 @@ function LeadsTab({ leads }: any) {
   if (leads.length === 0) {
     return <EmptyState title="Sin leads" description="Aún no hay leads registrados para este cliente." icon={<TrendingUp />} />;
   }
-  const { LeadStateChip } = require('../../components/ui/StateChip');
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div className="divide-y divide-slate-100">
@@ -284,17 +301,24 @@ function LeadsTab({ leads }: any) {
   );
 }
 
-function BriefTab({ clientId, onNavigate }: any) {
+function BriefTab({ clientId, hasBrief, onNavigate }: any) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-      <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+      <BookOpen className={`w-10 h-10 mx-auto mb-3 ${hasBrief ? 'text-blue-400' : 'text-slate-300'}`} />
       <h3 className="text-sm font-semibold text-slate-700 mb-2">Brief Maestro</h3>
-      <p className="text-sm text-slate-500 mb-5">El brief maestro define la identidad, voz y lineamientos de contenido para este cliente.</p>
+      <p className="text-sm text-slate-500 mb-2">
+        {hasBrief
+          ? 'Este cliente tiene un Brief Maestro configurado.'
+          : 'El brief maestro define la identidad, voz y lineamientos de contenido para este cliente.'}
+      </p>
+      {hasBrief && (
+        <p className="text-xs text-emerald-600 font-medium mb-4">✓ Brief completado</p>
+      )}
       <button
         onClick={() => onNavigate(`/fplus/clients/${clientId}/brief`)}
         className="bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors"
       >
-        Abrir Brief Maestro
+        {hasBrief ? 'Editar Brief Maestro' : 'Crear Brief Maestro'}
       </button>
     </div>
   );

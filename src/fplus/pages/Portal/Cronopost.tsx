@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, AlertCircle, CheckCircle2, ImageIcon, Layers, ArrowRight } from 'lucide-react';
-import { mockContent } from '../../mock';
+import { usePortalContext } from './PortalContext';
+import { useFplusStore } from '../../store';
 import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
 import type { ContentState, ContentType } from '../../types';
-
-const PORTAL_CLIENT_ID = '1';
 
 type FilterTab = 'todos' | 'aprobar' | 'cambios' | 'aprobado' | 'publicado';
 
@@ -81,10 +80,12 @@ const TYPE_ICON_COLORS: Partial<Record<ContentType, string>> = {
 
 export default function Cronopost() {
   const navigate = useNavigate();
+  const { clientId } = usePortalContext();
+  const contentPieces = useFplusStore(s => s.contentPieces);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('todos');
 
-  const allPieces = mockContent
-    .filter(cp => cp.client_id === PORTAL_CLIENT_ID && PORTAL_VISIBLE_STATES.includes(cp.estado))
+  const allPieces = contentPieces
+    .filter(cp => cp.client_id === clientId && PORTAL_VISIBLE_STATES.includes(cp.estado))
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   const filtered = allPieces.filter(cp => FILTER_STATE_MAP[activeFilter].includes(cp.estado));

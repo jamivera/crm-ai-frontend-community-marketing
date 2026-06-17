@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { mockPublications } from '../../mock';
+import { usePortalContext } from './PortalContext';
+import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import type { Publication } from '../../types';
-
-const PORTAL_CLIENT_ID = '1';
 const DAYS_ES = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const MONTHS_ES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -35,12 +34,14 @@ const PUB_STATE_LABELS: Record<Publication['estado'], string> = {
 
 export default function PortalCalendar() {
   const navigate = useNavigate();
+  const { clientId } = usePortalContext();
+  const allPublications = useFplusStore(s => s.publications);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const publications = mockPublications.filter(p => p.client_id === PORTAL_CLIENT_ID);
+  const publications = allPublications.filter(p => p.client_id === clientId);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();

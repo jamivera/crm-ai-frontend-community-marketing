@@ -4,19 +4,23 @@ import {
   ArrowLeft, CheckCircle2, MessageSquare, AlertCircle,
   Send, Clock, ChevronRight, X
 } from 'lucide-react';
-import { mockContent, mockPortalComments } from '../../mock';
+import { usePortalContext } from './PortalContext';
+import { useFplusStore } from '../../store';
 import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
 import type { ContentState } from '../../types';
 
-const PORTAL_CLIENT_ID = '1';
 const PENDING_STATES: ContentState[] = ['enviado_cliente', 'en_revision_cliente'];
 
 // ─── List view ────────────────────────────────────────────────────────────────
 
 export function PortalApprovalsList() {
   const navigate = useNavigate();
-  const pending = mockContent.filter(
-    cp => cp.client_id === PORTAL_CLIENT_ID && PENDING_STATES.includes(cp.estado)
+  const { clientId } = usePortalContext();
+  const contentPieces = useFplusStore(s => s.contentPieces);
+  const portalComments = useFplusStore(s => s.portalComments);
+
+  const pending = contentPieces.filter(
+    cp => cp.client_id === clientId && PENDING_STATES.includes(cp.estado)
   );
 
   if (pending.length === 0) {
@@ -40,13 +44,11 @@ export function PortalApprovalsList() {
         </p>
       </div>
 
-      {/* Urgent banner */}
       <div className="flex items-center gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
         <Clock className="w-4 h-4 shrink-0 text-amber-600" />
         Revisa y aprueba para que podamos publicar a tiempo.
       </div>
 
-      {/* Queue */}
       <div className="space-y-3">
         {pending.map((cp, idx) => (
           <button
@@ -54,7 +56,6 @@ export function PortalApprovalsList() {
             onClick={() => navigate(`/fplus/portal/approvals/${cp.id}`)}
             className="w-full flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform"
           >
-            {/* Order badge */}
             <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
               {idx + 1}
             </div>
@@ -65,11 +66,10 @@ export function PortalApprovalsList() {
                 {cp.fecha_limite && ` · vence ${new Date(cp.fecha_limite).toLocaleDateString('es', { day: 'numeric', month: 'short' })}`}
               </p>
             </div>
-            {/* Comments indicator */}
-            {mockPortalComments[cp.id]?.length > 0 && (
+            {portalComments[cp.id]?.length > 0 && (
               <div className="flex items-center gap-1 text-xs text-slate-400">
                 <MessageSquare className="w-3.5 h-3.5" />
-                {mockPortalComments[cp.id].length}
+                {portalComments[cp.id].length}
               </div>
             )}
             <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
@@ -85,11 +85,17 @@ export function PortalApprovalsList() {
 export function PortalApprovalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { clientId, clientNombre } = usePortalContext();
 
-  const cp = mockContent.find(c => c.id === id && c.client_id === PORTAL_CLIENT_ID);
-  const comments = mockPortalComments[id ?? ''] ?? [];
+  const contentPieces = useFplusStore(s => s.contentPieces);
+  const portalComments = useFplusStore(s => s.portalComments);
+  const approveContent = useFplusStore(s => s.approveContent);
+  const requestChanges = useFplusStore(s => s.requestChanges);
+  const addPortalComment = useFplusStore(s => s.addPortalComment);
 
-  const [localComments, setLocalComments] = useState(comments);
+  const cp = contentPieces.find(c => c.id === id && c.client_id === clientId);
+  const comments = portalComments[id ?? ''] ?? [];
+
   const [commentText, setCommentText] = useState('');
   const [actionTaken, setActionTaken] = useState<'approved' | 'changes' | null>(null);
   const [showChangesInput, setShowChangesInput] = useState(false);
@@ -109,6 +115,7 @@ export function PortalApprovalDetail() {
   const isPending = PENDING_STATES.includes(cp.estado);
 
   function handleApprove() {
+    approveContent(cp!.id, clientNombre);
     setActionTaken('approved');
   }
 
@@ -118,14 +125,7 @@ export function PortalApprovalDetail() {
       return;
     }
     if (!changesText.trim()) return;
-    const newComment = {
-      id: `new-${Date.now()}`,
-      autor: 'Clínica Smile',
-      esAgencia: false,
-      texto: changesText.trim(),
-      timestamp: new Date().toISOString(),
-    };
-    setLocalComments(prev => [...prev, newComment]);
+    requestChanges(cp!.id, changesText.trim(), clientNombre);
     setChangesText('');
     setActionTaken('changes');
     setShowChangesInput(false);
@@ -133,14 +133,13 @@ export function PortalApprovalDetail() {
 
   function handleSendComment() {
     if (!commentText.trim()) return;
-    const newComment = {
-      id: `new-${Date.now()}`,
-      autor: 'Clínica Smile',
+    addPortalComment(cp!.id, {
+      id: `cmt-${Date.now()}`,
+      autor: clientNombre,
       esAgencia: false,
       texto: commentText.trim(),
       timestamp: new Date().toISOString(),
-    };
-    setLocalComments(prev => [...prev, newComment]);
+    });
     setCommentText('');
   }
 
@@ -226,10 +225,10 @@ export function PortalApprovalDetail() {
         </div>
 
         {/* Comments thread */}
-        {localComments.length > 0 && (
+        {comments.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Comentarios</p>
-            {localComments.map(c => (
+            {comments.map(c => (
               <div
                 key={c.id}
                 className={`flex gap-2 ${c.esAgencia ? '' : 'flex-row-reverse'}`}
