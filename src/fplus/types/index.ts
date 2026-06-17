@@ -210,6 +210,25 @@ export interface Publication {
   roas?: number;
 }
 
+// Preparado para futura integración — no implementado aún
+export interface PublicationMetric {
+  publication_id: string;
+  plataforma: Platform;
+  fecha: string;
+  impresiones?: number;
+  alcance?: number;
+  interacciones?: number;
+  clics?: number;
+  conversiones?: number;
+  costo?: number;
+  ingreso_atribuido?: number;
+  engagement_rate?: number;
+  cpl?: number;
+  roas?: number;
+  raw_data?: Record<string, unknown>;
+  sincronizado_at?: string;
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export interface DashboardStats {

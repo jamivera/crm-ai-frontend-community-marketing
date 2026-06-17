@@ -10,6 +10,11 @@ import ClientList from './pages/Clients/ClientList';
 import ClientDetail from './pages/Clients/ClientDetail';
 import ContentList from './pages/Content/ContentList';
 import ContentDetail from './pages/Content/ContentDetail';
+import CampaignList from './pages/Campaigns/CampaignList';
+import CampaignDetail from './pages/Campaigns/CampaignDetail';
+import CalendarView from './pages/Calendar/CalendarView';
+import PublicationList from './pages/Publications/PublicationList';
+import LeadsPipeline from './pages/Leads/LeadsPipeline';
 
 // Placeholder for modules to be built in next sprints
 import Placeholder from './pages/Placeholder';
@@ -72,9 +77,9 @@ export default function FplusApp() {
               <Route path="clients/:id/brief" element={<Placeholder />} />
 
               {/* Campaigns */}
-              <Route path="campaigns" element={<Placeholder />} />
+              <Route path="campaigns" element={<CampaignList />} />
               <Route path="campaigns/new" element={<Placeholder />} />
-              <Route path="campaigns/:id" element={<Placeholder />} />
+              <Route path="campaigns/:id" element={<CampaignDetail />} />
 
               {/* Content */}
               <Route path="content" element={<ContentList />} />
@@ -82,7 +87,7 @@ export default function FplusApp() {
               <Route path="content/:id" element={<ContentDetail />} />
 
               {/* Calendar */}
-              <Route path="calendar" element={<Placeholder />} />
+              <Route path="calendar" element={<CalendarView />} />
 
               {/* Multimedia */}
               <Route path="multimedia" element={<Placeholder />} />
@@ -91,11 +96,11 @@ export default function FplusApp() {
               <Route path="approvals" element={<Placeholder />} />
 
               {/* Publications */}
-              <Route path="publications" element={<Placeholder />} />
+              <Route path="publications" element={<PublicationList />} />
 
               {/* Leads */}
-              <Route path="leads" element={<Placeholder />} />
-              <Route path="leads/list" element={<Placeholder />} />
+              <Route path="leads" element={<LeadsPipeline />} />
+              <Route path="leads/list" element={<LeadsPipeline />} />
 
               {/* Revenue */}
               <Route path="revenue" element={<Placeholder />} />
