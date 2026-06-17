@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  ArrowLeft, Target, Calendar, DollarSign, TrendingUp,
-  Users, FileImage, ChevronRight, BarChart2
+  ArrowLeft, Target, DollarSign, TrendingUp,
+  Users, FileImage, ChevronRight, BarChart2, Eye, MousePointer,
 } from 'lucide-react';
-import { mockCampaigns, mockContent, mockPublications } from '../../mock';
+import { useFplusStore } from '../../store';
 import { ContentStateChip } from '../../components/ui/StateChip';
 import { PLATFORM_LABELS } from '../../constants';
 
@@ -20,14 +20,19 @@ const CAMPAIGN_STATE_LABELS: Record<string, string> = {
   completada: 'Completada', cancelada: 'Cancelada',
 };
 
-type Tab = 'resumen' | 'contenido' | 'publicaciones';
+type Tab = 'resumen' | 'contenido' | 'publicaciones' | 'metricas';
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
 
-  const campaign = mockCampaigns.find(c => c.id === id);
+  const campaigns = useFplusStore(s => s.campaigns);
+  const contentPieces = useFplusStore(s => s.contentPieces);
+  const allPublications = useFplusStore(s => s.publications);
+  const allMetrics = useFplusStore(s => s.metrics);
+
+  const campaign = campaigns.find(c => c.id === id);
 
   if (!campaign) {
     return (
@@ -40,14 +45,31 @@ export default function CampaignDetail() {
     );
   }
 
-  const pieces = mockContent.filter(cp => cp.campaign_id === campaign.id);
-  const publications = mockPublications.filter(p => p.campaign_id === campaign.id);
+  const pieces = contentPieces.filter(cp => cp.campaign_id === campaign.id);
+  const publications = allPublications.filter(p => p.campaign_id === campaign.id);
+  const pubIds = new Set(publications.map(p => p.id));
+  const campaignMetrics = allMetrics.filter(m => pubIds.has(m.publication_id));
   const progress = campaign.piezas_totales > 0
     ? Math.round((campaign.piezas_publicadas / campaign.piezas_totales) * 100)
     : 0;
 
+  // Aggregate metrics across all publications of this campaign
+  const agg = {
+    reach: campaignMetrics.reduce((s, m) => s + (m.reach ?? 0), 0),
+    impressions: campaignMetrics.reduce((s, m) => s + (m.impressions ?? 0), 0),
+    engagements: campaignMetrics.reduce((s, m) => s + (m.engagements ?? 0), 0),
+    clicks: campaignMetrics.reduce((s, m) => s + (m.clicks ?? 0), 0),
+    leads: campaignMetrics.reduce((s, m) => s + (m.leads ?? 0), 0),
+    spend: campaignMetrics.reduce((s, m) => s + (m.spend ?? 0), 0),
+  };
+  const aggCpl = agg.spend > 0 && agg.leads > 0 ? parseFloat((agg.spend / agg.leads).toFixed(2)) : null;
+  const aggEngRate = agg.reach > 0 && agg.engagements > 0
+    ? parseFloat(((agg.engagements / agg.reach) * 100).toFixed(2))
+    : null;
+
   const TABS: { key: Tab; label: string }[] = [
     { key: 'resumen', label: 'Resumen' },
+    { key: 'metricas', label: `Métricas${campaignMetrics.length > 0 ? ` (${campaignMetrics.length})` : ''}` },
     { key: 'contenido', label: `Contenido (${pieces.length})` },
     { key: 'publicaciones', label: `Publicaciones (${publications.length})` },
   ];
@@ -119,11 +141,6 @@ export default function CampaignDetail() {
         </div>
       </div>
 
-      {/* Metrics placeholder notice */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500">
-        <BarChart2 className="w-4 h-4 text-slate-400 shrink-0" />
-        <span>Las métricas detalladas estarán disponibles cuando se conecte <strong>PublicationMetric</strong> en Sprint 4.</span>
-      </div>
 
       {/* Tabs */}
       <div className="border-b border-slate-200">
@@ -145,6 +162,66 @@ export default function CampaignDetail() {
       </div>
 
       {/* Tab Content */}
+      {tab === 'metricas' && (
+        <div className="space-y-4">
+          {campaignMetrics.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl py-14 text-center">
+              <BarChart2 className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">Carga métricas en las publicaciones de esta campaña para ver los agregados aquí.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <AggKPI icon={<Eye className="w-4 h-4 text-blue-500" />} label="Reach total" value={fmtK(agg.reach)} />
+                <AggKPI icon={<TrendingUp className="w-4 h-4 text-violet-500" />} label="Eng. Rate" value={aggEngRate != null ? `${aggEngRate}%` : '—'} />
+                <AggKPI icon={<MousePointer className="w-4 h-4 text-amber-500" />} label="Clics totales" value={fmtK(agg.clicks)} />
+                <AggKPI icon={<Users className="w-4 h-4 text-emerald-500" />} label="Leads totales" value={agg.leads.toString()} />
+                <AggKPI icon={<DollarSign className="w-4 h-4 text-slate-500" />} label="Spend total" value={agg.spend > 0 ? `$${agg.spend}` : '—'} />
+                <AggKPI icon={<Target className="w-4 h-4 text-rose-500" />} label="CPL promedio" value={aggCpl != null ? `$${aggCpl}` : '—'} />
+              </div>
+
+              {/* Per-publication breakdown */}
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-700">Por publicación</h3>
+                </div>
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-500">Publicación</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-500">Reach</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-500">Eng%</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-500">Clics</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-500">Leads</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-500">CPL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {campaignMetrics.map(m => {
+                      const pub = publications.find(p => p.id === m.publication_id);
+                      return (
+                        <tr
+                          key={m.id}
+                          className="hover:bg-slate-50 cursor-pointer"
+                          onClick={() => navigate(`/fplus/publications/${m.publication_id}`)}
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-800">{pub?.content_piece_nombre ?? '—'}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{fmtK(m.reach)}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{m.engagement_rate != null ? `${m.engagement_rate}%` : '—'}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{fmtK(m.clicks)}</td>
+                          <td className="px-4 py-3 text-right font-medium text-emerald-700">{m.leads ?? '—'}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{m.cpl != null ? `$${m.cpl}` : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {tab === 'resumen' && (
         <div className="grid sm:grid-cols-2 gap-4">
           <InfoCard title="Detalles">
@@ -263,6 +340,20 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="font-medium text-slate-700">{value}</span>
     </div>
   );
+}
+
+function AggKPI({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-4">
+      <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">{icon}{label}</div>
+      <p className="text-2xl font-bold text-slate-800">{value}</p>
+    </div>
+  );
+}
+
+function fmtK(v: number | undefined): string {
+  if (v == null || v === 0) return '—';
+  return v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toString();
 }
 
 const PUB_STATE = {

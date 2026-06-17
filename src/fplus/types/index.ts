@@ -267,23 +267,34 @@ export interface BriefMaestro {
   updated_at: string;
 }
 
-// Preparado para futura integración — no implementado aún
 export interface PublicationMetric {
+  id: string;
   publication_id: string;
   plataforma: Platform;
-  fecha: string;
-  impresiones?: number;
-  alcance?: number;
-  interacciones?: number;
-  clics?: number;
-  conversiones?: number;
-  costo?: number;
-  ingreso_atribuido?: number;
-  engagement_rate?: number;
+  snapshot_at: string;
+  // Reach & visibility
+  reach?: number;
+  impressions?: number;
+  // Engagement
+  engagements?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  saves?: number;
+  // Traffic
+  clicks?: number;
+  video_views?: number;
+  // Spend
+  spend?: number;
+  // Attribution
+  leads?: number;
+  // Derived (calculated)
+  cpm?: number;
+  cpc?: number;
   cpl?: number;
-  roas?: number;
+  engagement_rate?: number;
+  // Raw platform data
   raw_data?: Record<string, unknown>;
-  sincronizado_at?: string;
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import type {
-  Client, Campaign, ContentPiece, Lead, Publication,
+  Client, Campaign, ContentPiece, Lead, Publication, PublicationMetric,
   DashboardStats, TeamMember, ActivityEvent,
 } from '../types';
 
@@ -500,6 +500,50 @@ export const mockPortalComments: Record<string, Array<{ id: string; autor: strin
     { id: 'pc6', autor: 'Juan Pérez', esAgencia: true, texto: 'Tomado! Carlos está haciendo el ajuste ahora mismo.', timestamp: new Date(Date.now() - 2 * 86400000 - 3600000).toISOString() },
   ],
 };
+
+export const mockMetrics: PublicationMetric[] = [
+  {
+    id: 'm1',
+    publication_id: 'pub2',
+    plataforma: 'instagram',
+    snapshot_at: new Date(Date.now() - 86400000).toISOString(),
+    reach: 12400,
+    impressions: 18700,
+    engagements: 724,
+    likes: 612,
+    comments: 47,
+    shares: 38,
+    saves: 27,
+    clicks: 312,
+    video_views: 9800,
+    spend: 180,
+    leads: 18,
+    cpm: 9.6,
+    cpc: 0.58,
+    cpl: 10,
+    engagement_rate: 5.8,
+  },
+  {
+    id: 'm2',
+    publication_id: 'pub1',
+    plataforma: 'instagram',
+    snapshot_at: new Date(Date.now() - 3600000).toISOString(),
+    reach: 3200,
+    impressions: 4100,
+    engagements: 98,
+    likes: 82,
+    comments: 9,
+    shares: 4,
+    saves: 3,
+    clicks: 44,
+    spend: 60,
+    leads: 3,
+    cpm: 14.6,
+    cpc: 1.36,
+    cpl: 20,
+    engagement_rate: 3.1,
+  },
+];
 
 export const mockDashboardStats: DashboardStats = {
   piezas_activas: 24,

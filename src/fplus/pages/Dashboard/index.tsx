@@ -2,15 +2,16 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileImage, AlertOctagon, TrendingUp, DollarSign,
-  Clock, ArrowRight, User,
+  Clock, ArrowRight, Users, MousePointer, BarChart2,
 } from 'lucide-react';
 import { StatCard } from '../../components/ui/StatCard';
 import { HealthLight } from '../../components/ui/HealthLight';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { ContentStateChip } from '../../components/ui/StateChip';
+import { useFplusStore } from '../../store';
 import {
   mockDashboardStats, mockClients, mockTeam,
-  mockActivity, mockContent,
+  mockActivity,
 } from '../../mock';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,12 +30,34 @@ function formatCurrency(n: number) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const contentPieces = useFplusStore(s => s.contentPieces);
+  const publications = useFplusStore(s => s.publications);
+  const metrics = useFplusStore(s => s.metrics);
+
   const stats = mockDashboardStats;
-  const atrasadas = mockContent.filter(c =>
+  const atrasadas = contentPieces.filter(c =>
     c.fecha_limite && new Date(c.fecha_limite) < new Date() && c.estado !== 'publicado' && c.estado !== 'archivado'
   );
-  const bloqueadas = mockContent.filter(c => c.estado === 'bloqueado');
-  const sinConfirmar = 1; // from mock publications
+  const bloqueadas = contentPieces.filter(c => c.estado === 'bloqueado');
+  const sinConfirmar = publications.filter(p => p.estado === 'sin_confirmar').length;
+
+  // Top publications by leads, engagement, clicks
+  type SortKey = 'leads' | 'engagement_rate' | 'clicks';
+  const [topSort, setTopSort] = React.useState<SortKey>('leads');
+  const topPublications = React.useMemo(() => {
+    return metrics
+      .map(m => ({
+        m,
+        pub: publications.find(p => p.id === m.publication_id),
+      }))
+      .filter(x => x.pub != null)
+      .sort((a, b) => {
+        if (topSort === 'leads') return (b.m.leads ?? 0) - (a.m.leads ?? 0);
+        if (topSort === 'engagement_rate') return (b.m.engagement_rate ?? 0) - (a.m.engagement_rate ?? 0);
+        return (b.m.clicks ?? 0) - (a.m.clicks ?? 0);
+      })
+      .slice(0, 5);
+  }, [metrics, publications, topSort]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -232,7 +255,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {mockContent.slice(0, 5).map(piece => {
+            {contentPieces.slice(0, 5).map(piece => {
               const isOverdue = piece.fecha_limite && new Date(piece.fecha_limite) < new Date();
               return (
                 <button
@@ -260,6 +283,73 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+      </div>
+
+      {/* Top Publications widget */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-semibold text-slate-800">Top publicaciones</h2>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+            {([
+              { key: 'leads', label: 'Leads', icon: <Users className="w-3.5 h-3.5" /> },
+              { key: 'engagement_rate', label: 'Eng%', icon: <TrendingUp className="w-3.5 h-3.5" /> },
+              { key: 'clicks', label: 'Clics', icon: <MousePointer className="w-3.5 h-3.5" /> },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setTopSort(opt.key)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  topSort === opt.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {opt.icon}{opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {topPublications.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-sm">
+            Carga métricas en tus publicaciones para ver el ranking aquí.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {topPublications.map(({ m, pub }, idx) => {
+              const mainValue = topSort === 'leads'
+                ? `${m.leads ?? 0} leads`
+                : topSort === 'engagement_rate'
+                  ? `${m.engagement_rate ?? 0}% eng`
+                  : `${m.clicks ?? 0} clics`;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => navigate(`/fplus/publications/${pub!.id}`)}
+                  className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    idx === 0 ? 'bg-amber-100 text-amber-700' :
+                    idx === 1 ? 'bg-slate-100 text-slate-600' :
+                    'bg-slate-50 text-slate-400'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <div className="w-6 h-6 flex-shrink-0">
+                    <PlatformIcon platform={pub!.plataforma} size={16} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-800 truncate">{pub!.content_piece_nombre}</p>
+                    <p className="text-[11px] text-slate-400">{pub!.client_nombre}</p>
+                  </div>
+                  <span className="text-sm font-bold text-blue-700 flex-shrink-0">{mainValue}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

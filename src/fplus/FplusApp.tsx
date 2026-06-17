@@ -15,6 +15,7 @@ import CampaignList from './pages/Campaigns/CampaignList';
 import CampaignDetail from './pages/Campaigns/CampaignDetail';
 import CalendarView from './pages/Calendar/CalendarView';
 import PublicationList from './pages/Publications/PublicationList';
+import PublicationDetail from './pages/Publications/PublicationDetail';
 import LeadsPipeline from './pages/Leads/LeadsPipeline';
 
 // Placeholder for modules to be built in next sprints
@@ -83,6 +84,7 @@ export default function FplusApp() {
 
               {/* Publications */}
               <Route path="publications" element={<PublicationList />} />
+              <Route path="publications/:id" element={<PublicationDetail />} />
 
               {/* Leads */}
               <Route path="leads" element={<LeadsPipeline />} />

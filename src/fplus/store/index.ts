@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import {
   mockClients, mockCampaigns, mockContent,
-  mockPublications, mockLeads, mockPortalComments,
+  mockPublications, mockLeads, mockPortalComments, mockMetrics,
 } from '../mock';
-import type { Client, Campaign, ContentPiece, Publication, Lead, ContentState, BriefMaestro } from '../types';
+import type { Client, Campaign, ContentPiece, Publication, Lead, ContentState, BriefMaestro, PublicationMetric } from '../types';
 
 export interface PortalComment {
   id: string;
@@ -20,6 +20,7 @@ interface FplusStore {
   contentPieces: ContentPiece[];
   publications: Publication[];
   leads: Lead[];
+  metrics: PublicationMetric[];
   briefs: Record<string, BriefMaestro>;
   portalComments: Record<string, PortalComment[]>;
 
@@ -36,6 +37,14 @@ interface FplusStore {
   requestChanges: (contentId: string, comment: string, clientNombre: string) => void;
   addPortalComment: (contentId: string, comment: PortalComment) => void;
 
+  // ─── Metric actions ────────────────────────────────────────────────────────
+  addMetric: (metric: PublicationMetric) => void;
+  updateMetric: (id: string, data: Partial<PublicationMetric>) => void;
+  getMetricsByPublication: (publicationId: string) => PublicationMetric[];
+
+  // ─── Lead actions ──────────────────────────────────────────────────────────
+  updateLead: (id: string, data: Partial<Lead>) => void;
+
   // ─── Brief actions ─────────────────────────────────────────────────────────
   saveBrief: (brief: BriefMaestro) => void;
   getBrief: (clientId: string) => BriefMaestro | undefined;
@@ -47,6 +56,7 @@ export const useFplusStore = create<FplusStore>((set, get) => ({
   contentPieces: [...mockContent],
   publications: [...mockPublications],
   leads: [...mockLeads],
+  metrics: [...mockMetrics],
   briefs: {},
   portalComments: { ...mockPortalComments },
 
@@ -138,6 +148,26 @@ export const useFplusStore = create<FplusStore>((set, get) => ({
         ...s.portalComments,
         [contentId]: [...(s.portalComments[contentId] ?? []), comment],
       },
+    })),
+
+  // ─── Metrics ───────────────────────────────────────────────────────────────
+
+  addMetric: (metric) =>
+    set(s => ({ metrics: [...s.metrics, metric] })),
+
+  updateMetric: (id, data) =>
+    set(s => ({
+      metrics: s.metrics.map(m => m.id === id ? { ...m, ...data } : m),
+    })),
+
+  getMetricsByPublication: (publicationId) =>
+    get().metrics.filter(m => m.publication_id === publicationId),
+
+  // ─── Leads ─────────────────────────────────────────────────────────────────
+
+  updateLead: (id, data) =>
+    set(s => ({
+      leads: s.leads.map(l => l.id === id ? { ...l, ...data } : l),
     })),
 
   // ─── Brief ─────────────────────────────────────────────────────────────────

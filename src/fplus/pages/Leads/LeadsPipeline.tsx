@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Phone, Mail, DollarSign, Clock, ChevronRight, List, LayoutGrid, Search } from 'lucide-react';
-import { mockLeads, mockClients } from '../../mock';
+import { X, Phone, Mail, DollarSign, Clock, ChevronRight, List, LayoutGrid, Search, ExternalLink } from 'lucide-react';
+import { useFplusStore } from '../../store';
 import { LEAD_STATE_LABELS, LEAD_STATE_COLORS } from '../../constants';
 import { LeadStateChip } from '../../components/ui/StateChip';
 import type { Lead, LeadState } from '../../types';
@@ -17,7 +17,10 @@ const QUALITY_COLORS: Record<Lead['calidad'], string> = {
 type ViewMode = 'kanban' | 'lista';
 
 export default function LeadsPipeline() {
-  const [leads, setLeads] = useState(mockLeads);
+  const storeLeads = useFplusStore(s => s.leads);
+  const publications = useFplusStore(s => s.publications);
+  const updateLead = useFplusStore(s => s.updateLead);
+  const [leads, setLeads] = useState(storeLeads);
   const [view, setView] = useState<ViewMode>('kanban');
   const [search, setSearch] = useState('');
   const [filterCliente, setFilterCliente] = useState('todos');
@@ -38,6 +41,7 @@ export default function LeadsPipeline() {
 
   function moveLeadTo(leadId: string, newState: LeadState) {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estado: newState, dias_en_estado: 0 } : l));
+    updateLead(leadId, { estado: newState, dias_en_estado: 0 });
     if (selectedLead?.id === leadId) {
       setSelectedLead(prev => prev ? { ...prev, estado: newState } : null);
     }
@@ -375,6 +379,9 @@ function LeadDrawer({
             <Row label="Creado" value={new Date(lead.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })} />
           </div>
 
+          {/* Publication origin */}
+          {lead.publication_id && <PublicationOrigin publicationId={lead.publication_id} />}
+
           {/* Move to */}
           <div className="pt-3 border-t border-slate-100">
             <p className="text-xs font-medium text-slate-500 mb-2">Mover a etapa</p>
@@ -412,6 +419,30 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between">
       <span className="text-slate-400">{label}</span>
       <span className="font-medium text-slate-700 capitalize">{value}</span>
+    </div>
+  );
+}
+
+function PublicationOrigin({ publicationId }: { publicationId: string }) {
+  const publications = useFplusStore(s => s.publications);
+  const pub = publications.find(p => p.id === publicationId);
+  if (!pub) return null;
+  return (
+    <div className="pt-3 border-t border-slate-100">
+      <p className="text-xs font-medium text-slate-500 mb-2">Origen del lead</p>
+      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-blue-800 truncate">{pub.content_piece_nombre}</p>
+          <p className="text-[10px] text-blue-500 capitalize mt-0.5">{pub.plataforma} · {pub.client_nombre}</p>
+        </div>
+        <a
+          href={`/fplus/publications/${pub.id}`}
+          className="shrink-0 p-1.5 hover:bg-blue-100 rounded-lg transition-colors"
+          title="Ver publicación"
+        >
+          <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+        </a>
+      </div>
     </div>
   );
 }

@@ -130,14 +130,11 @@ export default function PublicationList() {
               const piece = contentPieces.find(cp => cp.id === pub.content_piece_id);
               const isOverdue = pub.estado === 'sin_confirmar' && new Date(pub.fecha_programada) < new Date();
               return (
-                <tr key={pub.id} className="hover:bg-slate-50">
+                <tr key={pub.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/fplus/publications/${pub.id}`)}>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => piece && navigate(`/fplus/content/${piece.id}`)}
-                      className="font-medium text-slate-800 hover:text-blue-600 text-left transition-colors"
-                    >
+                    <span className="font-medium text-slate-800 hover:text-blue-600 transition-colors">
                       {pub.content_piece_nombre}
-                    </button>
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{pub.client_nombre}</td>
                   <td className="px-4 py-3">
