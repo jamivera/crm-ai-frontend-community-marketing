@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle2, MessageSquare, AlertCircle,
   Send, Clock, ChevronRight, X
@@ -85,7 +85,11 @@ export function PortalApprovalsList() {
 export function PortalApprovalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { clientId, clientNombre } = usePortalContext();
+  // Vista agencia (workspace) vs portal del cliente
+  const isAgency = location.pathname.startsWith('/fplus/clients/');
+  const deleteContent = useFplusStore(s => s.deleteContent);
 
   const contentPieces = useFplusStore(s => s.contentPieces);
   const briefs = useFplusStore(s => s.briefs);
@@ -193,9 +197,30 @@ export function PortalApprovalDetail() {
         }`}>
           {CONTENT_STATE_LABELS[cp.estado]}
         </span>
+        {isAgency && (
+          <button
+            onClick={() => {
+              if (window.confirm(`¿Eliminar la pieza "${cp.nombre}"? Esta acción no se puede deshacer.`)) {
+                deleteContent(cp.id);
+                navigate(-1);
+              }
+            }}
+            className="text-[10px] font-medium text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg shrink-0"
+          >
+            Eliminar
+          </button>
+        )}
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Razón estratégica (solo agencia) */}
+        {isAgency && cp.razon_estrategica && (
+          <div className="flex items-start gap-2 bg-violet-50 border border-violet-100 rounded-2xl p-3">
+            <span className="text-sm">✨</span>
+            <p className="text-xs text-violet-700 leading-relaxed">{cp.razon_estrategica}</p>
+          </div>
+        )}
+
         {/* Preview placeholder */}
         <div className="rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 h-52 flex flex-col items-center justify-center">
           <span className="text-5xl mb-2">{getTypeEmoji(cp.tipo)}</span>

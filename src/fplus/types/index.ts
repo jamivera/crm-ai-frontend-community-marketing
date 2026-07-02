@@ -165,8 +165,28 @@ export interface ContentPiece {
   thumbnail_url?: string;
   copy_activo?: string;
   hashtags?: string[];
+  // Planificación inteligente
+  origen?: PieceOrigin;
+  razon_estrategica?: string;
   created_at: string;
   updated_at: string;
+}
+
+// Origen de una pieza: 'planificada' viene del contrato vía planificador,
+// 'extraordinaria' es adicional (promos, tendencias) y no cuenta contra el contrato,
+// 'manual' fue creada directamente por la agencia.
+export type PieceOrigin = 'planificada' | 'extraordinaria' | 'manual';
+
+// Evento del calendario inteligente (feriados, fechas comerciales, efemérides,
+// eventos propios del cliente). Bonifica días en la planificación y genera alertas.
+export interface SmartEvent {
+  id: string;
+  fecha: string; // YYYY-MM-DD (los recurrentes anuales se comparan por MM-DD)
+  nombre: string;
+  tipo: 'feriado' | 'comercial' | 'efemeride' | 'sector' | 'cliente';
+  recurrente_anual: boolean;
+  industrias_relevantes?: string[]; // vacío/undefined = relevante para todos
+  client_id?: string; // solo para tipo 'cliente'
 }
 
 export interface Comment {

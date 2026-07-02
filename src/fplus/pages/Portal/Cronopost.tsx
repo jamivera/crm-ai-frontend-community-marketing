@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Layers } from 'lucide-react';
+import { Plus, Layers, Sparkles } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
+import { PlanCronopostModal } from '../../components/modals/PlanCronopostModal';
 import type { ContentState } from '../../types';
 
 interface Props {
@@ -105,8 +106,10 @@ export default function Cronopost({ canCreate = false }: Props) {
   const location = useLocation();
   const { clientId, clientNombre } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
+  const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
   const [activeFilter, setActiveFilter] = useState<FilterTab>('todo');
   const [showCreate, setShowCreate] = useState(false);
+  const [showPlanner, setShowPlanner] = useState(false);
 
   const allPieces = contentPieces
     .filter(cp => cp.client_id === clientId && cp.fecha_publicacion)
@@ -154,13 +157,24 @@ export default function Cronopost({ canCreate = false }: Props) {
           </p>
         </div>
         {canCreate && (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Nueva pieza
-          </button>
+          <div className="flex gap-2">
+            {client?.distribucion_piezas && (
+              <button
+                onClick={() => setShowPlanner(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Planificar mes
+              </button>
+            )}
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nueva pieza
+            </button>
+          </div>
         )}
       </div>
 
@@ -249,6 +263,9 @@ export default function Cronopost({ canCreate = false }: Props) {
                         {/* Type badge */}
                         <div className="flex items-center gap-1">
                           <span className="text-[9px] font-bold text-slate-400 uppercase">{CONTENT_TYPE_LABELS[cp.tipo]}</span>
+                          {cp.origen === 'extraordinaria' && (
+                            <span className="text-[8px] font-bold bg-violet-100 text-violet-700 px-1 py-px rounded-full">⚡</span>
+                          )}
                           {cp.plataforma && (
                             <>
                               <span className="text-slate-200">·</span>
@@ -298,6 +315,10 @@ export default function Cronopost({ canCreate = false }: Props) {
           );
         })}
       </div>
+
+      {showPlanner && client && (
+        <PlanCronopostModal client={client} onClose={() => setShowPlanner(false)} />
+      )}
 
       {showCreate && (
         <NewPieceModal

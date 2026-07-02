@@ -5,6 +5,7 @@ import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS } from '../../constants';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
+import { getMonthEvents } from '../../utils/cronoplanner';
 import type { ContentPiece, ContentState } from '../../types';
 
 interface Props {
@@ -73,11 +74,33 @@ export default function PortalCalendar({ canCreate = false }: Props) {
   const location = useLocation();
   const { clientId, clientNombre } = usePortalContext();
   const allPieces = useFplusStore(s => s.contentPieces);
+  const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+  const updateContent = useFplusStore(s => s.updateContent);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [createDate, setCreateDate] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+
+  // Eventos inteligentes del mes (feriados, fechas comerciales, sectoriales)
+  const monthEvents = getMonthEvents(year, month, client?.industria ?? '', clientId);
+  const eventByDay = new Map<number, string>();
+  monthEvents.forEach(ev => eventByDay.set(new Date(ev.fecha + 'T12:00:00').getDate(), ev.nombre));
+
+  // Drag & drop (solo agencia): arrastrar una pieza a otro día actualiza
+  // fecha_publicacion conservando la hora — se refleja en las 3 vistas.
+  const handleDropOnDay = (e: React.DragEvent, day: number) => {
+    e.preventDefault();
+    setDragOverDay(null);
+    const pieceId = e.dataTransfer.getData('text/piece-id');
+    if (!pieceId) return;
+    const piece = allPieces.find(p => p.id === pieceId);
+    if (!piece?.fecha_publicacion) return;
+    const time = piece.fecha_publicacion.slice(10) || 'T12:00:00';
+    const newDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}${time}`;
+    updateContent(pieceId, { fecha_publicacion: newDate });
+  };
 
   // In portal mode: only show client-visible states. In agency mode: show all.
   const pieces = allPieces.filter(p => {
@@ -196,14 +219,28 @@ export default function PortalCalendar({ canCreate = false }: Props) {
             const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
             const isSelected = selectedDay === day;
 
+            const eventName = eventByDay.get(day);
+            const isDragOver = dragOverDay === day;
+
             return (
-              <div key={day} className="aspect-square relative group">
+              <div
+                key={day}
+                className="aspect-square relative group"
+                onDragOver={canCreate ? e => { e.preventDefault(); setDragOverDay(day); } : undefined}
+                onDragLeave={canCreate ? () => setDragOverDay(d => (d === day ? null : d)) : undefined}
+                onDrop={canCreate ? e => handleDropOnDay(e, day) : undefined}
+              >
                 <button
                   onClick={() => setSelectedDay(isSelected ? null : day)}
+                  title={eventName}
                   className={`w-full h-full flex flex-col items-center justify-start pt-1 rounded-xl transition-all active:scale-95 ${
+                    isDragOver ? 'bg-violet-100 ring-2 ring-violet-400' :
                     isSelected ? 'bg-blue-600' : isToday ? 'bg-blue-50' : 'hover:bg-slate-50'
                   }`}
                 >
+                  {eventName && (
+                    <span className="absolute top-0.5 left-0.5 text-[8px]" title={eventName}>🎉</span>
+                  )}
                   <span className={`text-xs font-medium leading-none ${
                     isSelected ? 'text-white' : isToday ? 'text-blue-600 font-bold' : 'text-slate-700'
                   }`}>
@@ -274,7 +311,9 @@ export default function PortalCalendar({ canCreate = false }: Props) {
             <button
               key={piece.id}
               onClick={() => handlePieceClick(piece)}
-              className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left active:scale-[0.98] transition-transform ${getPieceCardColor(piece.estado)}`}
+              draggable={canCreate}
+              onDragStart={canCreate ? e => e.dataTransfer.setData('text/piece-id', piece.id) : undefined}
+              className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left active:scale-[0.98] transition-transform ${getPieceCardColor(piece.estado)} ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
             >
               <div className="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center shrink-0 text-xl">
                 {getTypeEmoji(piece.tipo)}
@@ -327,7 +366,9 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                     <button
                       key={piece.id}
                       onClick={() => handlePieceClick(piece)}
-                      className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left active:scale-[0.98] transition-transform ${getPieceCardColor(piece.estado)}`}
+                      draggable={canCreate}
+                      onDragStart={canCreate ? e => e.dataTransfer.setData('text/piece-id', piece.id) : undefined}
+                      className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left active:scale-[0.98] transition-transform ${getPieceCardColor(piece.estado)} ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
                       <div className="text-center shrink-0 w-9">
                         <p className="text-lg font-bold text-slate-700 leading-none">{d.getDate()}</p>

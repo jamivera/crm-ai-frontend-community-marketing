@@ -118,6 +118,8 @@ interface FplusStore {
   updateClient: (id: string, data: Partial<Client>) => void;
   createCampaign: (campaign: Campaign) => void;
   createContent: (piece: ContentPiece) => void;
+  createManyContent: (pieces: ContentPiece[]) => void;
+  deleteContent: (id: string) => void;
 
   // ─── Publication actions ───────────────────────────────────────────────────
   createPublication: (pub: Publication) => void;
@@ -208,6 +210,16 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
 
   createContent: (piece) =>
     set(s => ({ contentPieces: [...s.contentPieces, piece] })),
+
+  createManyContent: (pieces) =>
+    set(s => ({ contentPieces: [...s.contentPieces, ...pieces] })),
+
+  deleteContent: (id) =>
+    set(s => ({
+      contentPieces: s.contentPieces.filter(cp => cp.id !== id),
+      contentComments: s.contentComments.filter(cc => cc.content_piece_id !== id),
+      stateHistory: s.stateHistory.filter(h => h.content_piece_id !== id),
+    })),
 
   // ─── Publications ──────────────────────────────────────────────────────────
 
