@@ -72,6 +72,141 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   otro: 'Otro',
 };
 
+// ─── Identidad visual por tipo de contenido ─────────────────────────────────────
+// Cada tipo tiene un color propio que se mantiene en Calendario, Cronopost y
+// Multimedia para que el usuario lo identifique de inmediato:
+// 🟦 Reel · 🟪 Carrusel · 🟩 Historia · 🟧 Post
+
+export interface TypeVisual {
+  emoji: string;
+  dot: string;       // punto/indicador pequeño
+  gradient: string;  // fondo de preview de tarjeta
+  badge: string;     // chip de texto
+  border: string;    // acento de borde
+}
+
+export const TYPE_VISUALS: Record<string, TypeVisual> = {
+  reel: {
+    emoji: '🎬',
+    dot: 'bg-blue-500',
+    gradient: 'from-blue-100 to-sky-50 border-blue-200',
+    badge: 'bg-blue-100 text-blue-700',
+    border: 'border-l-blue-500',
+  },
+  post_video: {
+    emoji: '🎥',
+    dot: 'bg-blue-500',
+    gradient: 'from-blue-100 to-sky-50 border-blue-200',
+    badge: 'bg-blue-100 text-blue-700',
+    border: 'border-l-blue-500',
+  },
+  tiktok: {
+    emoji: '🎵',
+    dot: 'bg-blue-500',
+    gradient: 'from-blue-100 to-sky-50 border-blue-200',
+    badge: 'bg-blue-100 text-blue-700',
+    border: 'border-l-blue-500',
+  },
+  carrusel: {
+    emoji: '🖼️',
+    dot: 'bg-violet-500',
+    gradient: 'from-violet-100 to-purple-50 border-violet-200',
+    badge: 'bg-violet-100 text-violet-700',
+    border: 'border-l-violet-500',
+  },
+  historia: {
+    emoji: '📱',
+    dot: 'bg-emerald-500',
+    gradient: 'from-emerald-100 to-green-50 border-emerald-200',
+    badge: 'bg-emerald-100 text-emerald-700',
+    border: 'border-l-emerald-500',
+  },
+  historia_video: {
+    emoji: '📱',
+    dot: 'bg-emerald-500',
+    gradient: 'from-emerald-100 to-green-50 border-emerald-200',
+    badge: 'bg-emerald-100 text-emerald-700',
+    border: 'border-l-emerald-500',
+  },
+  post_imagen: {
+    emoji: '🟧',
+    dot: 'bg-orange-500',
+    gradient: 'from-orange-100 to-amber-50 border-orange-200',
+    badge: 'bg-orange-100 text-orange-700',
+    border: 'border-l-orange-500',
+  },
+};
+
+const TYPE_VISUAL_FALLBACK: TypeVisual = {
+  emoji: '📄',
+  dot: 'bg-slate-400',
+  gradient: 'from-slate-100 to-slate-50 border-slate-200',
+  badge: 'bg-slate-100 text-slate-600',
+  border: 'border-l-slate-400',
+};
+
+export function getTypeVisual(tipo: string): TypeVisual {
+  return TYPE_VISUALS[tipo] ?? TYPE_VISUAL_FALLBACK;
+}
+
+// ─── Plantillas de planes ──────────────────────────────────────────────────────
+// Base editable: al crear un cliente se parte de una plantilla y la distribución
+// puede personalizarse por completo (planes a medida en el futuro).
+
+export interface PlanTemplate {
+  id: string;
+  label: string;
+  emoji: string;
+  piezas_mensuales: number;
+  distribucion: Partial<Record<ContentType, number>>;
+}
+
+export const PLAN_TEMPLATES: PlanTemplate[] = [
+  {
+    id: 'plata',
+    label: 'Plan Plata',
+    emoji: '🥈',
+    piezas_mensuales: 12,
+    distribucion: { reel: 4, carrusel: 3, post_imagen: 3, historia: 2 },
+  },
+  {
+    id: 'oro',
+    label: 'Plan Oro',
+    emoji: '🥇',
+    piezas_mensuales: 20,
+    distribucion: { reel: 7, carrusel: 5, post_imagen: 4, historia: 4 },
+  },
+  {
+    id: 'platinum',
+    label: 'Plan Platinum',
+    emoji: '💎',
+    piezas_mensuales: 30,
+    distribucion: { reel: 12, carrusel: 8, post_imagen: 5, historia: 5 },
+  },
+];
+
+// ─── Tipos de mercado ──────────────────────────────────────────────────────────
+// Alimentan el Motor de Planificación Inteligente (y a futuro, Andrómeda).
+
+export const MARKET_TYPES = [
+  'Restaurante',
+  'Salud',
+  'Belleza',
+  'Construcción',
+  'Inmobiliaria',
+  'Retail',
+  'Educación',
+  'Seguros',
+  'Servicios Profesionales',
+  'B2B',
+  'B2C',
+  'Otro',
+] as const;
+
+// ─── Plataformas de pauta publicitaria ─────────────────────────────────────────
+
+export const AD_PLATFORMS = ['Meta', 'Google Ads', 'TikTok Ads', 'LinkedIn Ads'] as const;
+
 // ─── Platforms ─────────────────────────────────────────────────────────────────
 
 export const PLATFORM_LABELS: Record<Platform, string> = {

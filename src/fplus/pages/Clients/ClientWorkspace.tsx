@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useParams, useNavigate, useLocation } from 're
 import {
   ArrowLeft, LayoutDashboard, CalendarDays, Grid3X3, Image,
   CheckSquare, MessageSquare, Clock, Megaphone, BookOpen,
-  AlertCircle, FileText,
+  AlertCircle, FileText, BarChart3, ExternalLink,
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { usePortalContext, PortalContextProvider } from '../Portal/PortalContext';
@@ -14,6 +14,7 @@ import PortalCalendar from '../Portal/PortalCalendar';
 import PortalMultimedia from '../Portal/PortalMultimedia';
 import BriefMaestro from './BriefMaestro';
 import ClientContract from './ClientContract';
+import ClientMetrics from './ClientMetrics';
 import Placeholder from '../Placeholder';
 import { EmptyState } from '../../components/ui/EmptyState';
 
@@ -26,10 +27,12 @@ interface WorkspaceTab {
   path: string;
 }
 
+// Orden según el flujo real de la agencia:
+// Calendario (planificación) → Cronopost (editorial) → Multimedia (archivos) → Aprobación → Métricas
 const WORKSPACE_TABS: WorkspaceTab[] = [
   { id: 'dashboard',  label: 'Dashboard',    icon: LayoutDashboard, path: '' },
-  { id: 'cronopost',  label: 'Cronopost',    icon: CalendarDays,    path: 'cronopost' },
   { id: 'calendar',   label: 'Calendario',   icon: Grid3X3,         path: 'calendar' },
+  { id: 'cronopost',  label: 'Cronopost',    icon: CalendarDays,    path: 'cronopost' },
   { id: 'multimedia', label: 'Multimedia',   icon: Image,           path: 'multimedia' },
   { id: 'approvals',  label: 'Aprobaciones', icon: CheckSquare,     path: 'approvals' },
   { id: 'comments',   label: 'Comentarios',  icon: MessageSquare,   path: 'comments' },
@@ -37,6 +40,7 @@ const WORKSPACE_TABS: WorkspaceTab[] = [
   { id: 'campaigns',  label: 'Campañas',     icon: Megaphone,       path: 'campaigns' },
   { id: 'brief',      label: 'Brief',        icon: BookOpen,        path: 'brief' },
   { id: 'contract',   label: 'Contrato',     icon: FileText,        path: 'contract' },
+  { id: 'metrics',    label: 'Métricas',     icon: BarChart3,       path: 'metrics' },
 ];
 
 // ─── Workspace layout shell ───────────────────────────────────────────────────
@@ -97,6 +101,15 @@ function WorkspaceShell({ children }: { children: React.ReactNode }) {
               {pendientes} por aprobar
             </div>
           )}
+          <a
+            href={`/fplus/portal/${clientId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-blue-200 text-xs font-medium px-3 py-1 rounded-full transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Portal Cliente
+          </a>
         </div>
 
         {/* Sub-tabs */}
@@ -158,7 +171,7 @@ export default function ClientWorkspace() {
   }
 
   return (
-    <PortalContextProvider clientId={id} clientNombre={client.nombre} isPremium={client.plan_contratado === 'premium' || client.plan_contratado === 'enterprise'}>
+    <PortalContextProvider clientId={id} clientNombre={client.nombre} isPremium={['premium', 'enterprise', 'oro', 'platinum'].includes(client.plan_contratado ?? '')}>
       <WorkspaceShell>
         <Routes>
           <Route index element={<PortalDashboard />} />
@@ -172,6 +185,7 @@ export default function ClientWorkspace() {
           <Route path="campaigns" element={<Placeholder />} />
           <Route path="brief" element={<BriefMaestro />} />
           <Route path="contract" element={<ClientContract />} />
+          <Route path="metrics" element={<ClientMetrics />} />
           <Route path="*" element={<Navigate to="" replace />} />
         </Routes>
       </WorkspaceShell>

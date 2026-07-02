@@ -75,7 +75,7 @@ const INDUSTRY_PROFILES: IndustryProfile[] = [
     },
   },
   {
-    match: ['b2b', 'industrial', 'servicios profesionales', 'legal', 'abogad', 'consultor', 'tecnolog', 'saas'],
+    match: ['b2b', 'industrial', 'servicios profesionales', 'legal', 'abogad', 'consultor', 'tecnolog', 'saas', 'seguros'],
     dayScores: {
       reel:        [0, 4, 6, 5, 6, 3, 1],
       carrusel:    [0, 5, 6, 6, 5, 3, 0],
@@ -264,7 +264,8 @@ function pickPlatform(tipo: ContentType, redes: Platform[]): Platform {
 
 export function generatePlan(input: PlanInput): PlanResult {
   const { client, year, month, objetivo, extraEvents = [] } = input;
-  const profile = getIndustryProfile(client.industria);
+  // tipo_mercado (asistente de creación) tiene prioridad sobre industria libre
+  const profile = getIndustryProfile(client.tipo_mercado ?? client.industria);
   const redes = client.redes_contratadas ?? ['instagram'];
   const distribucion = client.distribucion_piezas ?? {};
   const events = getMonthEvents(year, month, client.industria, client.id, extraEvents);

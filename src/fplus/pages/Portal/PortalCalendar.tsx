@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
-import { CONTENT_TYPE_LABELS } from '../../constants';
+import { CONTENT_TYPE_LABELS, getTypeVisual } from '../../constants';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
+import { PlanCronopostModal } from '../../components/modals/PlanCronopostModal';
 import { getMonthEvents } from '../../utils/cronoplanner';
 import type { ContentPiece, ContentState } from '../../types';
 
@@ -24,14 +25,6 @@ const PORTAL_VISIBLE: ContentState[] = [
   'aprobado_cliente', 'aprobado_final', 'publicado',
 ];
 
-function getPieceDot(estado: ContentState): string {
-  if (estado === 'publicado') return 'bg-emerald-500';
-  if (estado === 'aprobado_cliente' || estado === 'aprobado_final') return 'bg-blue-400';
-  if (estado === 'cambios_solicitados') return 'bg-orange-400';
-  if (estado === 'enviado_cliente' || estado === 'en_revision_cliente') return 'bg-amber-400';
-  if (estado === 'en_produccion') return 'bg-violet-400';
-  return 'bg-slate-300';
-}
 
 function getPieceCardColor(estado: ContentState): string {
   if (estado === 'publicado') return 'bg-emerald-50 border-emerald-100';
@@ -82,6 +75,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [createDate, setCreateDate] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+  const [showPlanner, setShowPlanner] = useState(false);
 
   // Eventos inteligentes del mes (feriados, fechas comerciales, sectoriales)
   const monthEvents = getMonthEvents(year, month, client?.industria ?? '', clientId);
@@ -154,16 +148,15 @@ export default function PortalCalendar({ canCreate = false }: Props) {
     setCreateDate(dateStr);
   };
 
+  // Leyenda por tipo de contenido — colores compartidos con Cronopost y Multimedia
   const LEGEND = [
-    { dot: 'bg-slate-300',    label: 'Borrador' },
-    { dot: 'bg-violet-400',   label: 'Producción' },
-    { dot: 'bg-amber-400',    label: 'Por aprobar' },
-    { dot: 'bg-orange-400',   label: 'Con cambios' },
-    { dot: 'bg-blue-400',     label: 'Aprobado' },
-    { dot: 'bg-emerald-500',  label: 'Publicado' },
+    { dot: 'bg-blue-500',    label: 'Reel / Video' },
+    { dot: 'bg-violet-500',  label: 'Carrusel' },
+    { dot: 'bg-emerald-500', label: 'Historia' },
+    { dot: 'bg-orange-500',  label: 'Post' },
   ];
 
-  const visibleLegend = canCreate ? LEGEND : LEGEND.slice(2);
+  const visibleLegend = LEGEND;
 
   return (
     <div className="px-4 pt-5 pb-6 space-y-4">
@@ -176,13 +169,24 @@ export default function PortalCalendar({ canCreate = false }: Props) {
           </p>
         </div>
         {canCreate && (
-          <button
-            onClick={() => openCreate(today.getDate())}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Nueva pieza
-          </button>
+          <div className="flex gap-2">
+            {client?.distribucion_piezas && (
+              <button
+                onClick={() => setShowPlanner(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Planificar mes
+              </button>
+            )}
+            <button
+              onClick={() => openCreate(today.getDate())}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nueva pieza
+            </button>
+          </div>
         )}
       </div>
 
@@ -251,7 +255,8 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                       {dayPieces.slice(0, 3).map((piece, idx) => (
                         <span
                           key={idx}
-                          className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/70' : getPieceDot(piece.estado)}`}
+                          title={CONTENT_TYPE_LABELS[piece.tipo]}
+                          className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/70' : getTypeVisual(piece.tipo).dot}`}
                         />
                       ))}
                       {dayPieces.length > 3 && (
@@ -396,6 +401,11 @@ export default function PortalCalendar({ canCreate = false }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Planner modal */}
+      {showPlanner && client && (
+        <PlanCronopostModal client={client} onClose={() => setShowPlanner(false)} />
       )}
 
       {/* Create modal */}

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, CheckCircle2, RotateCcw, MessageSquare, Layers, Hash, Play } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
-import { CONTENT_TYPE_LABELS, PLATFORM_LABELS } from '../../constants';
+import { CONTENT_TYPE_LABELS, PLATFORM_LABELS, getTypeVisual } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
 import type { ContentState } from '../../types';
@@ -24,26 +24,7 @@ const TYPE_FILTERS: { key: FilterType; label: string }[] = [
   { key: 'post',     label: '🖼️ Posts' },
 ];
 
-function getTypeEmoji(tipo: string): string {
-  const m: Record<string, string> = {
-    reel: '🎬', carrusel: '🖼️', historia: '📱', historia_video: '📱',
-    post_imagen: '🖼️', post_video: '🎥', tiktok: '🎵',
-  };
-  return m[tipo] ?? '📄';
-}
 
-function getTypeBg(tipo: string): string {
-  const m: Record<string, string> = {
-    reel:          'from-pink-100 to-rose-50',
-    carrusel:      'from-violet-100 to-purple-50',
-    historia:      'from-amber-100 to-yellow-50',
-    historia_video:'from-amber-100 to-yellow-50',
-    post_imagen:   'from-blue-100 to-sky-50',
-    post_video:    'from-blue-100 to-sky-50',
-    tiktok:        'from-slate-100 to-slate-50',
-  };
-  return m[tipo] ?? 'from-slate-100 to-slate-50';
-}
 
 function getStateChip(estado: ContentState): { label: string; cls: string } {
   switch (estado) {
@@ -235,7 +216,7 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {wPieces.map(cp => {
                   const chip       = getStateChip(cp.estado);
-                  const bg         = getTypeBg(cp.tipo);
+                  const visual     = getTypeVisual(cp.tipo);
                   const comments   = portalComments[cp.id] ?? [];
                   const isPending  = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';
                   const hashtags   = cp.hashtags ?? brief?.hashtags_habituales ?? [];
@@ -274,8 +255,8 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
                             </div>
                           </div>
                         ) : (
-                          <div className={`h-24 bg-gradient-to-br ${bg} flex items-center justify-center`}>
-                            <span className="text-3xl">{getTypeEmoji(cp.tipo)}</span>
+                          <div className={`h-24 bg-gradient-to-br ${visual.gradient} flex items-center justify-center`}>
+                            <span className="text-3xl">{visual.emoji}</span>
                           </div>
                         )}
 

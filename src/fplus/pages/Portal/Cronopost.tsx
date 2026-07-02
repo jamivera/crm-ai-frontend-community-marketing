@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Layers, Sparkles } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
-import { CONTENT_TYPE_LABELS } from '../../constants';
+import { CONTENT_TYPE_LABELS, getTypeVisual } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
 import { PlanCronopostModal } from '../../components/modals/PlanCronopostModal';
@@ -17,26 +17,7 @@ type FilterTab = 'todo' | 'aprobar' | 'cambios' | 'aprobado' | 'publicado';
 
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-function getTypeEmoji(tipo: string): string {
-  const m: Record<string, string> = {
-    reel: '🎬', carrusel: '🖼️', historia: '📱', historia_video: '📱',
-    post_imagen: '🖼️', post_video: '🎥', tiktok: '🎵',
-  };
-  return m[tipo] ?? '📄';
-}
 
-function getTypeBg(tipo: string): string {
-  const m: Record<string, string> = {
-    reel:          'from-pink-100 to-rose-50 border-pink-200',
-    carrusel:      'from-violet-100 to-purple-50 border-violet-200',
-    historia:      'from-amber-100 to-yellow-50 border-amber-200',
-    historia_video:'from-amber-100 to-yellow-50 border-amber-200',
-    post_imagen:   'from-blue-100 to-sky-50 border-blue-200',
-    post_video:    'from-blue-100 to-sky-50 border-blue-200',
-    tiktok:        'from-slate-100 to-slate-50 border-slate-200',
-  };
-  return m[tipo] ?? 'from-slate-100 to-slate-50 border-slate-200';
-}
 
 function getStateChip(estado: ContentState): { label: string; cls: string } {
   switch (estado) {
@@ -107,6 +88,12 @@ export default function Cronopost({ canCreate = false }: Props) {
   const { clientId, clientNombre } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+  const contentComments = useFplusStore(s => s.contentComments);
+  const portalComments = useFplusStore(s => s.portalComments);
+
+  const commentCount = (pieceId: string) =>
+    contentComments.filter(c => c.content_piece_id === pieceId).length +
+    (portalComments[pieceId]?.length ?? 0);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('todo');
   const [showCreate, setShowCreate] = useState(false);
   const [showPlanner, setShowPlanner] = useState(false);
@@ -236,7 +223,7 @@ export default function Cronopost({ canCreate = false }: Props) {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {pieces.map(cp => {
                   const chip = getStateChip(cp.estado);
-                  const bg = getTypeBg(cp.tipo);
+                  const visual = getTypeVisual(cp.tipo);
                   const pubDate = new Date(cp.fecha_publicacion!);
                   const isPending = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';
 
@@ -249,8 +236,8 @@ export default function Cronopost({ canCreate = false }: Props) {
                       }`}
                     >
                       {/* Preview area */}
-                      <div className={`h-20 bg-gradient-to-br ${bg} flex items-center justify-center relative border-b`}>
-                        <span className="text-3xl">{getTypeEmoji(cp.tipo)}</span>
+                      <div className={`h-20 bg-gradient-to-br ${visual.gradient} flex items-center justify-center relative border-b`}>
+                        <span className="text-3xl">{visual.emoji}</span>
                         {cp.archivos.length > 0 && (
                           <div className="absolute top-1.5 right-1.5 bg-black/40 text-white text-[8px] px-1.5 py-0.5 rounded-full">
                             {cp.archivos.length === 1 ? '1 arch.' : `${cp.archivos.length} arch.`}
@@ -285,6 +272,15 @@ export default function Cronopost({ canCreate = false }: Props) {
                             {cp.copy_activo}
                           </p>
                         )}
+
+                        {/* Hashtags + comentarios + aprobación */}
+                        <div className="flex items-center gap-2 text-[9px] text-slate-400">
+                          {(cp.hashtags?.length ?? 0) > 0 && <span># {cp.hashtags!.length}</span>}
+                          {commentCount(cp.id) > 0 && <span>💬 {commentCount(cp.id)}</span>}
+                          {(cp.estado === 'aprobado_cliente' || cp.estado === 'aprobado_final' || cp.estado === 'publicado') && (
+                            <span className="text-emerald-500 font-semibold">✓ Aprobado</span>
+                          )}
+                        </div>
 
                         {/* Date + state */}
                         <div className="mt-auto pt-1 flex items-center justify-between gap-1">

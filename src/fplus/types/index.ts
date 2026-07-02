@@ -57,7 +57,12 @@ export type Platform =
 
 export type HealthStatus = 'verde' | 'amarillo' | 'rojo';
 
-export type PlanContratado = 'basico' | 'estandar' | 'premium' | 'enterprise';
+// Planes comerciales: plata/oro/platinum son los actuales; los anteriores se
+// conservan por compatibilidad. La arquitectura admite planes personalizados
+// vía PLAN_TEMPLATES + distribución editable.
+export type PlanContratado =
+  | 'plata' | 'oro' | 'platinum'
+  | 'basico' | 'estandar' | 'premium' | 'enterprise';
 export type PautaPublicitaria = 'no_incluye' | 'incluida_agencia' | 'cliente_paga' | 'presupuesto_compartido';
 
 // Objetivo de marketing del cliente — modula la planificación inteligente del Cronopost
@@ -73,6 +78,12 @@ export interface Client {
   industria: string;
   instagram_handle?: string;
   logo_url?: string;
+  // Contacto
+  email?: string;
+  telefono?: string;
+  color_corporativo?: string;
+  // Mercado — usado por el Motor de Planificación Inteligente
+  tipo_mercado?: string;
   // Responsable / AM
   account_manager_id: string;
   account_manager_name: string;
@@ -83,6 +94,7 @@ export interface Client {
   fecha_fin_contrato?: string;
   presupuesto_mensual?: number;
   pauta_publicitaria?: PautaPublicitaria;
+  pauta_plataformas?: string[]; // Meta, Google Ads, TikTok Ads, LinkedIn Ads
   // Contrato operativo — base de la planificación del Cronopost
   piezas_mensuales?: number;
   distribucion_piezas?: DistribucionPiezas;

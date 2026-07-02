@@ -19,6 +19,9 @@ const TYPE_EMOJI: Record<string, string> = {
 };
 
 const PLAN_LABELS: Record<PlanContratado, string> = {
+  plata:      'Plan Plata',
+  oro:        'Plan Oro',
+  platinum:   'Plan Platinum',
   basico:     'Básico',
   estandar:   'Estándar',
   premium:    'Premium',
@@ -26,6 +29,9 @@ const PLAN_LABELS: Record<PlanContratado, string> = {
 };
 
 const PLAN_FEATURES: Record<PlanContratado, string[]> = {
+  plata:      ['12 piezas/mes', '2 redes sociales', 'Cronopost + Calendario', 'Portal cliente'],
+  oro:        ['20 piezas/mes', '3 redes sociales', 'Cronopost + Calendario + Multimedia', 'Portal cliente', 'Planificación inteligente'],
+  platinum:   ['30 piezas/mes', 'Todas las redes', 'Planificación inteligente', 'Campañas', 'Portal cliente premium', 'Reportes avanzados', 'Pauta publicitaria'],
   basico:     ['Hasta 8 piezas/mes', 'Instagram', '1 red social', 'Cronopost', 'Portal cliente'],
   estandar:   ['Hasta 16 piezas/mes', 'Instagram + Facebook', '2 redes sociales', 'Cronopost + Calendario', 'Portal cliente', 'Reportes básicos'],
   premium:    ['Hasta 30 piezas/mes', 'Todas las redes', 'Campañas', 'Cronopost + Calendario + Multimedia', 'Portal cliente premium', 'Reportes avanzados', 'Pauta publicitaria'],
@@ -86,7 +92,8 @@ export default function ClientContract() {
       {plan && (
         <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
           <div className={`px-5 py-4 flex items-center justify-between ${
-            plan === 'premium' ? 'bg-gradient-to-r from-blue-600 to-blue-700' :
+            plan === 'premium' || plan === 'platinum' ? 'bg-gradient-to-r from-blue-600 to-blue-700' :
+            plan === 'oro' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
             plan === 'enterprise' ? 'bg-gradient-to-r from-slate-800 to-slate-900' :
             'bg-gradient-to-r from-slate-500 to-slate-600'
           }`}>
@@ -95,7 +102,7 @@ export default function ClientContract() {
               <p className="text-xl font-bold text-white mt-0.5">{PLAN_LABELS[plan]}</p>
             </div>
             <div className="text-3xl">
-              {plan === 'premium' ? '⭐' : plan === 'enterprise' ? '🏢' : plan === 'estandar' ? '✦' : '·'}
+              {plan === 'platinum' ? '💎' : plan === 'oro' ? '🥇' : plan === 'plata' ? '🥈' : plan === 'premium' ? '⭐' : plan === 'enterprise' ? '🏢' : '✦'}
             </div>
           </div>
           <div className="px-5 py-4">
