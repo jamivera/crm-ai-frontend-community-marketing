@@ -318,7 +318,10 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   getBrief: (clientId) => get().briefs[clientId],
 }), {
   name: 'fplus-store',
-  version: 1,
+  version: 2,
+  // Al subir la versión (cambios en el mock semilla), se descarta el estado
+  // persistido anterior y se rehidrata desde el mock actualizado.
+  migrate: () => ({}) as FplusStore,
   // Los archivos base64 grandes pueden exceder la cuota de localStorage (~5MB):
   // se persiste todo menos las URLs de archivos que superen ~2MB por pieza.
   partialize: (state) => ({

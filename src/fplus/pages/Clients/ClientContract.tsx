@@ -1,8 +1,22 @@
 import React, {} from 'react';
-import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2 } from 'lucide-react';
+import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2, Target } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { usePortalContext } from '../Portal/PortalContext';
-import type { PlanContratado, PautaPublicitaria } from '../../types';
+import { CONTENT_TYPE_LABELS } from '../../constants';
+import { PlatformIcon } from '../../components/ui/PlatformIcon';
+import type { PlanContratado, PautaPublicitaria, MarketingObjective, ContentType } from '../../types';
+
+const OBJETIVO_LABELS: Record<MarketingObjective, string> = {
+  alcance:     'Alcance',
+  conversion:  'Conversión',
+  comunidad:   'Comunidad',
+  lanzamiento: 'Lanzamiento',
+};
+
+const TYPE_EMOJI: Record<string, string> = {
+  reel: '🎬', carrusel: '🖼️', historia: '📱', historia_video: '📱',
+  post_imagen: '🖼️', post_video: '🎥', tiktok: '🎵',
+};
 
 const PLAN_LABELS: Record<PlanContratado, string> = {
   basico:     'Básico',
@@ -95,6 +109,52 @@ export default function ClientContract() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Contrato operativo — base de la planificación del Cronopost */}
+      {client.piezas_mensuales && (
+        <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Contrato Operativo</p>
+            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+              {client.piezas_mensuales} piezas/mes
+            </span>
+          </div>
+
+          {/* Distribución por tipo */}
+          {client.distribucion_piezas && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              {(Object.entries(client.distribucion_piezas) as [ContentType, number][]).map(([tipo, qty]) => (
+                <div key={tipo} className="flex flex-col items-center py-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-xl mb-1">{TYPE_EMOJI[tipo] ?? '📄'}</span>
+                  <span className="text-lg font-bold text-slate-800 leading-none">{qty}</span>
+                  <span className="text-[10px] text-slate-400 mt-1">{CONTENT_TYPE_LABELS[tipo]}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Redes contratadas */}
+          {client.redes_contratadas && client.redes_contratadas.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Redes:</span>
+              {client.redes_contratadas.map(red => (
+                <span key={red} className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-1 rounded-full">
+                  <PlatformIcon platform={red} showLabel size="sm" />
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Objetivo de marketing */}
+          {client.objetivo_marketing && (
+            <div className="flex items-center gap-2">
+              <Target className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Objetivo:</span>
+              <span className="text-xs font-semibold text-slate-700">{OBJETIVO_LABELS[client.objetivo_marketing]}</span>
+            </div>
+          )}
         </div>
       )}
 

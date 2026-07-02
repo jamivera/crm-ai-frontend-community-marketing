@@ -60,6 +60,12 @@ export type HealthStatus = 'verde' | 'amarillo' | 'rojo';
 export type PlanContratado = 'basico' | 'estandar' | 'premium' | 'enterprise';
 export type PautaPublicitaria = 'no_incluye' | 'incluida_agencia' | 'cliente_paga' | 'presupuesto_compartido';
 
+// Objetivo de marketing del cliente — modula la planificación inteligente del Cronopost
+export type MarketingObjective = 'alcance' | 'conversion' | 'comunidad' | 'lanzamiento';
+
+// Distribución de piezas contratadas por tipo de contenido (ej. { reel: 8, carrusel: 6 })
+export type DistribucionPiezas = Partial<Record<ContentType, number>>;
+
 export interface Client {
   id: string;
   nombre: string;
@@ -77,6 +83,11 @@ export interface Client {
   fecha_fin_contrato?: string;
   presupuesto_mensual?: number;
   pauta_publicitaria?: PautaPublicitaria;
+  // Contrato operativo — base de la planificación del Cronopost
+  piezas_mensuales?: number;
+  distribucion_piezas?: DistribucionPiezas;
+  redes_contratadas?: Platform[];
+  objetivo_marketing?: MarketingObjective;
   // Estado operativo
   estado: 'activo' | 'inactivo' | 'pausado';
   semaforo: HealthStatus;
