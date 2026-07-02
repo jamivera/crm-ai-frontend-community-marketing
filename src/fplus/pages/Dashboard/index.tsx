@@ -10,7 +10,7 @@ import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { ContentStateChip } from '../../components/ui/StateChip';
 import { useFplusStore } from '../../store';
 import {
-  mockDashboardStats, mockClients, mockTeam,
+  mockDashboardStats, mockTeam,
   mockActivity,
 } from '../../mock';
 import { formatDistanceToNow } from 'date-fns';
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const publications = useFplusStore(s => s.publications);
   const metrics = useFplusStore(s => s.metrics);
 
+  const clients = useFplusStore(s => s.clients);
   const stats = mockDashboardStats;
   const atrasadas = contentPieces.filter(c =>
     c.fecha_limite && new Date(c.fecha_limite) < new Date() && c.estado !== 'publicado' && c.estado !== 'archivado'
@@ -80,7 +81,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-3">
           {bloqueadas.length > 0 && (
             <button
-              onClick={() => navigate('/fplus/content')}
+              onClick={() => navigate('/fplus/content?estado=bloqueado')}
               className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-red-100 transition-colors"
             >
               <AlertOctagon className="w-4 h-4" />
@@ -89,7 +90,7 @@ export default function Dashboard() {
           )}
           {atrasadas.length > 0 && (
             <button
-              onClick={() => navigate('/fplus/content')}
+              onClick={() => navigate('/fplus/content?estado=atrasado')}
               className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-amber-100 transition-colors"
             >
               <Clock className="w-4 h-4" />
@@ -150,7 +151,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {mockClients.map(client => (
+            {clients.map(client => (
               <button
                 key={client.id}
                 onClick={() => navigate(`/fplus/clients/${client.id}`)}

@@ -432,3 +432,5 @@ function FormField({ label, required, children }: { label: string; required?: bo
 
 const inputClass = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white';
 const selectClass = `${inputClass} cursor-pointer`;
+
+export default PublicationForm;

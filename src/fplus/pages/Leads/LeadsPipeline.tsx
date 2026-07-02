@@ -17,10 +17,10 @@ const QUALITY_COLORS: Record<Lead['calidad'], string> = {
 type ViewMode = 'kanban' | 'lista';
 
 export default function LeadsPipeline() {
-  const storeLeads = useFplusStore(s => s.leads);
+  const leads = useFplusStore(s => s.leads);
   const publications = useFplusStore(s => s.publications);
+  const clients = useFplusStore(s => s.clients);
   const updateLead = useFplusStore(s => s.updateLead);
-  const [leads, setLeads] = useState(storeLeads);
   const [view, setView] = useState<ViewMode>('kanban');
   const [search, setSearch] = useState('');
   const [filterCliente, setFilterCliente] = useState('todos');
@@ -40,7 +40,6 @@ export default function LeadsPipeline() {
   const closedLeads = visibleLeads.filter(l => CLOSED_STATES.includes(l.estado));
 
   function moveLeadTo(leadId: string, newState: LeadState) {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estado: newState, dias_en_estado: 0 } : l));
     updateLead(leadId, { estado: newState, dias_en_estado: 0 });
     if (selectedLead?.id === leadId) {
       setSelectedLead(prev => prev ? { ...prev, estado: newState } : null);
@@ -113,7 +112,7 @@ export default function LeadsPipeline() {
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="todos">Todos los clientes</option>
-          {mockClients.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          {clients.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
       </div>
 

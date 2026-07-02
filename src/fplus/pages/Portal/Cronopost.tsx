@@ -1,129 +1,178 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Clock, AlertCircle, CheckCircle2, ImageIcon, Layers, ArrowRight } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Plus, Layers } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
-import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
-import type { ContentState, ContentType } from '../../types';
+import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
+import { PlatformIcon } from '../../components/ui/PlatformIcon';
+import { NewPieceModal } from '../../components/modals/NewPieceModal';
+import type { ContentState } from '../../types';
 
-type FilterTab = 'todos' | 'aprobar' | 'cambios' | 'aprobado' | 'publicado';
+interface Props {
+  canCreate?: boolean;
+}
 
-const PORTAL_VISIBLE_STATES: ContentState[] = [
-  'enviado_cliente',
-  'en_revision_cliente',
-  'cambios_solicitados',
-  'aprobado_cliente',
-  'aprobado_final',
-  'publicado',
-];
+type FilterTab = 'todo' | 'aprobar' | 'cambios' | 'aprobado' | 'publicado';
 
-const FILTER_STATE_MAP: Record<FilterTab, ContentState[]> = {
-  todos: PORTAL_VISIBLE_STATES,
-  aprobar: ['enviado_cliente', 'en_revision_cliente'],
-  cambios: ['cambios_solicitados'],
-  aprobado: ['aprobado_cliente', 'aprobado_final'],
-  publicado: ['publicado'],
-};
+const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-function getPortalStatus(state: ContentState): {
-  label: string;
-  colorClass: string;
-  icon: React.ReactNode;
-  cta?: string;
-} {
-  switch (state) {
+function getTypeEmoji(tipo: string): string {
+  const m: Record<string, string> = {
+    reel: '🎬', carrusel: '🖼️', historia: '📱', historia_video: '📱',
+    post_imagen: '🖼️', post_video: '🎥', tiktok: '🎵',
+  };
+  return m[tipo] ?? '📄';
+}
+
+function getTypeBg(tipo: string): string {
+  const m: Record<string, string> = {
+    reel:          'from-pink-100 to-rose-50 border-pink-200',
+    carrusel:      'from-violet-100 to-purple-50 border-violet-200',
+    historia:      'from-amber-100 to-yellow-50 border-amber-200',
+    historia_video:'from-amber-100 to-yellow-50 border-amber-200',
+    post_imagen:   'from-blue-100 to-sky-50 border-blue-200',
+    post_video:    'from-blue-100 to-sky-50 border-blue-200',
+    tiktok:        'from-slate-100 to-slate-50 border-slate-200',
+  };
+  return m[tipo] ?? 'from-slate-100 to-slate-50 border-slate-200';
+}
+
+function getStateChip(estado: ContentState): { label: string; cls: string } {
+  switch (estado) {
     case 'enviado_cliente':
     case 'en_revision_cliente':
-      return {
-        label: 'Pendiente tu aprobación',
-        colorClass: 'bg-amber-50 border-amber-200 text-amber-700',
-        icon: <Clock className="w-3.5 h-3.5" />,
-        cta: 'Revisar ahora',
-      };
+      return { label: 'Por aprobar', cls: 'bg-amber-100 text-amber-700' };
     case 'cambios_solicitados':
-      return {
-        label: 'Cambios en proceso',
-        colorClass: 'bg-orange-50 border-orange-200 text-orange-700',
-        icon: <AlertCircle className="w-3.5 h-3.5" />,
-      };
+      return { label: 'Con cambios', cls: 'bg-orange-100 text-orange-700' };
     case 'aprobado_cliente':
     case 'aprobado_final':
-      return {
-        label: 'Aprobado',
-        colorClass: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-        icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-      };
+      return { label: 'Aprobado', cls: 'bg-emerald-100 text-emerald-700' };
     case 'publicado':
-      return {
-        label: 'Publicado',
-        colorClass: 'bg-blue-50 border-blue-200 text-blue-700',
-        icon: <ImageIcon className="w-3.5 h-3.5" />,
-      };
+      return { label: 'Publicado', cls: 'bg-blue-100 text-blue-700' };
+    case 'en_produccion':
+      return { label: 'Producción', cls: 'bg-violet-100 text-violet-700' };
     default:
-      return {
-        label: CONTENT_STATE_LABELS[state],
-        colorClass: 'bg-slate-50 border-slate-200 text-slate-600',
-        icon: <Layers className="w-3.5 h-3.5" />,
-      };
+      return { label: 'Borrador', cls: 'bg-slate-100 text-slate-500' };
   }
 }
 
-const TYPE_ICON_COLORS: Partial<Record<ContentType, string>> = {
-  reel: 'bg-pink-100 text-pink-600',
-  carrusel: 'bg-violet-100 text-violet-600',
-  historia: 'bg-amber-100 text-amber-600',
-  historia_video: 'bg-amber-100 text-amber-600',
-  post_imagen: 'bg-blue-100 text-blue-600',
-  post_video: 'bg-blue-100 text-blue-600',
-  tiktok: 'bg-slate-100 text-slate-700',
+const FILTER_MAP: Record<FilterTab, ContentState[]> = {
+  todo:      ['enviado_cliente','en_revision_cliente','cambios_solicitados','aprobado_cliente','aprobado_final','publicado','en_produccion','borrador'],
+  aprobar:   ['enviado_cliente','en_revision_cliente'],
+  cambios:   ['cambios_solicitados'],
+  aprobado:  ['aprobado_cliente','aprobado_final'],
+  publicado: ['publicado'],
 };
 
-export default function Cronopost() {
+const TABS: { key: FilterTab; label: string }[] = [
+  { key: 'todo',      label: 'Todo' },
+  { key: 'aprobar',   label: 'Por aprobar' },
+  { key: 'cambios',   label: 'Con cambios' },
+  { key: 'aprobado',  label: 'Aprobado' },
+  { key: 'publicado', label: 'Publicado' },
+];
+
+// Returns ISO week number (Mon-based) and year
+function getISOWeek(date: Date): { week: number; year: number } {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { week, year: d.getUTCFullYear() };
+}
+
+function getWeekRange(year: number, week: number): { start: Date; end: Date } {
+  // ISO week: week 1 = first Thursday of the year
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const startOfWeek1 = new Date(jan4);
+  startOfWeek1.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
+  const start = new Date(startOfWeek1);
+  start.setUTCDate(startOfWeek1.getUTCDate() + (week - 1) * 7);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  return { start, end };
+}
+
+function weekLabel(year: number, week: number, weekIndex: number): string {
+  const { start, end } = getWeekRange(year, week);
+  const startStr = `${start.getUTCDate()} ${MONTHS_ES[start.getUTCMonth()]}`;
+  const endStr   = `${end.getUTCDate()} ${MONTHS_ES[end.getUTCMonth()]}`;
+  return `Semana ${weekIndex + 1} · ${startStr}–${endStr}`;
+}
+
+export default function Cronopost({ canCreate = false }: Props) {
   const navigate = useNavigate();
-  const { clientId } = usePortalContext();
+  const location = useLocation();
+  const { clientId, clientNombre } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('todos');
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('todo');
+  const [showCreate, setShowCreate] = useState(false);
 
   const allPieces = contentPieces
-    .filter(cp => cp.client_id === clientId && PORTAL_VISIBLE_STATES.includes(cp.estado))
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    .filter(cp => cp.client_id === clientId && cp.fecha_publicacion)
+    .sort((a, b) =>
+      new Date(a.fecha_publicacion!).getTime() - new Date(b.fecha_publicacion!).getTime()
+    );
 
-  const filtered = allPieces.filter(cp => FILTER_STATE_MAP[activeFilter].includes(cp.estado));
+  const filtered = allPieces.filter(cp => FILTER_MAP[activeFilter].includes(cp.estado));
 
   const counts: Record<FilterTab, number> = {
-    todos: allPieces.length,
-    aprobar: allPieces.filter(cp => FILTER_STATE_MAP.aprobar.includes(cp.estado)).length,
-    cambios: allPieces.filter(cp => FILTER_STATE_MAP.cambios.includes(cp.estado)).length,
-    aprobado: allPieces.filter(cp => FILTER_STATE_MAP.aprobado.includes(cp.estado)).length,
-    publicado: allPieces.filter(cp => FILTER_STATE_MAP.publicado.includes(cp.estado)).length,
+    todo:      allPieces.length,
+    aprobar:   allPieces.filter(cp => FILTER_MAP.aprobar.includes(cp.estado)).length,
+    cambios:   allPieces.filter(cp => FILTER_MAP.cambios.includes(cp.estado)).length,
+    aprobado:  allPieces.filter(cp => FILTER_MAP.aprobado.includes(cp.estado)).length,
+    publicado: allPieces.filter(cp => FILTER_MAP.publicado.includes(cp.estado)).length,
   };
 
-  const TABS: { key: FilterTab; label: string }[] = [
-    { key: 'todos', label: 'Todos' },
-    { key: 'aprobar', label: 'Por aprobar' },
-    { key: 'cambios', label: 'Con cambios' },
-    { key: 'aprobado', label: 'Aprobado' },
-    { key: 'publicado', label: 'Publicado' },
-  ];
+  // Group by ISO week key "YYYY-WW"
+  const weekMap = new Map<string, typeof filtered>();
+  filtered.forEach(cp => {
+    const d = new Date(cp.fecha_publicacion!);
+    const { week, year } = getISOWeek(d);
+    const key = `${year}-${String(week).padStart(2, '0')}`;
+    if (!weekMap.has(key)) weekMap.set(key, []);
+    weekMap.get(key)!.push(cp);
+  });
+
+  const handlePieceClick = (cpId: string) => {
+    if (canCreate) {
+      const base = location.pathname.replace(/\/cronopost$/, '');
+      navigate(`${base}/approvals/${cpId}`);
+    } else {
+      navigate(`../approvals/${cpId}`);
+    }
+  };
 
   return (
-    <div className="flex flex-col">
+    <div className="px-4 pt-5 pb-8">
       {/* Header */}
-      <div className="px-4 pt-5 pb-3">
-        <h1 className="text-lg font-bold text-slate-800">Cronopost</h1>
-        <p className="text-xs text-slate-400 mt-0.5">Tu contenido en producción</p>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h1 className="text-lg font-bold text-slate-800">Cronopost</h1>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {allPieces.length} {allPieces.length === 1 ? 'pieza planificada' : 'piezas planificadas'}
+          </p>
+        </div>
+        {canCreate && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nueva pieza
+          </button>
+        )}
       </div>
 
-      {/* Filter tabs — horizontal scroll */}
-      <div className="px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-none">
+      {/* Filter tabs */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-none mb-5">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveFilter(tab.key)}
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              activeFilter === tab.key
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600'
+              activeFilter === tab.key ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
             }`}
           >
             {tab.label}
@@ -136,114 +185,128 @@ export default function Cronopost() {
         ))}
       </div>
 
-      {/* Feed */}
-      <div className="px-4 space-y-3 pb-4">
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-slate-400">
-            <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No hay piezas en esta categoría.</p>
-          </div>
-        )}
-        {filtered.map(cp => {
-          const status = getPortalStatus(cp.estado);
-          const typeColor = TYPE_ICON_COLORS[cp.tipo] ?? 'bg-slate-100 text-slate-500';
-          const updatedAgo = timeAgo(cp.updated_at);
-          const isOverdue = cp.fecha_limite && new Date(cp.fecha_limite) < new Date() && status.cta;
+      {/* Empty */}
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-slate-400">
+          <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No hay piezas en esta categoría.</p>
+          {canCreate && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs text-blue-600 font-medium hover:underline"
+            >
+              <Plus className="w-3.5 h-3.5" /> Crear primera pieza
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Weekly sections */}
+      <div className="space-y-8">
+        {Array.from(weekMap.entries()).map(([weekKey, pieces], weekIndex) => {
+          const [yearStr, weekStr] = weekKey.split('-');
+          const year = parseInt(yearStr);
+          const week = parseInt(weekStr);
 
           return (
-            <div
-              key={cp.id}
-              onClick={() => navigate(`/fplus/portal/approvals/${cp.id}`)}
-              className={`bg-white rounded-2xl border overflow-hidden active:scale-[0.98] transition-transform cursor-pointer ${
-                status.cta ? 'border-amber-200 shadow-sm shadow-amber-100' : 'border-slate-100'
-              }`}
-            >
-              {/* Thumbnail placeholder */}
-              <div className={`h-36 flex items-center justify-center ${typeColor.split(' ')[0].replace('text', 'bg').replace('600', '50').replace('700', '50')}`}>
-                <div className={`w-14 h-14 rounded-2xl ${typeColor} flex items-center justify-center`}>
-                  <span className="text-2xl">{getTypeEmoji(cp.tipo)}</span>
-                </div>
+            <div key={weekKey}>
+              {/* Week label */}
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  {weekLabel(year, week, weekIndex)}
+                </h3>
+                <div className="flex-1 h-px bg-slate-100" />
+                <span className="text-[10px] text-slate-400">{pieces.length} {pieces.length === 1 ? 'pieza' : 'piezas'}</span>
               </div>
 
-              {/* Body */}
-              <div className="p-4">
-                {/* Estado chip */}
-                <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border mb-2 ${status.colorClass}`}>
-                  {status.icon}
-                  {status.label}
-                </div>
+              {/* Piece cards grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {pieces.map(cp => {
+                  const chip = getStateChip(cp.estado);
+                  const bg = getTypeBg(cp.tipo);
+                  const pubDate = new Date(cp.fecha_publicacion!);
+                  const isPending = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';
 
-                <h3 className="font-semibold text-slate-800 text-sm leading-snug">{cp.nombre}</h3>
+                  return (
+                    <button
+                      key={cp.id}
+                      onClick={() => handlePieceClick(cp.id)}
+                      className={`flex flex-col bg-white border rounded-xl overflow-hidden text-left hover:shadow-md active:scale-[0.98] transition-all ${
+                        isPending ? 'ring-2 ring-amber-300 ring-offset-1' : 'border-slate-100'
+                      }`}
+                    >
+                      {/* Preview area */}
+                      <div className={`h-20 bg-gradient-to-br ${bg} flex items-center justify-center relative border-b`}>
+                        <span className="text-3xl">{getTypeEmoji(cp.tipo)}</span>
+                        {cp.archivos.length > 0 && (
+                          <div className="absolute top-1.5 right-1.5 bg-black/40 text-white text-[8px] px-1.5 py-0.5 rounded-full">
+                            {cp.archivos.length === 1 ? '1 arch.' : `${cp.archivos.length} arch.`}
+                          </div>
+                        )}
+                      </div>
 
-                <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400 flex-wrap">
-                  <span className="capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</span>
-                  {cp.pilar && (
-                    <>
-                      <span>·</span>
-                      <span>{cp.pilar}</span>
-                    </>
-                  )}
-                  <span>·</span>
-                  <span>Actualizado {updatedAgo}</span>
-                </div>
+                      {/* Info */}
+                      <div className="p-2.5 flex-1 flex flex-col gap-1.5">
+                        {/* Type badge */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">{CONTENT_TYPE_LABELS[cp.tipo]}</span>
+                          {cp.plataforma && (
+                            <>
+                              <span className="text-slate-200">·</span>
+                              <PlatformIcon platform={cp.plataforma} size={9} />
+                            </>
+                          )}
+                        </div>
 
-                {/* Copy preview */}
-                {cp.copy_activo && (
-                  <p className="text-xs text-slate-500 mt-2 line-clamp-2 bg-slate-50 rounded-lg p-2">
-                    {cp.copy_activo}
-                  </p>
-                )}
+                        {/* Name */}
+                        <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2">
+                          {cp.nombre}
+                        </p>
 
-                {/* Deadline warning */}
-                {isOverdue && cp.fecha_limite && (
-                  <p className="text-xs text-red-600 font-medium mt-2">
-                    ⚠ Vencido el {new Date(cp.fecha_limite).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
-                  </p>
-                )}
+                        {/* Copy preview */}
+                        {cp.copy_activo && (
+                          <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                            {cp.copy_activo}
+                          </p>
+                        )}
 
-                {/* CTA */}
-                {status.cta && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <span />
-                    <span className="flex items-center gap-1 text-xs font-semibold text-blue-600">
-                      {status.cta}
-                      <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
+                        {/* Date + state */}
+                        <div className="mt-auto pt-1 flex items-center justify-between gap-1">
+                          <span className="text-[9px] text-slate-400">
+                            {pubDate.getDate()} {MONTHS_ES[pubDate.getMonth()]} {pubDate.getFullYear()}
+                          </span>
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${chip.cls}`}>
+                            {chip.label}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Add card (agency only) */}
+                {canCreate && (
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="flex flex-col items-center justify-center h-full min-h-[140px] border-2 border-dashed border-slate-200 rounded-xl text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/30 transition-all"
+                  >
+                    <Plus className="w-6 h-6 mb-1" />
+                    <span className="text-[10px] font-medium">Agregar</span>
+                  </button>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {showCreate && (
+        <NewPieceModal
+          clientId={clientId}
+          clientNombre={clientNombre}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
     </div>
   );
-}
-
-function getTypeEmoji(tipo: ContentType): string {
-  const map: Partial<Record<ContentType, string>> = {
-    reel: '🎬',
-    carrusel: '🖼️',
-    historia: '📱',
-    historia_video: '📱',
-    post_imagen: '🖼️',
-    post_video: '🎥',
-    tiktok: '🎵',
-    video_youtube: '▶️',
-    banner: '🎨',
-    infografia: '📊',
-    blog: '📝',
-  };
-  return map[tipo] ?? '📄';
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 1) return 'hace unos minutos';
-  if (hours < 24) return `hace ${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return 'ayer';
-  if (days < 7) return `hace ${days} días`;
-  return new Date(dateStr).toLocaleDateString('es', { day: 'numeric', month: 'short' });
 }

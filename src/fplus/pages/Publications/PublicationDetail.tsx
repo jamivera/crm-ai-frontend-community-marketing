@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle2, ExternalLink, BarChart2,
   Users, MousePointer, Eye, TrendingUp, Hash, DollarSign,
-  ChevronRight, Plus,
+  ChevronRight, Plus, X,
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS } from '../../constants';
@@ -27,10 +27,12 @@ export default function PublicationDetail() {
   const publications = useFplusStore(s => s.publications);
   const leads = useFplusStore(s => s.leads);
   const getMetricsByPublication = useFplusStore(s => s.getMetricsByPublication);
+  const confirmPublication = useFplusStore(s => s.confirmPublication);
 
   const pub = publications.find(p => p.id === id);
   const [tab, setTab] = useState<Tab>('resumen');
   const [showMetricForm, setShowMetricForm] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   if (!pub) {
     return (
@@ -84,10 +86,20 @@ export default function PublicationDetail() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={`inline-flex rounded-full text-xs font-medium px-3 py-1.5 ${stateInfo.cls}`}>
               {stateInfo.label}
             </span>
+            {/* P0-C: Confirm button inline */}
+            {pub.estado === 'sin_confirmar' && (
+              <button
+                onClick={() => setShowConfirmModal(true)}
+                className="flex items-center gap-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Confirmar publicación
+              </button>
+            )}
             {pub.url_publicacion && (
               <a
                 href={pub.url_publicacion}
@@ -303,6 +315,86 @@ export default function PublicationDetail() {
       {showMetricForm && (
         <MetricForm publication={pub} onClose={() => setShowMetricForm(false)} />
       )}
+
+      {/* P0-C: Inline confirm modal */}
+      {showConfirmModal && (
+        <InlineConfirmModal
+          pubName={pub.content_piece_nombre}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={(url, externalPostId) => {
+            confirmPublication(pub.id, url, externalPostId);
+            setShowConfirmModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function InlineConfirmModal({
+  pubName,
+  onClose,
+  onConfirm,
+}: {
+  pubName: string;
+  onClose: () => void;
+  onConfirm: (url: string, externalPostId?: string) => void;
+}) {
+  const [url, setUrl] = useState('');
+  const [externalPostId, setExternalPostId] = useState('');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <h2 className="font-semibold text-slate-800">Confirmar publicación</h2>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-lg">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-slate-600">"{pubName}"</p>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              URL del post <span className="text-slate-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              autoFocus
+              type="url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://www.instagram.com/p/..."
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Post ID <span className="text-slate-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={externalPostId}
+              onChange={e => setExternalPostId(e.target.value)}
+              placeholder="ID interno de la plataforma"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50">
+              Cancelar
+            </button>
+            <button
+              onClick={() => onConfirm(url.trim(), externalPostId.trim() || undefined)}
+              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

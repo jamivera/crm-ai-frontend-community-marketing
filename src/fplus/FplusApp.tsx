@@ -7,16 +7,18 @@ import { PortalRouteWrapper } from './pages/Portal/PortalContext';
 // Pages — implemented
 import Dashboard from './pages/Dashboard';
 import ClientList from './pages/Clients/ClientList';
-import ClientDetail from './pages/Clients/ClientDetail';
-import BriefMaestro from './pages/Clients/BriefMaestro';
+import ClientWorkspace from './pages/Clients/ClientWorkspace';
 import ContentList from './pages/Content/ContentList';
 import ContentDetail from './pages/Content/ContentDetail';
+import NewContentPage from './pages/Content/NewContentPage';
 import CampaignList from './pages/Campaigns/CampaignList';
 import CampaignDetail from './pages/Campaigns/CampaignDetail';
+import NewCampaignPage from './pages/Campaigns/NewCampaignPage';
 import CalendarView from './pages/Calendar/CalendarView';
 import PublicationList from './pages/Publications/PublicationList';
 import PublicationDetail from './pages/Publications/PublicationDetail';
 import LeadsPipeline from './pages/Leads/LeadsPipeline';
+import SettingsPage from './pages/Settings/SettingsPage';
 
 // Placeholder for modules to be built in next sprints
 import Placeholder from './pages/Placeholder';
@@ -60,17 +62,16 @@ export default function FplusApp() {
               {/* Clients */}
               <Route path="clients" element={<ClientList />} />
               <Route path="clients/new" element={<Placeholder />} />
-              <Route path="clients/:id" element={<ClientDetail />} />
-              <Route path="clients/:id/brief" element={<BriefMaestro />} />
+              <Route path="clients/:id/*" element={<ClientWorkspace />} />
 
               {/* Campaigns */}
               <Route path="campaigns" element={<CampaignList />} />
-              <Route path="campaigns/new" element={<Placeholder />} />
+              <Route path="campaigns/new" element={<NewCampaignPage />} />
               <Route path="campaigns/:id" element={<CampaignDetail />} />
 
               {/* Content */}
               <Route path="content" element={<ContentList />} />
-              <Route path="content/new" element={<Placeholder />} />
+              <Route path="content/new" element={<NewContentPage />} />
               <Route path="content/:id" element={<ContentDetail />} />
 
               {/* Calendar */}
@@ -88,7 +89,6 @@ export default function FplusApp() {
 
               {/* Leads */}
               <Route path="leads" element={<LeadsPipeline />} />
-              <Route path="leads/list" element={<LeadsPipeline />} />
 
               {/* Revenue */}
               <Route path="revenue" element={<Placeholder />} />
@@ -105,10 +105,9 @@ export default function FplusApp() {
               <Route path="intelligence" element={<Placeholder />} />
 
               {/* Settings */}
-              <Route path="settings" element={<Placeholder />} />
-              <Route path="settings/team" element={<Placeholder />} />
-              <Route path="settings/profile" element={<Placeholder />} />
-              <Route path="settings/billing" element={<Placeholder />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/team" element={<SettingsPage />} />
+              <Route path="settings/profile" element={<SettingsPage />} />
 
               {/* Default redirect */}
               <Route index element={<Navigate to="dashboard" replace />} />

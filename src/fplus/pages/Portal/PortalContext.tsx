@@ -25,6 +25,14 @@ const PortalContext = createContext<PortalContextValue>({
 
 export const usePortalContext = () => useContext(PortalContext);
 
+export function PortalContextProvider({ clientId, clientNombre, isPremium, children }: PortalContextValue & { children: React.ReactNode }) {
+  return (
+    <PortalContext.Provider value={{ clientId, clientNombre, isPremium }}>
+      {children}
+    </PortalContext.Provider>
+  );
+}
+
 // ─── Wrapper (sets context, renders layout + nested routes) ──────────────────
 
 export function PortalRouteWrapper() {

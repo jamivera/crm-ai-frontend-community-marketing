@@ -4,17 +4,20 @@ import { Plus, Search, ArrowRight, Instagram, Users } from 'lucide-react';
 import { HealthLight } from '../../components/ui/HealthLight';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { mockClients } from '../../mock';
+import { useFplusStore } from '../../store';
+import { NewClientModal } from '../../components/modals/NewClientModal';
 import type { Client } from '../../types';
 
 type FilterHealth = 'all' | 'verde' | 'amarillo' | 'rojo';
 
 export default function ClientList() {
   const navigate = useNavigate();
+  const clients = useFplusStore(s => s.clients);
   const [search, setSearch] = useState('');
   const [healthFilter, setHealthFilter] = useState<FilterHealth>('all');
+  const [showNewClient, setShowNewClient] = useState(false);
 
-  const filtered = mockClients.filter(c => {
+  const filtered = clients.filter(c => {
     const matchSearch = c.nombre.toLowerCase().includes(search.toLowerCase()) ||
       c.industria.toLowerCase().includes(search.toLowerCase());
     const matchHealth = healthFilter === 'all' || c.semaforo === healthFilter;
@@ -22,10 +25,10 @@ export default function ClientList() {
   });
 
   const counts = {
-    all: mockClients.length,
-    verde: mockClients.filter(c => c.semaforo === 'verde').length,
-    amarillo: mockClients.filter(c => c.semaforo === 'amarillo').length,
-    rojo: mockClients.filter(c => c.semaforo === 'rojo').length,
+    all: clients.length,
+    verde: clients.filter(c => c.semaforo === 'verde').length,
+    amarillo: clients.filter(c => c.semaforo === 'amarillo').length,
+    rojo: clients.filter(c => c.semaforo === 'rojo').length,
   };
 
   return (
@@ -34,10 +37,10 @@ export default function ClientList() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Clientes</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{mockClients.length} clientes activos</p>
+          <p className="text-sm text-slate-500 mt-0.5">{clients.length} clientes activos</p>
         </div>
         <button
-          onClick={() => navigate('/fplus/clients/new')}
+          onClick={() => setShowNewClient(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" /> Nuevo cliente
@@ -104,6 +107,7 @@ export default function ClientList() {
           </table>
         </div>
       )}
+      {showNewClient && <NewClientModal onClose={() => setShowNewClient(false)} />}
     </div>
   );
 }

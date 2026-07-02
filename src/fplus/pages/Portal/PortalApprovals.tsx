@@ -88,12 +88,14 @@ export function PortalApprovalDetail() {
   const { clientId, clientNombre } = usePortalContext();
 
   const contentPieces = useFplusStore(s => s.contentPieces);
+  const briefs = useFplusStore(s => s.briefs);
   const portalComments = useFplusStore(s => s.portalComments);
   const approveContent = useFplusStore(s => s.approveContent);
   const requestChanges = useFplusStore(s => s.requestChanges);
   const addPortalComment = useFplusStore(s => s.addPortalComment);
 
   const cp = contentPieces.find(c => c.id === id && c.client_id === clientId);
+  const brief = briefs[clientId];
   const comments = portalComments[id ?? ''] ?? [];
 
   const [commentText, setCommentText] = useState('');
@@ -201,11 +203,27 @@ export function PortalApprovalDetail() {
           <p className="text-xs text-slate-300 mt-1">Vista previa no disponible en modo demo</p>
         </div>
 
-        {/* Copy */}
-        {cp.copy_activo && (
-          <div className="bg-white border border-slate-100 rounded-2xl p-4">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Copy</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{cp.copy_activo}</p>
+        {/* Copy + Hashtags */}
+        {(cp.copy_activo || (brief?.hashtags_habituales?.length ?? 0) > 0) && (
+          <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+            {cp.copy_activo && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Copy</p>
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{cp.copy_activo}</p>
+              </div>
+            )}
+            {brief?.hashtags_habituales && brief.hashtags_habituales.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Hashtags</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {brief.hashtags_habituales.map(tag => (
+                    <span key={tag} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

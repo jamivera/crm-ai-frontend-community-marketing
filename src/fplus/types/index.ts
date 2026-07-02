@@ -57,16 +57,33 @@ export type Platform =
 
 export type HealthStatus = 'verde' | 'amarillo' | 'rojo';
 
+export type PlanContratado = 'basico' | 'estandar' | 'premium' | 'enterprise';
+export type PautaPublicitaria = 'no_incluye' | 'incluida_agencia' | 'cliente_paga' | 'presupuesto_compartido';
+
 export interface Client {
   id: string;
   nombre: string;
+  empresa?: string;
   industria: string;
   instagram_handle?: string;
   logo_url?: string;
+  // Responsable / AM
   account_manager_id: string;
   account_manager_name: string;
+  responsable_cliente?: string;
+  // Contrato
+  plan_contratado?: PlanContratado;
+  fecha_inicio_contrato?: string;
+  fecha_fin_contrato?: string;
+  presupuesto_mensual?: number;
+  pauta_publicitaria?: PautaPublicitaria;
+  // Estado operativo
   estado: 'activo' | 'inactivo' | 'pausado';
   semaforo: HealthStatus;
+  // Observaciones
+  observaciones?: string;
+  notas_internas?: string;
+  // Métricas rápidas (dashboard)
   piezas_activas: number;
   piezas_atrasadas: number;
   proxima_publicacion?: string;
@@ -129,11 +146,14 @@ export interface ContentPiece {
   content_manager_id?: string;
   content_manager_nombre?: string;
   fecha_limite?: string;
+  fecha_publicacion?: string;
+  plataforma?: Platform;
   iteraciones: number;
   max_iteraciones: number;
   archivos: ContentFile[];
   thumbnail_url?: string;
   copy_activo?: string;
+  hashtags?: string[];
   created_at: string;
   updated_at: string;
 }

@@ -1,31 +1,29 @@
 import React, { useState } from 'react';
-import { Bell, Search, ChevronDown, LogOut, Settings, User } from 'lucide-react';
+import { Bell, Search, ChevronDown, LogOut, Settings, User, FlaskConical, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FplusSidebar } from './FplusSidebar';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFplusRole } from '../../hooks/useFplusRole';
 import type { FplusRole } from '../../types';
-
-interface FplusUser {
-  name: string;
-  email: string;
-  role: FplusRole;
-  avatar?: string;
-}
 
 interface FplusMainLayoutProps {
   children: React.ReactNode;
-  user?: FplusUser;
 }
 
-// Dev-mode default user — replaced by real auth later
-const DEV_USER: FplusUser = {
-  name: 'Juan Pérez',
-  email: 'juan@agencia.com',
-  role: 'agency_admin',
-};
+const FALLBACK_ROLE: FplusRole = 'agency_admin';
 
-export function FplusMainLayout({ children, user = DEV_USER }: FplusMainLayoutProps) {
+export function FplusMainLayout({ children }: FplusMainLayoutProps) {
+  const { user: evoUser, logout } = useAuth();
+  const { fplusRole } = useFplusRole();
+  const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const user = {
+    name: evoUser?.name ?? evoUser?.display_name ?? 'Usuario',
+    email: evoUser?.email ?? '',
+    role: fplusRole ?? FALLBACK_ROLE,
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -90,7 +88,10 @@ export function FplusMainLayout({ children, user = DEV_USER }: FplusMainLayoutPr
                     <User className="w-4 h-4 text-slate-400" /> Mi perfil
                   </button>
                   <div className="border-t border-slate-100 mt-1">
-                    <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                    <button
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      onClick={() => { setProfileOpen(false); logout(); navigate('/login'); }}
+                    >
                       <LogOut className="w-4 h-4" /> Cerrar sesión
                     </button>
                   </div>
@@ -99,6 +100,17 @@ export function FplusMainLayout({ children, user = DEV_USER }: FplusMainLayoutPr
             </div>
           </div>
         </header>
+
+        {/* Demo data banner */}
+        {!demoBannerDismissed && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs shrink-0">
+            <FlaskConical className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+            <span><strong>Datos de ejemplo.</strong> Los datos que ves son simulados para demostración. Las acciones que realices se guardan durante esta sesión.</span>
+            <button onClick={() => setDemoBannerDismissed(true)} className="ml-auto p-0.5 hover:bg-amber-100 rounded">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Page content */}
         <main className="flex-1 overflow-auto">

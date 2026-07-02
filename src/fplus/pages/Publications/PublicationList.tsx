@@ -42,8 +42,10 @@ export default function PublicationList() {
 
   const sinConfirmar = publications.filter(p => p.estado === 'sin_confirmar');
 
-  function handleConfirm(pub: Publication, url: string) {
-    confirmPublication(pub.id, url);
+  const getMetricsByPublication = useFplusStore(s => s.getMetricsByPublication);
+
+  function handleConfirm(pub: Publication, url: string, externalPostId?: string) {
+    confirmPublication(pub.id, url, externalPostId);
     setConfirmingPub(null);
   }
 
@@ -121,6 +123,7 @@ export default function PublicationList() {
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Plataforma</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Fecha programada</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500">Estado</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Eng. Rate</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500">Leads</th>
               <th className="px-4 py-3" />
             </tr>
@@ -129,6 +132,9 @@ export default function PublicationList() {
             {filtered.map(pub => {
               const piece = contentPieces.find(cp => cp.id === pub.content_piece_id);
               const isOverdue = pub.estado === 'sin_confirmar' && new Date(pub.fecha_programada) < new Date();
+              const metrics = getMetricsByPublication(pub.id);
+              const engRate = metrics.length > 0 ? metrics[metrics.length - 1].engagement_rate : null;
+              const leadsFromMetrics = metrics.reduce((s, m) => s + (m.leads ?? 0), 0);
               return (
                 <tr key={pub.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/fplus/publications/${pub.id}`)}>
                   <td className="px-4 py-3">
@@ -157,7 +163,10 @@ export default function PublicationList() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-slate-700">
-                    {pub.leads_atribuidos > 0 ? pub.leads_atribuidos : '—'}
+                    {engRate != null ? `${engRate.toFixed(2)}%` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-slate-700">
+                    {leadsFromMetrics > 0 ? leadsFromMetrics : pub.leads_atribuidos > 0 ? pub.leads_atribuidos : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {pub.estado === 'sin_confirmar' && (
@@ -201,7 +210,7 @@ export default function PublicationList() {
         <ConfirmPublicationModal
           publication={confirmingPub}
           onClose={() => setConfirmingPub(null)}
-          onConfirm={(url) => handleConfirm(confirmingPub, url)}
+          onConfirm={(url, externalPostId) => handleConfirm(confirmingPub, url, externalPostId)}
         />
       )}
     </div>
@@ -215,16 +224,16 @@ function ConfirmPublicationModal({
 }: {
   publication: Publication;
   onClose: () => void;
-  onConfirm: (url: string) => void;
+  onConfirm: (url: string, externalPostId?: string) => void;
 }) {
   const [url, setUrl] = useState('');
+  const [externalPostId, setExternalPostId] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
-    // URL is optional — confirm anyway
-    onConfirm(url.trim());
+    onConfirm(url.trim(), externalPostId.trim() || undefined);
   }
 
   return (
@@ -263,6 +272,20 @@ function ConfirmPublicationModal({
               />
             </div>
             <p className="text-xs text-slate-400 mt-1">Pega el enlace directo a la publicación en la plataforma.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              ID del post <span className="text-slate-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={externalPostId}
+              onChange={e => setExternalPostId(e.target.value)}
+              placeholder="Ej. 17895695668004550"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-400 mt-1">ID interno de la plataforma para tracking de métricas.</p>
           </div>
 
           <div className="flex gap-3 pt-2">

@@ -9,6 +9,7 @@ import { ContentStateChip, LeadStateChip } from '../../components/ui/StateChip';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useFplusStore } from '../../store';
+import { NewContentModal } from '../../components/modals/NewContentModal';
 
 type Tab = 'resumen' | 'contenido' | 'campanas' | 'leads' | 'brief';
 
@@ -16,6 +17,7 @@ export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
+  const [showNewContent, setShowNewContent] = useState(false);
 
   const clients = useFplusStore(s => s.clients);
   const contentPieces = useFplusStore(s => s.contentPieces);
@@ -79,7 +81,7 @@ export default function ClientDetail() {
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <button
-              onClick={() => navigate(`/fplus/content`)}
+              onClick={() => setShowNewContent(true)}
               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
             >
               <Plus className="w-4 h-4" /> Nueva pieza
@@ -134,7 +136,7 @@ export default function ClientDetail() {
 
       {/* Tab content */}
       <div className="p-6">
-        {tab === 'resumen' && <ResumenTab client={client} content={clientContent} campaigns={clientCampaigns} leads={clientLeads} />}
+        {tab === 'resumen' && <ResumenTab client={client} content={clientContent} campaigns={clientCampaigns} leads={clientLeads} clientId={id!} onNewContent={() => setShowNewContent(true)} />}
         {tab === 'contenido' && <ContenidoTab pieces={clientContent} onNavigate={navigate} />}
         {tab === 'campanas' && <CampanasTab campaigns={clientCampaigns} onNavigate={navigate} />}
         {tab === 'leads' && <LeadsTab leads={clientLeads} />}
@@ -144,7 +146,7 @@ export default function ClientDetail() {
   );
 }
 
-function ResumenTab({ client, content, campaigns, leads }: any) {
+function ResumenTab({ client, content, campaigns, leads, clientId, onNewContent }: any) {
   const navigate = useNavigate();
   const atrasadas = content.filter((c: any) => c.fecha_limite && new Date(c.fecha_limite) < new Date());
   return (
@@ -182,7 +184,7 @@ function ResumenTab({ client, content, campaigns, leads }: any) {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h3 className="text-sm font-semibold text-slate-800">Piezas activas</h3>
-          <button onClick={() => {}} className="text-xs text-blue-600 hover:underline">Ver todas</button>
+          <button onClick={() => navigate(`/fplus/content?client=${clientId}`)} className="text-xs text-blue-600 hover:underline">Ver todas</button>
         </div>
         {content.length === 0 ? (
           <EmptyState title="Sin piezas activas" description="Crea la primera pieza para este cliente." icon={<FileImage />} />

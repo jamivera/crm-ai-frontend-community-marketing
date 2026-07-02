@@ -20,22 +20,9 @@ type MenuMap = Record<FplusRole, FplusMenuItem[]>;
 
 export const FPLUS_MENU: MenuMap = {
   agency_admin: [
-    // PRINCIPAL
     { id: 'dashboard', label: 'Dashboard', href: '/fplus/dashboard', icon: LayoutDashboard, section: 'Principal' },
     { id: 'clients', label: 'Clientes', href: '/fplus/clients', icon: Users, section: 'Principal' },
-    { id: 'campaigns', label: 'Campañas', href: '/fplus/campaigns', icon: Megaphone, section: 'Principal' },
-    { id: 'content', label: 'Contenido', href: '/fplus/content', icon: FileImage, section: 'Principal' },
-    { id: 'calendar', label: 'Calendario', href: '/fplus/calendar', icon: Calendar, section: 'Principal' },
-    { id: 'multimedia', label: 'Multimedia', href: '/fplus/multimedia', icon: ImageIcon, section: 'Principal' },
-    { id: 'approvals', label: 'Aprobaciones', href: '/fplus/approvals', icon: CheckSquare, section: 'Principal' },
-    { id: 'publications', label: 'Publicaciones', href: '/fplus/publications', icon: Send, section: 'Principal' },
-    // REVENUE
-    { id: 'leads', label: 'Leads & Pipeline', href: '/fplus/leads', icon: TrendingUp, section: 'Revenue' },
-    { id: 'revenue', label: 'Revenue Hub', href: '/fplus/revenue', icon: DollarSign, section: 'Revenue' },
-    // INTELIGENCIA
-    { id: 'reports', label: 'Reportes', href: '/fplus/reports', icon: BarChart3, section: 'Inteligencia' },
-    { id: 'intelligence', label: 'Inteligencia', href: '/fplus/intelligence', icon: Brain, section: 'Inteligencia' },
-    // SISTEMA
+    { id: 'metrics', label: 'Métricas', href: '/fplus/reports', icon: BarChart3, section: 'Principal' },
     { id: 'settings', label: 'Configuración', href: '/fplus/settings', icon: Settings, section: 'Sistema' },
   ],
 
@@ -45,30 +32,24 @@ export const FPLUS_MENU: MenuMap = {
     { id: 'campaigns', label: 'Campañas', href: '/fplus/campaigns', icon: Megaphone, section: 'Principal' },
     { id: 'content', label: 'Contenido', href: '/fplus/content', icon: FileImage, section: 'Principal' },
     { id: 'calendar', label: 'Calendario', href: '/fplus/calendar', icon: Calendar, section: 'Principal' },
-    { id: 'approvals', label: 'Aprobaciones', href: '/fplus/approvals', icon: CheckSquare, section: 'Principal' },
     { id: 'publications', label: 'Publicaciones', href: '/fplus/publications', icon: Send, section: 'Principal' },
     { id: 'leads', label: 'Mis Leads', href: '/fplus/leads', icon: TrendingUp, section: 'Revenue' },
-    { id: 'reports', label: 'Mis Reportes', href: '/fplus/reports', icon: BarChart3, section: 'Inteligencia' },
   ],
 
   media_buyer: [
     { id: 'dashboard', label: 'Dashboard', href: '/fplus/dashboard', icon: LayoutDashboard, section: 'Principal' },
     { id: 'calendar', label: 'Calendario', href: '/fplus/calendar', icon: Calendar, section: 'Principal' },
     { id: 'publications', label: 'Publicaciones', href: '/fplus/publications', icon: Send, section: 'Principal' },
-    { id: 'multimedia', label: 'Multimedia', href: '/fplus/multimedia', icon: ImageIcon, section: 'Principal' },
   ],
 
   content_manager: [
     { id: 'dashboard', label: 'Dashboard', href: '/fplus/dashboard', icon: LayoutDashboard, section: 'Principal' },
-    { id: 'content', label: 'Mis Piezas', href: '/fplus/content', icon: FileImage, section: 'Principal' },
-    { id: 'approvals', label: 'Mis Revisiones', href: '/fplus/approvals', icon: CheckSquare, section: 'Principal' },
+    { id: 'content', label: 'Mis Piezas', href: '/fplus/content?mio=true', icon: FileImage, section: 'Principal' },
   ],
 
   designer: [
     { id: 'dashboard', label: 'Dashboard', href: '/fplus/dashboard', icon: LayoutDashboard, section: 'Principal' },
-    { id: 'content', label: 'Mis Piezas', href: '/fplus/content', icon: FileImage, section: 'Principal' },
-    { id: 'multimedia', label: 'Multimedia', href: '/fplus/multimedia', icon: ImageIcon, section: 'Principal' },
-    { id: 'approvals', label: 'Mis Revisiones', href: '/fplus/approvals', icon: CheckSquare, section: 'Principal' },
+    { id: 'content', label: 'Mis Piezas', href: '/fplus/content?mio=true', icon: FileImage, section: 'Principal' },
   ],
 
   client_standard: [

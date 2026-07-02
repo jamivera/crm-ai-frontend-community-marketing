@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { mockPublications, mockContent } from '../../mock';
+import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import type { Publication } from '../../types';
@@ -51,9 +51,12 @@ export default function CalendarView() {
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
 
+  const publications = useFplusStore(s => s.publications);
+  const contentPieces = useFplusStore(s => s.contentPieces);
+
   // Map day → publications
   const pubsByDay = new Map<number, Publication[]>();
-  mockPublications.forEach(pub => {
+  publications.forEach(pub => {
     const d = new Date(pub.fecha_programada);
     if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
       const day = d.getDate();
@@ -196,7 +199,7 @@ export default function CalendarView() {
           ) : (
             <div className="space-y-3">
               {selectedPubs.map(pub => {
-                const piece = mockContent.find(cp => cp.id === pub.content_piece_id);
+                const piece = contentPieces.find(cp => cp.id === pub.content_piece_id);
                 const hora = new Date(pub.fecha_programada).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
                 return (
                   <div

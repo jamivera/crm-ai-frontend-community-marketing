@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import type { FplusRole } from '../../types';
 import { getMenuForRole, getMenuSections } from './FplusMenuItems';
 
@@ -8,6 +8,8 @@ interface FplusSidebarProps {
   role: FplusRole;
   agencyName?: string;
 }
+
+const CRM_ROLES: FplusRole[] = ['agency_admin', 'account_manager', 'super_admin'];
 
 export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) {
   const location = useLocation();
@@ -28,6 +30,7 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
 
   const items = getMenuForRole(role);
   const sections = getMenuSections(items);
+  const canAccessCRM = CRM_ROLES.includes(role);
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(href + '/');
@@ -49,6 +52,37 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
           <span className="text-sm font-semibold text-slate-800 truncate">{agencyName}</span>
         )}
       </div>
+
+      {/* Workspace switcher — only for roles with CRM access */}
+      {canAccessCRM && !collapsed && (
+        <div className="px-3 pt-3 pb-1 flex-shrink-0">
+          <div className="grid grid-cols-2 bg-slate-100 rounded-lg p-0.5 gap-0.5">
+            <button
+              className="py-1.5 rounded-md text-[11px] font-semibold bg-white text-green-700 shadow-sm"
+              disabled
+            >
+              ✦ Content
+            </button>
+            <button
+              onClick={() => navigate('/conversations')}
+              className="py-1.5 rounded-md text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              🗂 CRM
+            </button>
+          </div>
+        </div>
+      )}
+      {canAccessCRM && collapsed && (
+        <div className="px-2 pt-2 pb-1 flex-shrink-0">
+          <button
+            onClick={() => navigate('/conversations')}
+            title="Ir al CRM"
+            className="w-full flex items-center justify-center py-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-5">

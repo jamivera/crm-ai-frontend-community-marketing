@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Target, TrendingUp, Users, DollarSign } from 'lucide-react';
-import { mockCampaigns, mockClients } from '../../mock';
+import { useFplusStore } from '../../store';
+import { NewCampaignModal } from '../../components/modals/NewCampaignModal';
 import type { Campaign } from '../../types';
 
 const CAMPAIGN_STATE_LABELS: Record<Campaign['estado'], string> = {
@@ -48,7 +49,11 @@ export default function CampaignList() {
   const [filterEstado, setFilterEstado] = useState<Campaign['estado'] | 'todos'>('todos');
   const [filterCliente, setFilterCliente] = useState('todos');
 
-  const filtered = mockCampaigns.filter(c => {
+  const campaigns = useFplusStore(s => s.campaigns);
+  const clients = useFplusStore(s => s.clients);
+  const [showNewCampaign, setShowNewCampaign] = useState(false);
+
+  const filtered = campaigns.filter(c => {
     const matchSearch = c.nombre.toLowerCase().includes(search.toLowerCase()) ||
       c.client_nombre.toLowerCase().includes(search.toLowerCase()) ||
       c.codigo_interno.toLowerCase().includes(search.toLowerCase());
@@ -58,11 +63,11 @@ export default function CampaignList() {
   });
 
   const counts = {
-    todos: mockCampaigns.length,
-    activa: mockCampaigns.filter(c => c.estado === 'activa').length,
-    planificada: mockCampaigns.filter(c => c.estado === 'planificada').length,
-    pausada: mockCampaigns.filter(c => c.estado === 'pausada').length,
-    completada: mockCampaigns.filter(c => c.estado === 'completada').length,
+    todos: campaigns.length,
+    activa: campaigns.filter(c => c.estado === 'activa').length,
+    planificada: campaigns.filter(c => c.estado === 'planificada').length,
+    pausada: campaigns.filter(c => c.estado === 'pausada').length,
+    completada: campaigns.filter(c => c.estado === 'completada').length,
   };
 
   return (
@@ -71,10 +76,10 @@ export default function CampaignList() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-800">Campañas</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{mockCampaigns.length} campañas en total</p>
+          <p className="text-sm text-slate-500 mt-0.5">{campaigns.length} campañas en total</p>
         </div>
         <button
-          onClick={() => navigate('/fplus/campaigns/new')}
+          onClick={() => setShowNewCampaign(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -100,7 +105,7 @@ export default function CampaignList() {
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="todos">Todos los clientes</option>
-          {mockClients.map(c => (
+          {clients.map(c => (
             <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}
         </select>
@@ -141,6 +146,7 @@ export default function CampaignList() {
           ))}
         </div>
       )}
+      {showNewCampaign && <NewCampaignModal onClose={() => setShowNewCampaign(false)} />}
     </div>
   );
 }

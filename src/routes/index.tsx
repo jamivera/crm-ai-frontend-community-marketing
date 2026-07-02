@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import FplusApp from '@/fplus/FplusApp';
+import { FplusRoute } from '@/fplus/components/FplusRoute';
 import PrivateRoute from './PrivateRoute';
 import PublicRoute from './PublicRoute';
 import CustomerRoute from './CustomerRoute';
@@ -1517,7 +1518,7 @@ const AppRouter = () => {
           {PluginRoutes({ namespace: 'public' })}
 
           {/* ── FPLUS SaaS V2 ── */}
-          <Route path="/fplus/*" element={<FplusApp />} />
+          <Route path="/fplus/*" element={<FplusRoute><FplusApp /></FplusRoute>} />
 
           {/* Rota 404 - Página não encontrada */}
           <Route path="*" element={<NotFound />} />
