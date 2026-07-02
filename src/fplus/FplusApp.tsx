@@ -24,6 +24,7 @@ import Placeholder from './pages/Placeholder';
 
 export default function FplusApp() {
   return (
+    <div className="fplus-scope h-full">
     <Routes>
       {/* ── Super Admin (isolated layout) ── */}
       <Route
@@ -116,5 +117,6 @@ export default function FplusApp() {
         }
       />
     </Routes>
+    </div>
   );
 }

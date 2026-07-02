@@ -94,6 +94,21 @@ export default function Cronopost({ canCreate = false }: Props) {
   const commentCount = (pieceId: string) =>
     contentComments.filter(c => c.content_piece_id === pieceId).length +
     (portalComments[pieceId]?.length ?? 0);
+
+  const updateContent = useFplusStore(s => s.updateContent);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // Tablero editorial: arrastrar una tarjeta sobre otra INTERCAMBIA sus fechas
+  // de publicación. Solo se mueven esas dos piezas — el resto del mes queda
+  // intacto. Calendario y Multimedia se actualizan solos (misma fuente).
+  const handleSwap = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const a = contentPieces.find(p => p.id === sourceId);
+    const b = contentPieces.find(p => p.id === targetId);
+    if (!a?.fecha_publicacion || !b?.fecha_publicacion) return;
+    updateContent(a.id, { fecha_publicacion: b.fecha_publicacion });
+    updateContent(b.id, { fecha_publicacion: a.fecha_publicacion });
+  };
   const [activeFilter, setActiveFilter] = useState<FilterTab>('todo');
   const [showCreate, setShowCreate] = useState(false);
   const [showPlanner, setShowPlanner] = useState(false);
@@ -231,9 +246,19 @@ export default function Cronopost({ canCreate = false }: Props) {
                     <button
                       key={cp.id}
                       onClick={() => handlePieceClick(cp.id)}
+                      draggable={canCreate}
+                      onDragStart={canCreate ? e => e.dataTransfer.setData('text/piece-id', cp.id) : undefined}
+                      onDragOver={canCreate ? e => { e.preventDefault(); setDragOverId(cp.id); } : undefined}
+                      onDragLeave={canCreate ? () => setDragOverId(d => (d === cp.id ? null : d)) : undefined}
+                      onDrop={canCreate ? e => {
+                        e.preventDefault();
+                        setDragOverId(null);
+                        handleSwap(e.dataTransfer.getData('text/piece-id'), cp.id);
+                      } : undefined}
                       className={`flex flex-col bg-white border rounded-xl overflow-hidden text-left hover:shadow-md active:scale-[0.98] transition-all ${
+                        dragOverId === cp.id ? 'ring-2 ring-violet-400 ring-offset-1 scale-[1.02]' :
                         isPending ? 'ring-2 ring-amber-300 ring-offset-1' : 'border-slate-100'
-                      }`}
+                      } ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
                       {/* Preview area */}
                       <div className={`h-20 bg-gradient-to-br ${visual.gradient} flex items-center justify-center relative border-b`}>

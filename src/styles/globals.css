@@ -448,3 +448,21 @@
   --xy-handle-background-color-default: var(--color-muted-foreground);
   --xy-handle-border-color-default: var(--color-foreground);
 }
+
+/* ─── FPLUS: formularios siempre legibles ─────────────────────────────────────
+   FPLUS usa superficies claras (bg-white) aunque Evo CRM esté en modo oscuro.
+   Sin esto, los inputs heredan texto blanco del tema .dark y quedan invisibles. */
+.fplus-scope input,
+.fplus-scope select,
+.fplus-scope textarea {
+  color: #1e293b; /* slate-800 */
+  color-scheme: light;
+}
+.fplus-scope input::placeholder,
+.fplus-scope textarea::placeholder {
+  color: #94a3b8; /* slate-400 */
+}
+.fplus-scope select option {
+  color: #1e293b;
+  background-color: #ffffff;
+}

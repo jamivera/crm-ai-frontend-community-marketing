@@ -213,8 +213,8 @@ export function PortalApprovalDetail() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Razón estratégica (solo agencia) */}
-        {isAgency && cp.razon_estrategica && (
+        {/* Razón estratégica del planificador */}
+        {cp.razon_estrategica && (
           <div className="flex items-start gap-2 bg-violet-50 border border-violet-100 rounded-2xl p-3">
             <span className="text-sm">✨</span>
             <p className="text-xs text-violet-700 leading-relaxed">{cp.razon_estrategica}</p>
@@ -222,11 +222,21 @@ export function PortalApprovalDetail() {
         )}
 
         {/* Preview placeholder */}
-        <div className="rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 h-52 flex flex-col items-center justify-center">
-          <span className="text-5xl mb-2">{getTypeEmoji(cp.tipo)}</span>
-          <p className="text-xs text-slate-400 capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</p>
-          <p className="text-xs text-slate-300 mt-1">Vista previa no disponible en modo demo</p>
-        </div>
+        {cp.archivos.length > 0 && cp.archivos[0].url ? (
+          <div className="rounded-2xl overflow-hidden bg-slate-900 max-h-80 flex items-center justify-center">
+            {cp.archivos[0].tipo?.startsWith('video') || /\.(mp4|mov)/i.test(cp.archivos[0].nombre ?? '') ? (
+              <video src={cp.archivos[0].url} controls className="max-h-80 w-full object-contain" />
+            ) : (
+              <img src={cp.archivos[0].url} alt={cp.nombre} className="max-h-80 w-full object-contain" />
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 h-52 flex flex-col items-center justify-center">
+            <span className="text-5xl mb-2">{getTypeEmoji(cp.tipo)}</span>
+            <p className="text-xs text-slate-400 capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</p>
+            <p className="text-xs text-slate-300 mt-1">Archivo aún no cargado</p>
+          </div>
+        )}
 
         {/* Copy + Hashtags */}
         {(cp.copy_activo || (brief?.hashtags_habituales?.length ?? 0) > 0) && (
@@ -237,11 +247,11 @@ export function PortalApprovalDetail() {
                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{cp.copy_activo}</p>
               </div>
             )}
-            {brief?.hashtags_habituales && brief.hashtags_habituales.length > 0 && (
+            {((cp.hashtags?.length ?? 0) > 0 || (brief?.hashtags_habituales?.length ?? 0) > 0) && (
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Hashtags</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {brief.hashtags_habituales.map(tag => (
+                  {((cp.hashtags?.length ?? 0) > 0 ? cp.hashtags! : brief?.hashtags_habituales ?? []).map(tag => (
                     <span key={tag} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
                       {tag}
                     </span>
@@ -256,6 +266,24 @@ export function PortalApprovalDetail() {
         <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Detalles</p>
           <MetaRow label="Tipo" value={CONTENT_TYPE_LABELS[cp.tipo]} />
+          {cp.plataforma && <MetaRow label="Plataforma" value={cp.plataforma} />}
+          {cp.fecha_publicacion && (
+            <>
+              <MetaRow
+                label="Fecha de publicación"
+                value={new Date(cp.fecha_publicacion).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })}
+              />
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Hora recomendada</span>
+                <span className="text-blue-600 font-semibold">
+                  🕐 {new Date(cp.fecha_publicacion).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 text-right -mt-1">
+                Mayor probabilidad de alcance según la estrategia aplicada
+              </p>
+            </>
+          )}
           {cp.pilar && <MetaRow label="Pilar" value={cp.pilar} />}
           {cp.tono && cp.tono.length > 0 && <MetaRow label="Tono" value={cp.tono.join(', ')} />}
           {cp.fecha_limite && (
