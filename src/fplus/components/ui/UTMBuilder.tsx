@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Copy, Check, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
 
 export interface UTMParams {

@@ -18,7 +18,6 @@ type ViewMode = 'kanban' | 'lista';
 
 export default function LeadsPipeline() {
   const leads = useFplusStore(s => s.leads);
-  const publications = useFplusStore(s => s.publications);
   const clients = useFplusStore(s => s.clients);
   const updateLead = useFplusStore(s => s.updateLead);
   const [view, setView] = useState<ViewMode>('kanban');

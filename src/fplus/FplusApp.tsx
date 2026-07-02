@@ -1,4 +1,3 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { FplusMainLayout } from './components/layout/FplusMainLayout';
 import { SuperAdminLayout } from './components/layout/SuperAdminLayout';

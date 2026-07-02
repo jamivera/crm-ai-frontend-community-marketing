@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePortalContext } from './PortalContext';

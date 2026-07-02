@@ -9,7 +9,6 @@ import { ContentStateChip, LeadStateChip } from '../../components/ui/StateChip';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useFplusStore } from '../../store';
-import { NewContentModal } from '../../components/modals/NewContentModal';
 
 type Tab = 'resumen' | 'contenido' | 'campanas' | 'leads' | 'brief';
 
@@ -17,7 +16,7 @@ export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
-  const [showNewContent, setShowNewContent] = useState(false);
+  const [, setShowNewContent] = useState(false);
 
   const clients = useFplusStore(s => s.clients);
   const contentPieces = useFplusStore(s => s.contentPieces);
@@ -76,7 +75,7 @@ export default function ClientDetail() {
                   <PlatformIcon platform="instagram" />@{client.instagram_handle}
                 </span>
               )}
-              <span className="text-sm text-slate-500">AM: {client.account_manager_nombre}</span>
+              <span className="text-sm text-slate-500">AM: {client.account_manager_name}</span>
             </div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
@@ -146,7 +145,7 @@ export default function ClientDetail() {
   );
 }
 
-function ResumenTab({ client, content, campaigns, leads, clientId, onNewContent }: any) {
+function ResumenTab({ client, content, clientId }: any) {
   const navigate = useNavigate();
   const atrasadas = content.filter((c: any) => c.fecha_limite && new Date(c.fecha_limite) < new Date());
   return (
@@ -246,7 +245,7 @@ function ContenidoTab({ pieces, onNavigate }: any) {
   );
 }
 
-function CampanasTab({ campaigns, onNavigate }: any) {
+function CampanasTab({ campaigns }: any) {
   if (campaigns.length === 0) {
     return <EmptyState title="Sin campañas" description="Aún no hay campañas para este cliente." icon={<Megaphone />} />;
   }

@@ -1,8 +1,8 @@
 import {
   LayoutDashboard, Users, Megaphone, FileImage, Calendar,
-  ImageIcon, CheckSquare, Send, TrendingUp, DollarSign,
+  CheckSquare, Send, TrendingUp,
   BarChart3, Brain, Settings, Building2, ShieldCheck,
-  AlertTriangle, Flag, FileText, Home, Clock,
+  AlertTriangle, Flag, FileText, Clock,
 } from 'lucide-react';
 import type { FplusRole } from '../../types';
 

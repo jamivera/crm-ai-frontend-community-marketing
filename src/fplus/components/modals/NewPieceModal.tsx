@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Plus, Trash2, Upload, Sparkles, RotateCcw, Copy, Check } from 'lucide-react';
+import { X, Plus, Upload, Sparkles, RotateCcw, Copy, Check } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS, PLATFORM_LABELS } from '../../constants';
 import { suggestHashtags } from '../../utils/hashtagSuggester';

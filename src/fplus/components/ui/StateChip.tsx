@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ContentState, LeadState } from '../../types';
 import { CONTENT_STATE_LABELS, CONTENT_STATE_COLORS, LEAD_STATE_LABELS, LEAD_STATE_COLORS } from '../../constants';
 

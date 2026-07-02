@@ -17,7 +17,6 @@ const PUB_STATE = {
 export default function PublicationList() {
   const navigate = useNavigate();
   const publications = useFplusStore(s => s.publications);
-  const contentPieces = useFplusStore(s => s.contentPieces);
   const confirmPublication = useFplusStore(s => s.confirmPublication);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<Publication['estado'] | 'todos'>('todos');
@@ -130,7 +129,6 @@ export default function PublicationList() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.map(pub => {
-              const piece = contentPieces.find(cp => cp.id === pub.content_piece_id);
               const isOverdue = pub.estado === 'sin_confirmar' && new Date(pub.fecha_programada) < new Date();
               const metrics = getMetricsByPublication(pub.id);
               const engRate = metrics.length > 0 ? metrics[metrics.length - 1].engagement_rate : null;

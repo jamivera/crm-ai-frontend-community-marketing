@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Layers } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
-import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
+import { CONTENT_TYPE_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
 import type { ContentState } from '../../types';
@@ -15,7 +15,6 @@ interface Props {
 type FilterTab = 'todo' | 'aprobar' | 'cambios' | 'aprobado' | 'publicado';
 
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function getTypeEmoji(tipo: string): string {
   const m: Record<string, string> = {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send } from 'lucide-react';
-import { UTMBuilder } from '../../components/ui/UTMBuilder';
+import { UTMBuilder, type UTMParams } from '../../components/ui/UTMBuilder';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
@@ -19,7 +19,7 @@ interface PublicationFormProps {
 }
 
 export function PublicationForm({ onClose, preselectedClientId, preselectedPieceId }: PublicationFormProps) {
-  const { clients, contentPieces, campaigns, createPublication } = useFplusStore();
+  const { clients, contentPieces, createPublication } = useFplusStore();
 
   const [clientId, setClientId] = useState(preselectedClientId ?? '');
   const [pieceId, setPieceId] = useState(preselectedPieceId ?? '');
@@ -37,7 +37,7 @@ export function PublicationForm({ onClose, preselectedClientId, preselectedPiece
   const [hook, setHook] = useState('');
   const [oferta, setOferta] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
-  const [utmParams, setUtmParams] = useState({
+  const [utmParams, setUtmParams] = useState<UTMParams>({
     utm_source: plataforma,
     utm_medium: 'organic',
     utm_campaign: '',

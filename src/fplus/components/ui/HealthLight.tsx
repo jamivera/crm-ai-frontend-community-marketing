@@ -1,4 +1,3 @@
-import React from 'react';
 import type { HealthStatus } from '../../types';
 import { HEALTH_STATUS_COLORS } from '../../constants';
 

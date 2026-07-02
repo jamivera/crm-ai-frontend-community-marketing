@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle2, ExternalLink, BarChart2,
-  Users, MousePointer, Eye, TrendingUp, Hash, DollarSign,
+  Users, MousePointer, Eye, TrendingUp,
   ChevronRight, Plus, X,
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import MetricForm from './MetricForm';
-import type { PublicationMetric } from '../../types';
 
 type Tab = 'resumen' | 'metricas' | 'leads';
 

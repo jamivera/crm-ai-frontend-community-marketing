@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, Users, Key, Bell, Palette } from 'lucide-react';
+import { Building2, Users, Key, Bell } from 'lucide-react';
 
 type Tab = 'agencia' | 'equipo' | 'acceso';
 

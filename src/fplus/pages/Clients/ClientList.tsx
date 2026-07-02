@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, ArrowRight, Instagram, Users } from 'lucide-react';
+import { Plus, Search, ArrowRight, Users } from 'lucide-react';
 import { HealthLight } from '../../components/ui/HealthLight';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -127,7 +127,7 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
         </div>
       </td>
       <td className="px-4 py-3.5 hidden md:table-cell">
-        <span className="text-sm text-slate-600">{client.account_manager_nombre}</span>
+        <span className="text-sm text-slate-600">{client.account_manager_name}</span>
       </td>
       <td className="px-4 py-3.5">
         <HealthLight status={client.semaforo} showLabel />

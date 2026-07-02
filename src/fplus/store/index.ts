@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   mockClients, mockCampaigns, mockContent,
   mockPublications, mockLeads, mockPortalComments, mockMetrics, mockBriefs,
@@ -54,7 +55,7 @@ export const STATE_TRANSITIONS: Partial<Record<ContentState, ContentState[]>> = 
   bloqueado: ['en_produccion'],
 };
 
-export const ACTION_LABELS: Partial<Record<ContentState, Record<ContentState, string>>> = {
+export const ACTION_LABELS: Partial<Record<ContentState, Partial<Record<ContentState, string>>>> = {
   borrador: { en_produccion: 'Iniciar producción' },
   en_produccion: { revision_interna: 'Enviar a revisión interna', bloqueado: 'Marcar bloqueado' },
   revision_interna: { enviado_cliente: 'Enviar al cliente', cambios_internos: 'Solicitar cambios internos' },
@@ -143,7 +144,7 @@ interface FplusStore {
 
 // ─── Store implementation ───────────────────────────────────────────────────────
 
-export const useFplusStore = create<FplusStore>((set, get) => ({
+export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   clients: [...mockClients],
   campaigns: [...mockCampaigns],
   contentPieces: [...mockContent],
@@ -315,6 +316,28 @@ export const useFplusStore = create<FplusStore>((set, get) => ({
     })),
 
   getBrief: (clientId) => get().briefs[clientId],
+}), {
+  name: 'fplus-store',
+  version: 1,
+  // Los archivos base64 grandes pueden exceder la cuota de localStorage (~5MB):
+  // se persiste todo menos las URLs de archivos que superen ~2MB por pieza.
+  partialize: (state) => ({
+    clients: state.clients,
+    campaigns: state.campaigns,
+    contentPieces: state.contentPieces.map(cp => ({
+      ...cp,
+      archivos: cp.archivos.map(a =>
+        a.url.length > 2_000_000 ? { ...a, url: '' } : a
+      ),
+    })),
+    publications: state.publications,
+    leads: state.leads,
+    metrics: state.metrics,
+    briefs: state.briefs,
+    portalComments: state.portalComments,
+    contentComments: state.contentComments,
+    stateHistory: state.stateHistory,
+  }),
 }));
 
 // Export unused type aliases needed by creation forms

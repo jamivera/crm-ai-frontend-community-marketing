@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, LayoutGrid, List, FileImage, Clock, ChevronDown } from 'lucide-react';
 import { ContentStateChip } from '../../components/ui/StateChip';
@@ -7,17 +7,12 @@ import { useFplusStore, STATE_TRANSITIONS, ACTION_LABELS } from '../../store';
 import { NewContentModal } from '../../components/modals/NewContentModal';
 import { KANBAN_COLUMNS, CONTENT_STATE_LABELS } from '../../constants';
 import type { ContentPiece, ContentState } from '../../types';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 type ViewMode = 'kanban' | 'list';
 
 // Active user — in a real app this comes from auth context
 const CURRENT_USER = 'Juan Pérez';
 
-function timeAgo(ts: string) {
-  try { return formatDistanceToNow(new Date(ts), { addSuffix: true, locale: es }); } catch { return ts; }
-}
 
 export default function ContentList() {
   const navigate = useNavigate();

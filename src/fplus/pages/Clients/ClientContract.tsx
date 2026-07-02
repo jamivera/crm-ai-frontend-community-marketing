@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Building2, User, CalendarDays, DollarSign, Megaphone, FileText, StickyNote, CheckCircle2 } from 'lucide-react';
+import React, {} from 'react';
+import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { usePortalContext } from '../Portal/PortalContext';
 import type { PlanContratado, PautaPublicitaria } from '../../types';
@@ -25,12 +25,6 @@ const PAUTA_LABELS: Record<PautaPublicitaria, string> = {
   presupuesto_compartido: 'Presupuesto compartido',
 };
 
-const PAUTA_COLORS: Record<PautaPublicitaria, string> = {
-  no_incluye:            'bg-slate-100 text-slate-600',
-  incluida_agencia:      'bg-blue-100 text-blue-700',
-  cliente_paga:          'bg-violet-100 text-violet-700',
-  presupuesto_compartido: 'bg-emerald-100 text-emerald-700',
-};
 
 function Field({ label, value, icon: Icon }: { label: string; value?: string; icon: React.ElementType }) {
   return (

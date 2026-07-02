@@ -161,7 +161,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-900">{client.nombre}</div>
                   <div className="text-xs text-slate-500">
-                    AM: {client.account_manager_nombre}
+                    AM: {client.account_manager_name}
                     {client.piezas_atrasadas > 0 && (
                       <span className="ml-2 text-amber-600 font-medium">· {client.piezas_atrasadas} atrasada{client.piezas_atrasadas > 1 ? 's' : ''}</span>
                     )}
