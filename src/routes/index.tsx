@@ -2,6 +2,10 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import FplusApp from '@/fplus/FplusApp';
 import { FplusRoute } from '@/fplus/components/FplusRoute';
+import DemoLogin from '@/fplus/pages/DemoLogin';
+
+// Entorno de pruebas FPLUS: login genérico admin/admin en lugar del auth de Evo CRM
+const FPLUS_DEMO = import.meta.env.VITE_FPLUS_DEMO === 'true';
 import PrivateRoute from './PrivateRoute';
 import PublicRoute from './PublicRoute';
 import CustomerRoute from './CustomerRoute';
@@ -142,9 +146,13 @@ const AppRouter = () => {
           <Route
             path="/"
             element={
-              <PrivateRoute>
-                <SmartRedirect />
-              </PrivateRoute>
+              FPLUS_DEMO ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <PrivateRoute>
+                  <SmartRedirect />
+                </PrivateRoute>
+              )
             }
           />
 
@@ -152,9 +160,13 @@ const AppRouter = () => {
           <Route
             path="/login"
             element={
-              <PublicRoute>
-                <Auth />
-              </PublicRoute>
+              FPLUS_DEMO ? (
+                <DemoLogin />
+              ) : (
+                <PublicRoute>
+                  <Auth />
+                </PublicRoute>
+              )
             }
           />
 
