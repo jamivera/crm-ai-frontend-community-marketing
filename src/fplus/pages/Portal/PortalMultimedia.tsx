@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, CheckCircle2, RotateCcw, MessageSquare, Layers, Hash, Play } from 'lucide-react';
+import { Plus, CheckCircle2, RotateCcw, MessageSquare, Layers, Hash, Play, Megaphone } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS, PLATFORM_LABELS, getTypeVisual } from '../../constants';
@@ -84,6 +84,14 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
   const briefs         = useFplusStore(s => s.briefs);
   const approveContent  = useFplusStore(s => s.approveContent);
   const requestChanges  = useFplusStore(s => s.requestChanges);
+  const updateContent   = useFplusStore(s => s.updateContent);
+
+  // Marcar/desmarcar para pauta: la pieza queda registrada y aparecerá
+  // automáticamente en el módulo Campañas (sin volver a buscarla).
+  const togglePauta = (e: React.MouseEvent, cpId: string, actual?: boolean) => {
+    e.stopPropagation();
+    updateContent(cpId, { seleccionado_pauta: !actual });
+  };
   const [activeFilter, setActiveFilter] = useState<FilterType>('todo');
   const [showCreate,   setShowCreate]   = useState(false);
 
@@ -350,6 +358,19 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
                             </button>
                           )}
                         </div>
+                        {canCreate && (
+                          <button
+                            onClick={e => togglePauta(e, cp.id, cp.seleccionado_pauta)}
+                            className={`mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold rounded-lg border transition-colors ${
+                              cp.seleccionado_pauta
+                                ? 'bg-violet-600 text-white border-violet-600'
+                                : 'bg-white text-violet-600 border-violet-200 hover:bg-violet-50'
+                            }`}
+                          >
+                            <Megaphone className="w-3 h-3" />
+                            {cp.seleccionado_pauta ? 'Seleccionado para pauta ✓' : 'Seleccionar para pauta'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

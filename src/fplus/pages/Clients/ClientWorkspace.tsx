@@ -15,6 +15,7 @@ import PortalMultimedia from '../Portal/PortalMultimedia';
 import BriefMaestro from './BriefMaestro';
 import ClientContract from './ClientContract';
 import ClientMetrics from './ClientMetrics';
+import ClientCampaigns from './ClientCampaigns';
 import Placeholder from '../Placeholder';
 import { EmptyState } from '../../components/ui/EmptyState';
 
@@ -182,7 +183,7 @@ export default function ClientWorkspace() {
           <Route path="approvals/:id" element={<PortalApprovalDetail />} />
           <Route path="comments" element={<Placeholder />} />
           <Route path="history" element={<Placeholder />} />
-          <Route path="campaigns" element={<Placeholder />} />
+          <Route path="campaigns" element={<ClientCampaigns />} />
           <Route path="brief" element={<BriefMaestro />} />
           <Route path="contract" element={<ClientContract />} />
           <Route path="metrics" element={<ClientMetrics />} />

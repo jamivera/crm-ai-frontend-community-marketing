@@ -1,5 +1,5 @@
-import React, {} from 'react';
-import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2, Target } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2, Target, PenLine, Eraser } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { usePortalContext } from '../Portal/PortalContext';
 import { CONTENT_TYPE_LABELS } from '../../constants';
@@ -60,9 +60,87 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string; ic
   );
 }
 
+// Pad de firma electrónica: la firma queda asociada al contrato del cliente.
+// El PDF del contrato firmado se generará automáticamente en una fase posterior.
+function SignaturePad({ onSave }: { onSave: (dataUrl: string, firmante: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  const [firmante, setFirmante] = useState('');
+
+  const pos = (e: React.PointerEvent) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const start = (e: React.PointerEvent) => {
+    drawing.current = true;
+    const ctx = canvasRef.current!.getContext('2d')!;
+    const { x, y } = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const move = (e: React.PointerEvent) => {
+    if (!drawing.current) return;
+    const ctx = canvasRef.current!.getContext('2d')!;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#1e293b';
+    const { x, y } = pos(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setDirty(true);
+  };
+
+  const clear = () => {
+    const c = canvasRef.current!;
+    c.getContext('2d')!.clearRect(0, 0, c.width, c.height);
+    setDirty(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <canvas
+        ref={canvasRef}
+        width={520}
+        height={140}
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={() => { drawing.current = false; }}
+        onPointerLeave={() => { drawing.current = false; }}
+        className="w-full h-[140px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl cursor-crosshair touch-none"
+      />
+      <input
+        value={firmante}
+        onChange={e => setFirmante(e.target.value)}
+        placeholder="Nombre completo del firmante"
+        className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-400"
+      />
+      <div className="flex gap-2">
+        <button
+          onClick={clear}
+          className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50"
+        >
+          <Eraser className="w-3.5 h-3.5" /> Limpiar
+        </button>
+        <button
+          onClick={() => dirty && firmante.trim() && onSave(canvasRef.current!.toDataURL('image/png'), firmante.trim())}
+          disabled={!dirty || !firmante.trim()}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40"
+        >
+          <PenLine className="w-3.5 h-3.5" /> Firmar contrato
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ClientContract() {
   const { clientId } = usePortalContext();
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+  const updateClient = useFplusStore(s => s.updateClient);
+  const [signing, setSigning] = useState(false);
 
   if (!client) return null;
 
@@ -225,6 +303,62 @@ export default function ClientContract() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Valor del plan (lista/descuento/final) */}
+      {(client.precio_lista || client.presupuesto_mensual) && (
+        <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">Valor del Plan</p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-lg font-bold text-slate-500 line-through decoration-slate-300">
+                ${(client.precio_lista ?? client.presupuesto_mensual ?? 0).toLocaleString('en')}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Precio Lista</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-amber-600">-${(client.descuento ?? 0).toLocaleString('en')}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Descuento</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-emerald-600">${(client.presupuesto_mensual ?? client.precio_lista ?? 0).toLocaleString('en')}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Valor Final</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Firma electrónica */}
+      <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">Firma Electrónica</p>
+        {client.firma_contrato ? (
+          <div className="space-y-2">
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex items-center gap-4">
+              <img src={client.firma_contrato.imagen} alt="Firma" className="h-16 object-contain" />
+              <div>
+                <p className="text-sm font-semibold text-slate-700">{client.firma_contrato.firmante}</p>
+                <p className="text-[11px] text-slate-400">
+                  Firmado el {new Date(client.firma_contrato.fecha).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+                <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">✓ Contrato firmado — el PDF se generará automáticamente</p>
+              </div>
+            </div>
+          </div>
+        ) : signing ? (
+          <SignaturePad
+            onSave={(imagen, firmante) => {
+              updateClient(client.id, { firma_contrato: { imagen, firmante, fecha: new Date().toISOString() } });
+              setSigning(false);
+            }}
+          />
+        ) : (
+          <button
+            onClick={() => setSigning(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-3 border-2 border-dashed border-slate-200 rounded-xl text-xs font-medium text-slate-400 hover:border-blue-300 hover:text-blue-500 transition-colors"
+          >
+            <PenLine className="w-4 h-4" /> Firmar contrato electrónicamente
+          </button>
+        )}
       </div>
 
       {/* Observaciones */}

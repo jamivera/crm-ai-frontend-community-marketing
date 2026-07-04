@@ -8,8 +8,9 @@ import { PLATFORM_LABELS } from '../../constants';
 
 export default function ClientMetrics() {
   const { clientId } = usePortalContext();
-  const publications = useFplusStore(s => s.publications.filter(p => p.client_id === clientId));
+  const allPublications = useFplusStore(s => s.publications);
   const metrics = useFplusStore(s => s.metrics);
+  const publications = allPublications.filter(p => p.client_id === clientId);
 
   const pubIds = new Set(publications.map(p => p.id));
   const clientMetrics = metrics.filter(m => pubIds.has(m.publication_id));
@@ -50,6 +51,46 @@ export default function ClientMetrics() {
             <p className="text-[10px] text-slate-400 mt-1">{c.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Indicadores de pauta — estructura lista para la API de Meta/Google/TikTok/LinkedIn.
+          Cada campaña ya sabe qué contenido, objetivo y cliente le corresponde. */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Indicadores de pauta</p>
+          <span className="text-[9px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
+            Se activan al conectar API Meta
+          </span>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {[
+            { k: 'Impresiones', v: sum(m => m.impressions ?? 0) },
+            { k: 'CTR', v: null },
+            { k: 'CPC', v: clientMetrics.length ? clientMetrics.reduce((a, m) => a + (m.cpc ?? 0), 0) / clientMetrics.length : null, money: true },
+            { k: 'CPM', v: clientMetrics.length ? clientMetrics.reduce((a, m) => a + (m.cpm ?? 0), 0) / clientMetrics.length : null, money: true },
+            { k: 'Leads', v: sum(m => m.leads ?? 0) },
+            { k: 'ROAS', v: null },
+            { k: 'Mensajes', v: null },
+            { k: 'Conversaciones', v: null },
+            { k: 'Seguidores', v: null },
+            { k: 'Video views', v: sum(m => m.video_views ?? 0) },
+            { k: 'Inversión', v: sum(m => m.spend ?? 0), money: true },
+            { k: 'Costo/resultado', v: null },
+          ].map(ind => (
+            <div key={ind.k} className="text-center py-2 bg-slate-50 rounded-xl">
+              <p className={`text-sm font-bold leading-none ${ind.v ? 'text-slate-700' : 'text-slate-300'}`}>
+                {ind.v
+                  ? `${ind.money ? '$' : ''}${(Math.round(ind.v * 100) / 100).toLocaleString('es')}`
+                  : '—'}
+              </p>
+              <p className="text-[9px] text-slate-400 mt-1">{ind.k}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-slate-400 mt-3">
+          Flujo conectado: Brief → Plan → Calendario → Contenido → Multimedia → Campañas → API Meta → Métricas.
+          Cada resultado llegará ya vinculado a su campaña, contenido y objetivo.
+        </p>
       </div>
 
       {clientMetrics.length === 0 ? (
