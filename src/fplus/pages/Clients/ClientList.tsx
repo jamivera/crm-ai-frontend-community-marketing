@@ -93,6 +93,7 @@ export default function ClientList() {
                 <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Cliente</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden md:table-cell">AM</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Estado</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Contrato</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden lg:table-cell">Piezas</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden lg:table-cell">Próx. publicación</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden xl:table-cell">Leads / mes</th>
@@ -107,10 +108,36 @@ export default function ClientList() {
           </table>
         </div>
       )}
+      {/* Leyenda de estado de contrato (uso interno) */}
+      <div className="flex gap-4 flex-wrap mt-3 text-[11px] text-slate-400">
+        <span>🟢 Plan vigente, contrato activo</span>
+        <span>🟡 Próximo a vencer (&lt;30 días) — coordinar renovación</span>
+        <span>🔴 Vencido — cliente pendiente de renovación</span>
+      </div>
       {showNewClient && <NewClientModal onClose={() => setShowNewClient(false)} />}
     </div>
   );
 }
+
+// Estado del contrato calculado automáticamente con fecha inicio/fin.
+// Solo para uso interno de Primero Digital — el portal del cliente no lo ve.
+type ContractStatus = 'activo' | 'por_vencer' | 'vencido' | 'sin_contrato';
+
+function getContractStatus(client: Client): ContractStatus {
+  if (!client.fecha_fin_contrato) return 'sin_contrato';
+  const fin = new Date(client.fecha_fin_contrato).getTime();
+  const hoy = Date.now();
+  if (fin < hoy) return 'vencido';
+  if (fin - hoy < 30 * 86400000) return 'por_vencer';
+  return 'activo';
+}
+
+const CONTRACT_BADGE: Record<ContractStatus, { dot: string; label: string; cls: string }> = {
+  activo:       { dot: '🟢', label: 'Activo',       cls: 'bg-emerald-50 text-emerald-700' },
+  por_vencer:   { dot: '🟡', label: 'Por vencer',   cls: 'bg-amber-50 text-amber-700' },
+  vencido:      { dot: '🔴', label: 'Vencido',      cls: 'bg-red-50 text-red-700' },
+  sin_contrato: { dot: '⚪', label: 'Sin contrato', cls: 'bg-slate-50 text-slate-500' },
+};
 
 function ClientRow({ client, onClick }: { client: Client; onClick: () => void }) {
   return (
@@ -131,6 +158,23 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
       </td>
       <td className="px-4 py-3.5">
         <HealthLight status={client.semaforo} showLabel />
+      </td>
+      <td className="px-4 py-3.5">
+        {(() => {
+          const st = getContractStatus(client);
+          const b = CONTRACT_BADGE[st];
+          const dias = client.fecha_fin_contrato
+            ? Math.ceil((new Date(client.fecha_fin_contrato).getTime() - Date.now()) / 86400000)
+            : null;
+          return (
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${b.cls}`}
+              title={st === 'por_vencer' && dias != null ? `Vence en ${dias} días` : st === 'vencido' ? 'Pendiente de renovación' : undefined}
+            >
+              {b.dot} {b.label}
+            </span>
+          );
+        })()}
       </td>
       <td className="px-4 py-3.5 hidden lg:table-cell">
         <span className="text-sm text-slate-700 font-medium">{client.piezas_activas}</span>

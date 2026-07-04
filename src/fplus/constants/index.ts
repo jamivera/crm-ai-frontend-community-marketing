@@ -69,6 +69,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   banner: 'Banner',
   infografia: 'Infografía',
   blog: 'Blog',
+  diseno_comodin: 'Diseño Comodín',
   otro: 'Otro',
 };
 
@@ -137,6 +138,15 @@ export const TYPE_VISUALS: Record<string, TypeVisual> = {
   },
 };
 
+// Diseño Comodín: pieza flexible, disponible según plan (configurable, no quemado)
+TYPE_VISUALS.diseno_comodin = {
+  emoji: '🃏',
+  dot: 'bg-pink-500',
+  gradient: 'from-pink-100 to-rose-50 border-pink-200',
+  badge: 'bg-pink-100 text-pink-700',
+  border: 'border-l-pink-500',
+};
+
 const TYPE_VISUAL_FALLBACK: TypeVisual = {
   emoji: '📄',
   dot: 'bg-slate-400',
@@ -159,6 +169,9 @@ export interface PlanTemplate {
   emoji: string;
   piezas_mensuales: number;
   distribucion: Partial<Record<ContentType, number>>;
+  precio_lista: number;              // valor oficial del plan (USD)
+  redes_permitidas: Platform[];      // plataformas que el plan habilita
+  incluye_comodin: boolean;          // Diseño Comodín disponible
 }
 
 export const PLAN_TEMPLATES: PlanTemplate[] = [
@@ -168,6 +181,9 @@ export const PLAN_TEMPLATES: PlanTemplate[] = [
     emoji: '🥈',
     piezas_mensuales: 12,
     distribucion: { reel: 4, carrusel: 3, post_imagen: 3, historia: 2 },
+    precio_lista: 400,
+    redes_permitidas: ['facebook', 'instagram'],
+    incluye_comodin: false,
   },
   {
     id: 'oro',
@@ -175,15 +191,29 @@ export const PLAN_TEMPLATES: PlanTemplate[] = [
     emoji: '🥇',
     piezas_mensuales: 20,
     distribucion: { reel: 7, carrusel: 5, post_imagen: 4, historia: 4 },
+    precio_lista: 600,
+    redes_permitidas: ['facebook', 'instagram', 'tiktok'],
+    incluye_comodin: true,
   },
   {
     id: 'platinum',
     label: 'Plan Platinum',
     emoji: '💎',
     piezas_mensuales: 30,
-    distribucion: { reel: 12, carrusel: 8, post_imagen: 5, historia: 5 },
+    distribucion: { reel: 12, carrusel: 8, post_imagen: 5, historia: 5, diseno_comodin: 2 },
+    precio_lista: 950,
+    redes_permitidas: ['facebook', 'instagram', 'tiktok', 'linkedin'],
+    incluye_comodin: true,
   },
 ];
+
+// Redes permitidas según el plan del cliente. Prioriza redes_contratadas
+// (personalizado por contrato) y cae a la plantilla del plan.
+export function getAllowedPlatforms(client: { redes_contratadas?: Platform[]; plan_contratado?: string }): Platform[] {
+  if (client.redes_contratadas?.length) return client.redes_contratadas;
+  const tpl = PLAN_TEMPLATES.find(t => t.id === client.plan_contratado);
+  return tpl?.redes_permitidas ?? ['instagram', 'facebook'];
+}
 
 // ─── Tipos de mercado ──────────────────────────────────────────────────────────
 // Alimentan el Motor de Planificación Inteligente (y a futuro, Andrómeda).
@@ -205,7 +235,8 @@ export const MARKET_TYPES = [
 
 // ─── Plataformas de pauta publicitaria ─────────────────────────────────────────
 
-export const AD_PLATFORMS = ['Meta', 'Google Ads', 'TikTok Ads', 'LinkedIn Ads'] as const;
+// Extensible: agregar aquí (y a futuro desde BD) nuevas plataformas de pauta
+export const AD_PLATFORMS = ['Meta Ads', 'Google Ads', 'TikTok Ads', 'LinkedIn Ads'] as const;
 
 // ─── Platforms ─────────────────────────────────────────────────────────────────
 

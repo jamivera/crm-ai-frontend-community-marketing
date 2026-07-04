@@ -9,7 +9,7 @@ interface Props {
   onClose: () => void;
 }
 
-const DIST_TYPES: ContentType[] = ['reel', 'carrusel', 'post_imagen', 'historia', 'post_video', 'tiktok'];
+const DIST_TYPES: ContentType[] = ['reel', 'carrusel', 'post_imagen', 'historia', 'post_video', 'tiktok', 'diseno_comodin'];
 const REDES: Platform[] = ['instagram', 'facebook', 'tiktok', 'linkedin', 'youtube'];
 const REDES_LABELS: Record<string, string> = {
   instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', linkedin: 'LinkedIn', youtube: 'YouTube',
@@ -27,10 +27,16 @@ const STEPS = [
   { n: 3, label: 'Pauta y mercado', icon: Megaphone },
 ];
 
+// Validaciones para datos consistentes desde el origen (pre-BD):
+// teléfono Ecuador (+593XXXXXXXXX o 09XXXXXXXX) y email estándar.
+const PHONE_EC = /^(\+593\d{9}|09\d{8})$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 export function NewClientModal({ onClose }: Props) {
   const createClient = useFplusStore(s => s.createClient);
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Paso 1 — información básica
   const [nombre, setNombre] = useState('');
@@ -48,6 +54,9 @@ export function NewClientModal({ onClose }: Props) {
   const [redes, setRedes] = useState<Platform[]>(['instagram', 'facebook']);
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [precioLista, setPrecioLista] = useState(PLAN_TEMPLATES.find(p => p.id === 'oro')!.precio_lista);
+  const [descuento, setDescuento] = useState(0);
+  const valorFinal = Math.max(0, precioLista - descuento);
 
   // Paso 3 — pauta y mercado
   const [incluyePauta, setIncluyePauta] = useState(false);
@@ -61,7 +70,10 @@ export function NewClientModal({ onClose }: Props) {
   const selectPlan = (id: string) => {
     setPlanId(id);
     const tpl = PLAN_TEMPLATES.find(p => p.id === id);
-    if (tpl) setDistribucion({ ...tpl.distribucion });
+    if (tpl) {
+      setDistribucion({ ...tpl.distribucion });
+      setPrecioLista(tpl.precio_lista);
+    }
   };
 
   const setDist = (tipo: ContentType, qty: number) => {
@@ -74,12 +86,33 @@ export function NewClientModal({ onClose }: Props) {
   const toggleAd = (p: string) =>
     setPautaPlataformas(ps => (ps.includes(p) ? ps.filter(x => x !== p) : [...ps, p]));
 
-  const canNext =
-    step === 1 ? nombre.trim().length > 0 :
-    step === 2 ? totalPiezas > 0 && redes.length > 0 :
-    (mercado !== '' && (mercado !== 'Otro' || mercadoOtro.trim() !== ''));
+  const validateStep = (): boolean => {
+    const e: Record<string, string> = {};
+    if (step === 1) {
+      if (!nombre.trim()) e.nombre = 'El nombre del cliente es obligatorio.';
+      if (!contacto.trim()) e.contacto = 'La persona de contacto es obligatoria.';
+      if (!email.trim()) e.email = 'El correo es obligatorio.';
+      else if (!EMAIL_RE.test(email.trim())) e.email = 'Correo electrónico inválido.';
+      if (!telefono.trim()) e.telefono = 'El teléfono es obligatorio.';
+      else if (!PHONE_EC.test(telefono.trim().replace(/[\s-]/g, ''))) e.telefono = 'Número telefónico inválido. Usa +593XXXXXXXXX o 09XXXXXXXX.';
+    }
+    if (step === 2) {
+      if (totalPiezas === 0) e.distribucion = 'El plan debe incluir al menos una pieza mensual.';
+      if (redes.length === 0) e.redes = 'Selecciona al menos una red social contratada.';
+      if (!fechaInicio) e.fechas = 'Indica la fecha de inicio del contrato.';
+      else if (fechaFin && fechaFin <= fechaInicio) e.fechas = 'La fecha de fin debe ser posterior al inicio.';
+    }
+    if (step === 3) {
+      if (!mercado) e.mercado = 'Selecciona el tipo de mercado.';
+      else if (mercado === 'Otro' && !mercadoOtro.trim()) e.mercado = 'Escribe el sector personalizado.';
+      if (incluyePauta && pautaPlataformas.length === 0) e.pauta = 'Selecciona al menos una plataforma de pauta.';
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const create = () => {
+    if (!validateStep()) return;
     const id = `cl-${Date.now()}`;
     const tipoMercado = mercado === 'Otro' ? mercadoOtro.trim() : mercado;
     const client: Client = {
@@ -97,6 +130,9 @@ export function NewClientModal({ onClose }: Props) {
       plan_contratado: planId as PlanContratado,
       fecha_inicio_contrato: fechaInicio || undefined,
       fecha_fin_contrato: fechaFin || undefined,
+      precio_lista: precioLista,
+      descuento,
+      presupuesto_mensual: valorFinal,
       pauta_publicitaria: incluyePauta ? 'incluida_agencia' : 'no_incluye',
       pauta_plataformas: incluyePauta ? pautaPlataformas : undefined,
       piezas_mensuales: totalPiezas,
@@ -120,6 +156,9 @@ export function NewClientModal({ onClose }: Props) {
 
   const inputCls = 'w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-400';
   const labelCls = 'block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1';
+  const errCls = (k: string) => errors[k] ? ' border-red-400' : '';
+  const FieldError = ({ k }: { k: string }) =>
+    errors[k] ? <p className="text-[11px] text-red-500 mt-1">{errors[k]}</p> : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -161,7 +200,8 @@ export function NewClientModal({ onClose }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Nombre del cliente *</label>
-                  <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Kinara" className={inputCls} autoFocus />
+                  <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Kinara" className={inputCls + errCls('nombre')} autoFocus />
+                  <FieldError k="nombre" />
                 </div>
                 <div>
                   <label className={labelCls}>Empresa</label>
@@ -170,17 +210,20 @@ export function NewClientModal({ onClose }: Props) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Persona de contacto</label>
-                  <input value={contacto} onChange={e => setContacto(e.target.value)} placeholder="Nombre y apellido" className={inputCls} />
+                  <label className={labelCls}>Persona de contacto *</label>
+                  <input value={contacto} onChange={e => setContacto(e.target.value)} placeholder="Nombre y apellido" className={inputCls + errCls('contacto')} />
+                  <FieldError k="contacto" />
                 </div>
                 <div>
-                  <label className={labelCls}>Teléfono</label>
-                  <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+593 …" className={inputCls} />
+                  <label className={labelCls}>Teléfono *</label>
+                  <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="+593XXXXXXXXX o 09XXXXXXXX" className={inputCls + errCls('telefono')} />
+                  <FieldError k="telefono" />
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Correo</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contacto@cliente.com" className={inputCls} />
+                <label className={labelCls}>Correo *</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contacto@cliente.com" className={inputCls + errCls('email')} />
+                <FieldError k="email" />
               </div>
               <div className="flex items-end gap-3">
                 <div className="flex-1">
@@ -246,6 +289,27 @@ export function NewClientModal({ onClose }: Props) {
                 </div>
               </div>
 
+              <FieldError k="distribucion" />
+
+              {/* Valor del plan: lista y descuento separados (promos futuras) */}
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                <label className={labelCls}>Valor del plan (USD)</label>
+                <div className="grid grid-cols-3 gap-2 items-end">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">Precio Lista</p>
+                    <input type="number" min={0} value={precioLista} onChange={e => setPrecioLista(parseInt(e.target.value) || 0)} className={inputCls} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">Descuento</p>
+                    <input type="number" min={0} value={descuento} onChange={e => setDescuento(parseInt(e.target.value) || 0)} className={inputCls} />
+                  </div>
+                  <div className="text-center pb-1">
+                    <p className="text-[10px] text-slate-400 mb-1">Valor Final</p>
+                    <p className="text-lg font-bold text-emerald-600">${valorFinal.toLocaleString('en')}</p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className={labelCls}>Redes sociales</label>
                 <div className="flex flex-wrap gap-2">
@@ -261,11 +325,12 @@ export function NewClientModal({ onClose }: Props) {
                     </button>
                   ))}
                 </div>
+                <FieldError k="redes" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Fecha inicio contrato</label>
+                  <label className={labelCls}>Fecha inicio contrato *</label>
                   <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className={inputCls} />
                 </div>
                 <div>
@@ -273,6 +338,7 @@ export function NewClientModal({ onClose }: Props) {
                   <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className={inputCls} />
                 </div>
               </div>
+              <FieldError k="fechas" />
             </>
           )}
 
@@ -311,6 +377,7 @@ export function NewClientModal({ onClose }: Props) {
                       </button>
                     ))}
                   </div>
+                  <FieldError k="pauta" />
                 </div>
               )}
 
@@ -338,6 +405,7 @@ export function NewClientModal({ onClose }: Props) {
                     autoFocus
                   />
                 )}
+                <FieldError k="mercado" />
               </div>
 
               <div>
@@ -373,17 +441,15 @@ export function NewClientModal({ onClose }: Props) {
           <div className="ml-auto">
             {step < 3 ? (
               <button
-                onClick={() => setStep(s => s + 1)}
-                disabled={!canNext}
-                className="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-colors"
+                onClick={() => { if (validateStep()) { setErrors({}); setStep(s => s + 1); } }}
+                className="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors"
               >
                 Siguiente <ChevronRight className="w-3.5 h-3.5" />
               </button>
             ) : (
               <button
                 onClick={create}
-                disabled={!canNext}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors"
               >
                 <Check className="w-3.5 h-3.5" /> Crear cliente
               </button>

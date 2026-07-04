@@ -44,6 +44,7 @@ export type ContentType =
   | 'banner'
   | 'infografia'
   | 'blog'
+  | 'diseno_comodin'
   | 'otro';
 
 export type Platform =
@@ -93,8 +94,15 @@ export interface Client {
   fecha_inicio_contrato?: string;
   fecha_fin_contrato?: string;
   presupuesto_mensual?: number;
+  // Valor del plan: lista y descuento separados para promociones futuras.
+  // valor final = precio_lista - descuento (se refleja en presupuesto_mensual)
+  precio_lista?: number;
+  descuento?: number;
   pauta_publicitaria?: PautaPublicitaria;
-  pauta_plataformas?: string[]; // Meta, Google Ads, TikTok Ads, LinkedIn Ads
+  pauta_plataformas?: string[]; // Meta Ads, Google Ads, TikTok Ads, LinkedIn Ads
+  presupuesto_pauta?: number;
+  // Firma electrónica del contrato (data URL + metadata)
+  firma_contrato?: { imagen: string; firmante: string; fecha: string };
   // Contrato operativo — base de la planificación del Cronopost
   piezas_mensuales?: number;
   distribucion_piezas?: DistribucionPiezas;
@@ -180,6 +188,8 @@ export interface ContentPiece {
   // Planificación inteligente
   origen?: PieceOrigin;
   razon_estrategica?: string;
+  // Marcada desde Multimedia para usarse en Campañas (pauta)
+  seleccionado_pauta?: boolean;
   created_at: string;
   updated_at: string;
 }

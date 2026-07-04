@@ -212,10 +212,10 @@ export default function PortalCalendar({ canCreate = false }: Props) {
           ))}
         </div>
 
-        {/* Days */}
+        {/* Days — mini tarjetas por pieza en lugar de puntos */}
         <div className="grid grid-cols-7 p-2 gap-0.5">
           {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`e${i}`} className="aspect-square" />
+            <div key={`e${i}`} className="min-h-[72px]" />
           ))}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
@@ -225,19 +225,20 @@ export default function PortalCalendar({ canCreate = false }: Props) {
 
             const eventName = eventByDay.get(day);
             const isDragOver = dragOverDay === day;
+            const emptyTooltip = dayPieces.length === 0 && canCreate ? 'Agregar contenido' : undefined;
 
             return (
               <div
                 key={day}
-                className="aspect-square relative group"
+                className="min-h-[72px] relative group"
                 onDragOver={canCreate ? e => { e.preventDefault(); setDragOverDay(day); } : undefined}
                 onDragLeave={canCreate ? () => setDragOverDay(d => (d === day ? null : d)) : undefined}
                 onDrop={canCreate ? e => handleDropOnDay(e, day) : undefined}
               >
                 <button
                   onClick={() => setSelectedDay(isSelected ? null : day)}
-                  title={eventName}
-                  className={`w-full h-full flex flex-col items-center justify-start pt-1 rounded-xl transition-all active:scale-95 ${
+                  title={eventName ?? emptyTooltip}
+                  className={`w-full h-full min-h-[72px] flex flex-col items-stretch justify-start pt-1 px-0.5 pb-0.5 rounded-xl transition-all ${
                     isDragOver ? 'bg-violet-100 ring-2 ring-violet-400' :
                     isSelected ? 'bg-blue-600' : isToday ? 'bg-blue-50' : 'hover:bg-slate-50'
                   }`}
@@ -245,26 +246,37 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                   {eventName && (
                     <span className="absolute top-0.5 left-0.5 text-[8px]" title={eventName}>🎉</span>
                   )}
-                  <span className={`text-xs font-medium leading-none ${
+                  <span className={`text-xs font-medium leading-none text-center mb-1 ${
                     isSelected ? 'text-white' : isToday ? 'text-blue-600 font-bold' : 'text-slate-700'
                   }`}>
                     {day}
                   </span>
-                  {dayPieces.length > 0 && (
-                    <div className="flex gap-0.5 mt-1 flex-wrap justify-center">
-                      {dayPieces.slice(0, 3).map((piece, idx) => (
-                        <span
-                          key={idx}
-                          title={CONTENT_TYPE_LABELS[piece.tipo]}
-                          className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/70' : getTypeVisual(piece.tipo).dot}`}
-                        />
-                      ))}
-                      {dayPieces.length > 3 && (
-                        <span className={`text-[8px] leading-none ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
-                          +{dayPieces.length - 3}
+                  {dayPieces.slice(0, 2).map(piece => {
+                    const v = getTypeVisual(piece.tipo);
+                    const file = piece.archivos.find(a => a.url && a.tipo === 'imagen');
+                    return (
+                      <span
+                        key={piece.id}
+                        title={`${piece.nombre} · ${CONTENT_TYPE_LABELS[piece.tipo]} · ${getPieceStateLabel(piece.estado)}`}
+                        className={`flex items-center gap-1 rounded-md px-1 py-0.5 mb-0.5 text-left overflow-hidden ${
+                          isSelected ? 'bg-white/20' : `bg-gradient-to-r ${v.gradient} border-l-2 ${v.border}`
+                        }`}
+                      >
+                        {file ? (
+                          <img src={file.url} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+                        ) : (
+                          <span className="text-[9px] shrink-0">{v.emoji}</span>
+                        )}
+                        <span className={`text-[8px] leading-tight truncate flex-1 ${isSelected ? 'text-white' : 'text-slate-700'}`}>
+                          {piece.nombre}
                         </span>
-                      )}
-                    </div>
+                      </span>
+                    );
+                  })}
+                  {dayPieces.length > 2 && (
+                    <span className={`text-[8px] leading-none text-center ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
+                      +{dayPieces.length - 2} más
+                    </span>
                   )}
                 </button>
 
