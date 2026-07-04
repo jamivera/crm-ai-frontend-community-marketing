@@ -19,7 +19,7 @@ const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','
 
 
 
-function getStateChip(estado: ContentState): { label: string; cls: string } {
+function getStateChip(estado: ContentState, portal = false): { label: string; cls: string } {
   switch (estado) {
     case 'enviado_cliente':
     case 'en_revision_cliente':
@@ -32,9 +32,14 @@ function getStateChip(estado: ContentState): { label: string; cls: string } {
     case 'publicado':
       return { label: 'Publicado', cls: 'bg-blue-100 text-blue-700' };
     case 'en_produccion':
-      return { label: 'Producción', cls: 'bg-violet-100 text-violet-700' };
+      return portal
+        ? { label: 'En preparación', cls: 'bg-slate-100 text-slate-500' }
+        : { label: 'Producción', cls: 'bg-violet-100 text-violet-700' };
     default:
-      return { label: 'Borrador', cls: 'bg-slate-100 text-slate-500' };
+      // El cliente no ve estados internos de producción
+      return portal
+        ? { label: 'En preparación', cls: 'bg-slate-100 text-slate-500' }
+        : { label: 'Borrador', cls: 'bg-slate-100 text-slate-500' };
   }
 }
 
@@ -237,7 +242,7 @@ export default function Cronopost({ canCreate = false }: Props) {
               {/* Piece cards grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {pieces.map(cp => {
-                  const chip = getStateChip(cp.estado);
+                  const chip = getStateChip(cp.estado, !canCreate);
                   const visual = getTypeVisual(cp.tipo);
                   const pubDate = new Date(cp.fecha_publicacion!);
                   const isPending = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';

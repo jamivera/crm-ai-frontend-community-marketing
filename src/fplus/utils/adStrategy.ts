@@ -28,6 +28,8 @@ export interface AdStrategy {
   plataformas: PlatformPlan[];
   embudo: FunnelStage[];
   creativos: ContentPiece[];       // piezas seleccionadas para pauta
+  // Cada creativo asignado a su etapa del embudo según formato y ángulo Andrómeda
+  creativos_por_etapa: Record<string, ContentPiece[]>;
   nomenclatura: string;            // convención de nombres de campaña
   score: number;                   // 0-100 — qué tan completa está la estrategia
   score_detalle: string[];         // qué falta para subir el score
@@ -106,11 +108,35 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], 
     lanzamiento: [45, 30, 15, 10],
   };
   const [rec, con, cnv, rmk] = embudos[objetivo];
+
+  // La estrategia parte del contenido: cada creativo seleccionado se asigna
+  // a la etapa del embudo donde su formato y ángulo Andrómeda rinden mejor.
+  // Reels/video → Reconocimiento · Carruseles → Consideración ·
+  // piezas con CTA directo en el copy → Conversión · Historias → Remarketing.
+  const stageFor = (cp: ContentPiece): string => {
+    const copy = (cp.copy_activo ?? '').toLowerCase();
+    const hasDirectCTA = /reserva|compra|escríbenos|agenda|cotiza|link en bio|últim|promo|descuento/.test(copy);
+    if (hasDirectCTA && cp.tipo !== 'historia') return 'Conversión';
+    if (cp.tipo === 'reel' || cp.tipo === 'post_video' || cp.tipo === 'tiktok') return 'Reconocimiento';
+    if (cp.tipo === 'carrusel' || cp.tipo === 'infografia') return 'Consideración';
+    if (cp.tipo === 'historia' || cp.tipo === 'historia_video') return 'Remarketing';
+    return 'Consideración';
+  };
+  const creativos_por_etapa: Record<string, ContentPiece[]> = {
+    Reconocimiento: [], Consideración: [], Conversión: [], Remarketing: [],
+  };
+  piezasPauta.forEach(cp => creativos_por_etapa[stageFor(cp)].push(cp));
+
+  const conteo = (etapa: string) => {
+    const n = creativos_por_etapa[etapa].length;
+    return n > 0 ? ` — ${n} ${n === 1 ? 'creativo asignado' : 'creativos asignados'}` : ' — sin creativos aún';
+  };
+
   const embudo: FunnelStage[] = [
-    { etapa: 'Reconocimiento', porcentaje: rec, descripcion: 'Reels y video corto a audiencias frías — construir alcance' },
-    { etapa: 'Consideración', porcentaje: con, descripcion: 'Carruseles y testimonios a interesados — educar y comparar' },
-    { etapa: 'Conversión', porcentaje: cnv, descripcion: 'Ofertas con CTA directo a audiencias calientes' },
-    { etapa: 'Remarketing', porcentaje: rmk, descripcion: 'Reimpacto a visitantes e interactores de los últimos 30 días' },
+    { etapa: 'Reconocimiento', porcentaje: rec, descripcion: `Reels y video corto a audiencias frías${conteo('Reconocimiento')}` },
+    { etapa: 'Consideración', porcentaje: con, descripcion: `Carruseles y contenido educativo${conteo('Consideración')}` },
+    { etapa: 'Conversión', porcentaje: cnv, descripcion: `Piezas con CTA directo a audiencias calientes${conteo('Conversión')}` },
+    { etapa: 'Remarketing', porcentaje: rmk, descripcion: `Historias y reimpacto a interactores de 30 días${conteo('Remarketing')}` },
   ];
 
   // Score estratégico: qué tan completa está la información
@@ -130,5 +156,5 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], 
   const mes = new Date().toLocaleDateString('es', { month: 'short', year: '2-digit' }).replace(' ', '');
   const nomenclatura = `${client.nombre.toUpperCase().slice(0, 6)}_{PLATAFORMA}_{ETAPA}_{OBJETIVO}_${mes}`;
 
-  return { presupuesto_total: presupuesto, plataformas, embudo, creativos: piezasPauta, nomenclatura, score, score_detalle };
+  return { presupuesto_total: presupuesto, plataformas, embudo, creativos: piezasPauta, creativos_por_etapa, nomenclatura, score, score_detalle };
 }

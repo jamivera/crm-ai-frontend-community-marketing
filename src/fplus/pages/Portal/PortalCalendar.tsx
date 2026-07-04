@@ -19,11 +19,6 @@ const MONTHS_ES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 
-// States visible to the client portal (subset)
-const PORTAL_VISIBLE: ContentState[] = [
-  'enviado_cliente', 'en_revision_cliente', 'cambios_solicitados',
-  'aprobado_cliente', 'aprobado_final', 'publicado',
-];
 
 
 function getPieceCardColor(estado: ContentState): string {
@@ -34,7 +29,10 @@ function getPieceCardColor(estado: ContentState): string {
   return 'bg-slate-50 border-slate-100';
 }
 
-function getPieceStateLabel(estado: ContentState): string {
+function getPieceStateLabel(estado: ContentState, portal = false): string {
+  if (portal && ['borrador', 'en_produccion', 'revision_interna', 'cambios_internos', 'listo_para_cliente'].includes(estado)) {
+    return 'En preparación';
+  }
   const map: Partial<Record<ContentState, string>> = {
     borrador: 'Borrador',
     en_produccion: 'En producción',
@@ -100,8 +98,9 @@ export default function PortalCalendar({ canCreate = false }: Props) {
   const pieces = allPieces.filter(p => {
     if (p.client_id !== clientId) return false;
     if (!p.fecha_publicacion) return false;
-    if (!canCreate) return PORTAL_VISIBLE.includes(p.estado); // portal = filtered
-    return true; // agency = all states
+    // Portal cliente: misma planificación que la agencia, en modo lectura
+    if (!canCreate) return true;
+    return true;
   });
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -257,7 +256,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                     return (
                       <span
                         key={piece.id}
-                        title={`${piece.nombre} · ${CONTENT_TYPE_LABELS[piece.tipo]} · ${getPieceStateLabel(piece.estado)}`}
+                        title={`${piece.nombre} · ${CONTENT_TYPE_LABELS[piece.tipo]} · ${getPieceStateLabel(piece.estado, !canCreate)}`}
                         className={`flex items-center gap-1 rounded-md px-1 py-0.5 mb-0.5 text-left overflow-hidden ${
                           isSelected ? 'bg-white/20' : `bg-gradient-to-r ${v.gradient} border-l-2 ${v.border}`
                         }`}
@@ -271,7 +270,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                           {CONTENT_TYPE_LABELS[piece.tipo]}
                         </span>
                         <span className={`text-[7px] shrink-0 ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
-                          {getPieceStateLabel(piece.estado)}
+                          {getPieceStateLabel(piece.estado, !canCreate)}
                         </span>
                       </span>
                     );
@@ -351,7 +350,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                 piece.estado === 'enviado_cliente' || piece.estado === 'en_revision_cliente' ? 'text-amber-700' :
                 'text-slate-500'
               }`}>
-                {getPieceStateLabel(piece.estado)}
+                {getPieceStateLabel(piece.estado, !canCreate)}
               </span>
             </button>
           ))}
@@ -408,7 +407,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                         piece.estado === 'enviado_cliente' || piece.estado === 'en_revision_cliente' ? 'text-amber-700' :
                         'text-slate-500'
                       }`}>
-                        {getPieceStateLabel(piece.estado)}
+                        {getPieceStateLabel(piece.estado, !canCreate)}
                       </span>
                     </button>
                   );

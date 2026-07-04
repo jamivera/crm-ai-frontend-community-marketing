@@ -34,6 +34,8 @@ export default function ClientCampaigns() {
   // Presupuesto editable: al cambiarlo, toda la estrategia se recalcula.
   // La IA propone — el estratega decide.
   const [presupuestoEdit, setPresupuestoEdit] = useState<number | null>(null);
+  // Overrides manuales por plataforma: la IA propone, el estratega decide
+  const [platOverrides, setPlatOverrides] = useState<Record<string, number>>({});
 
   const strategy = useMemo(() => {
     if (!client) return null;
@@ -42,6 +44,9 @@ export default function ClientCampaigns() {
   }, [client, piezasPauta, presupuestoEdit, brief]);
 
   if (!client || !strategy) return null;
+
+  const totalReal = strategy.plataformas.reduce(
+    (a, pl) => a + (platOverrides[pl.plataforma] ?? pl.presupuesto), 0);
 
   // La estrategia no puede construirse sin conocer al cliente:
   // Campañas permanece bloqueado hasta completar el Brief.
@@ -62,6 +67,24 @@ export default function ClientCampaigns() {
   }
 
   const incluyePauta = client.pauta_publicitaria && client.pauta_publicitaria !== 'no_incluye';
+
+  // La estrategia SIEMPRE parte del contenido (Andrómeda). Sin material
+  // seleccionado para pauta desde Multimedia, no se genera nada.
+  if (incluyePauta && piezasPauta.length === 0) {
+    return (
+      <div className="px-4 pt-16 text-center text-slate-400 max-w-md mx-auto">
+        <ImageIcon className="w-10 h-10 mx-auto mb-3 opacity-30" />
+        <p className="text-sm font-medium text-slate-600">Aún no existe contenido seleccionado para campañas.</p>
+        <p className="text-xs mt-1.5 mb-5">Primero selecciona el material desde Multimedia ("Seleccionar para pauta") para continuar. La estrategia se construye a partir de tu contenido aprobado.</p>
+        <button
+          onClick={() => navigate(location.pathname.replace(/\/campaigns$/, '/multimedia'))}
+          className="px-4 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700"
+        >
+          Ir a Multimedia →
+        </button>
+      </div>
+    );
+  }
 
   if (!incluyePauta) {
     return (
@@ -124,6 +147,11 @@ export default function ClientCampaigns() {
             />
             <span className="text-xs font-bold text-blue-600">/mes</span>
           </div>
+          {Object.keys(platOverrides).length > 0 && totalReal !== strategy.presupuesto_total && (
+            <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 px-2 py-1 rounded-full">
+              Total ajustado: ${totalReal.toLocaleString('en')}
+            </span>
+          )}
         </div>
         <div className="space-y-3">
           {strategy.plataformas.map(p => (
@@ -131,8 +159,25 @@ export default function ClientCampaigns() {
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-lg">{PLATFORM_EMOJI[p.plataforma] ?? '📣'}</span>
                 <span className="text-sm font-bold text-slate-800 flex-1">{p.plataforma}</span>
-                <span className="text-sm font-bold text-slate-700">${p.presupuesto.toLocaleString('en')}</span>
-                <span className="text-[10px] font-semibold text-slate-400">({p.porcentaje}%)</span>
+                <div className="flex items-center bg-slate-50 rounded-lg px-1.5">
+                  <span className="text-sm font-bold text-slate-700">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={platOverrides[p.plataforma] ?? p.presupuesto}
+                    onChange={e => setPlatOverrides(o => ({ ...o, [p.plataforma]: parseInt(e.target.value) || 0 }))}
+                    className="w-16 text-sm font-bold text-slate-700 bg-transparent focus:outline-none"
+                    title="Presupuesto editable — la IA propone, tú decides"
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  ({platOverrides[p.plataforma] != null && totalReal > 0
+                    ? Math.round(((platOverrides[p.plataforma] ?? 0) / totalReal) * 100)
+                    : p.porcentaje}%)
+                  {platOverrides[p.plataforma] != null && platOverrides[p.plataforma] !== p.presupuesto && (
+                    <span className="text-violet-500 ml-1" title={`IA sugería $${p.presupuesto}`}>✎</span>
+                  )}
+                </span>
               </div>
               <div className="h-1.5 bg-slate-100 rounded-full mb-2.5 overflow-hidden">
                 <div className="h-full bg-violet-500 rounded-full" style={{ width: `${p.porcentaje}%` }} />
@@ -220,6 +265,14 @@ export default function ClientCampaigns() {
                   <div className="p-2">
                     <p className="text-[10px] font-semibold text-slate-700 line-clamp-1">{cp.nombre}</p>
                     <p className="text-[9px] text-slate-400">{CONTENT_TYPE_LABELS[cp.tipo]}</p>
+                    {(() => {
+                      const etapa = Object.entries(strategy.creativos_por_etapa).find(([, arr]) => arr.some(x => x.id === cp.id))?.[0];
+                      return etapa ? (
+                        <span className={`inline-block mt-1 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-full ${STAGE_COLORS[etapa]}`}>
+                          {etapa}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                 </button>
               );

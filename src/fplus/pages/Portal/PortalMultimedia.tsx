@@ -26,7 +26,7 @@ const TYPE_FILTERS: { key: FilterType; label: string }[] = [
 
 
 
-function getStateChip(estado: ContentState): { label: string; cls: string } {
+function getStateChip(estado: ContentState, portal = false): { label: string; cls: string } {
   switch (estado) {
     case 'enviado_cliente':
     case 'en_revision_cliente':
@@ -41,7 +41,7 @@ function getStateChip(estado: ContentState): { label: string; cls: string } {
     case 'en_produccion':
       return { label: 'Producción', cls: 'bg-violet-100 text-violet-700' };
     default:
-      return { label: 'Borrador', cls: 'bg-slate-100 text-slate-500' };
+      return portal ? { label: 'En preparación', cls: 'bg-slate-100 text-slate-500' } : { label: 'Borrador', cls: 'bg-slate-100 text-slate-500' };
   }
 }
 
@@ -70,10 +70,6 @@ function weekLabel(year: number, week: number, idx: number): string {
   return `Semana ${idx + 1} · ${start.getUTCDate()} ${MONTHS_ES[start.getUTCMonth()]}–${end.getUTCDate()} ${MONTHS_ES[end.getUTCMonth()]}`;
 }
 
-const PORTAL_VISIBLE: ContentState[] = [
-  'enviado_cliente','en_revision_cliente','cambios_solicitados',
-  'aprobado_cliente','aprobado_final','publicado',
-];
 
 export default function PortalMultimedia({ canCreate = false }: Props) {
   const navigate  = useNavigate();
@@ -100,7 +96,9 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
   const pieces = contentPieces
     .filter(cp => {
       if (cp.client_id !== clientId || !cp.fecha_publicacion) return false;
-      if (!canCreate) return PORTAL_VISIBLE.includes(cp.estado);
+      // El cliente ve toda la biblioteca (misma fuente que la agencia);
+      // los estados internos se muestran como "En preparación".
+      if (!canCreate) return true;
       return true;
     })
     .sort((a, b) =>
@@ -223,7 +221,7 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {wPieces.map(cp => {
-                  const chip       = getStateChip(cp.estado);
+                  const chip       = getStateChip(cp.estado, !canCreate);
                   const visual     = getTypeVisual(cp.tipo);
                   const comments   = portalComments[cp.id] ?? [];
                   const isPending  = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';

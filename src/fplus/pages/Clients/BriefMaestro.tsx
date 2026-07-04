@@ -128,13 +128,20 @@ export default function BriefMaestro() {
       updated_at: new Date().toISOString(),
     });
     setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setTimeout(() => setSaved(false), 3500);
   }
 
   const currentIdx = STEPS.findIndex(s => s.key === step);
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
+      {/* Confirmación de guardado — visible desde cualquier parte de la pantalla */}
+      {saved && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl">
+          <CheckCircle2 className="w-5 h-5" />
+          El Brief se ha guardado exitosamente.
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <button

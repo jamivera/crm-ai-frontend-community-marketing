@@ -281,15 +281,17 @@ export default function ClientContract() {
 
       {/* Pauta publicitaria */}
       <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">Pauta Publicitaria</p>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Pauta Publicitaria</p>
+        <p className="text-[10px] text-slate-400 mb-3">{pauta ? 'Haz clic para cambiar la modalidad.' : 'Sin definir — selecciona la modalidad acordada con el cliente.'}</p>
         <div className="grid grid-cols-2 gap-2">
           {(['no_incluye', 'incluida_agencia', 'cliente_paga', 'presupuesto_compartido'] as PautaPublicitaria[]).map(opt => (
-            <div
+            <button
               key={opt}
-              className={`p-3 rounded-xl border-2 flex items-center gap-2 ${
+              onClick={() => updateClient(client.id, { pauta_publicitaria: pauta === opt ? undefined : opt })}
+              className={`p-3 rounded-xl border-2 flex items-center gap-2 text-left transition-colors ${
                 pauta === opt
                   ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-100 bg-slate-50'
+                  : 'border-slate-100 bg-slate-50 hover:border-slate-300'
               }`}
             >
               <div className={`w-3 h-3 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
@@ -300,7 +302,7 @@ export default function ClientContract() {
               <span className={`text-xs font-medium ${pauta === opt ? 'text-blue-700' : 'text-slate-500'}`}>
                 {PAUTA_LABELS[opt]}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       </div>

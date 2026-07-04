@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Layers, CheckCircle, Calendar, ImageIcon, BarChart3 } from 'lucide-react';
+import { Home, Layers, CheckCircle, Sparkles, ImageIcon, BarChart3 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import type { ContentState } from '../../types';
 
@@ -31,12 +31,14 @@ export function PortalLayout({
 
   // Las rutas del portal SIEMPRE incluyen el clientId (/fplus/portal/:clientId/*)
   const base = `/fplus/portal/${clientId}`;
+  // Navegación simple: Calendario se eliminó (Cronopost ya cumple esa función)
+  // y "Archivos" se convirtió en "Mi Marca" (información estratégica del cliente).
   const navItems = [
     { label: 'Inicio', href: base, icon: Home, exact: true },
     { label: 'Cronopost', href: `${base}/cronopost`, icon: Layers },
     { label: 'Aprobar', href: `${base}/approvals`, icon: CheckCircle, badge: pendingCount },
-    { label: 'Calendario', href: `${base}/calendar`, icon: Calendar },
-    { label: 'Archivos', href: `${base}/multimedia`, icon: ImageIcon },
+    { label: 'Contenido', href: `${base}/multimedia`, icon: ImageIcon },
+    { label: 'Mi Marca', href: `${base}/brand`, icon: Sparkles },
     ...(isPremium ? [
       { label: 'Resultados', href: `${base}/metrics`, icon: BarChart3 },
     ] : []),

@@ -7,6 +7,7 @@ import Cronopost from './Cronopost';
 import { PortalApprovalsList, PortalApprovalDetail } from './PortalApprovals';
 import PortalCalendar from './PortalCalendar';
 import PortalMultimedia from './PortalMultimedia';
+import PortalBrand from './PortalBrand';
 import Placeholder from '../Placeholder';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ export function PortalRouteWrapper() {
           <Route path="approvals/:id" element={<PortalApprovalDetail />} />
           <Route path="calendar" element={<PortalCalendar />} />
           <Route path="multimedia" element={<PortalMultimedia />} />
+          <Route path="brand" element={<PortalBrand />} />
           <Route path="metrics" element={<Placeholder />} />
           <Route path="profile" element={<Placeholder />} />
           <Route path="*" element={<Navigate to="" replace />} />

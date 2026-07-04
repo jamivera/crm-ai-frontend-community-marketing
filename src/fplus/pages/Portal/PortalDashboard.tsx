@@ -23,6 +23,8 @@ export default function PortalDashboard() {
   const { clientId, clientNombre } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
   const portalComments = useFplusStore(s => s.portalComments);
+  const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+  const stateHistory = useFplusStore(s => s.stateHistory);
 
   const pieces = contentPieces.filter(cp => cp.client_id === clientId);
 
@@ -68,6 +70,37 @@ export default function PortalDashboard() {
           {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
+
+      {/* Estado ejecutivo de la cuenta */}
+      {client && (
+        <div className="bg-gradient-to-r from-[#0f1e3c] to-[#1a2f56] rounded-2xl p-4 text-white">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p className="text-[10px] text-blue-300 uppercase tracking-wide">Plan contratado</p>
+              <p className="text-lg font-bold capitalize">
+                {client.plan_contratado === 'platinum' ? '💎 Platinum' :
+                 client.plan_contratado === 'oro' ? '🥇 Oro' :
+                 client.plan_contratado === 'plata' ? '🥈 Plata' :
+                 client.plan_contratado ?? 'Personalizado'}
+                {client.piezas_mensuales ? ` · ${client.piezas_mensuales} piezas/mes` : ''}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-blue-300 uppercase tracking-wide">Contrato</p>
+              {client.fecha_fin_contrato ? (
+                <p className="text-sm font-semibold">
+                  {new Date(client.fecha_fin_contrato).getTime() > Date.now() ? 'Activo' : 'Por renovar'}
+                  <span className="text-blue-300 font-normal text-xs">
+                    {' · renueva '}{new Date(client.fecha_fin_contrato).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm font-semibold">Activo</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CTA urgente — pendientes de aprobación */}
       {pendientes > 0 && (
@@ -199,6 +232,40 @@ export default function PortalDashboard() {
           <p className="text-sm">No hay piezas planificadas aún.</p>
         </div>
       )}
+
+      {/* Actividad reciente — historial de estados de las piezas del cliente */}
+      {(() => {
+        const pieceIds = new Set(pieces.map(p => p.id));
+        const actividad = stateHistory
+          .filter(h => pieceIds.has(h.content_piece_id))
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 5);
+        if (actividad.length === 0) return null;
+        return (
+          <section>
+            <h2 className="text-sm font-semibold text-slate-700 mb-3">Actividad reciente</h2>
+            <div className="bg-white border border-slate-100 rounded-2xl divide-y divide-slate-50">
+              {actividad.map(h => {
+                const pieza = pieces.find(p => p.id === h.content_piece_id);
+                return (
+                  <div key={h.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-slate-600 truncate">
+                        <span className="font-semibold">{pieza?.nombre ?? 'Pieza'}</span>
+                        {' '}pasó a <StateChip estado={h.estado_nuevo} />
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      {new Date(h.timestamp).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
     </div>
   );
 }
