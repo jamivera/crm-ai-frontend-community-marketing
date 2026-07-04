@@ -5,6 +5,7 @@ import {
   Save, CheckCircle2, ChevronRight
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
+import { getIndustryProfile } from '../../utils/cronoplanner';
 import type { Platform, ContentType } from '../../types';
 import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
 
@@ -76,6 +77,29 @@ export default function BriefMaestro() {
   const [plataformas, setPlataformas] = useState<Platform[]>(existing?.plataformas_activas ?? []);
   const [frecuencia, setFrecuencia] = useState(existing?.frecuencia_semanal?.toString() ?? '');
   const [horarios, setHorarios] = useState(existing?.horarios_preferidos ?? '');
+  const [sugiriendo, setSugiriendo] = useState(false);
+
+  // La IA sugiere horario, días fuertes y frecuencia según industria,
+  // público y estrategia. El usuario siempre puede modificar la propuesta.
+  const sugerirHorarios = async () => {
+    if (!client) return;
+    setSugiriendo(true);
+    await new Promise(r => setTimeout(r, 900)); // simula análisis IA
+    const profile = getIndustryProfile(client.tipo_mercado ?? client.industria);
+    const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    // días con mayor puntaje promedio entre formatos
+    const totals = Array.from({ length: 7 }, (_, d) =>
+      Object.values(profile.dayScores).reduce((a, arr) => a + (arr?.[d] ?? 0), 0));
+    const topDays = totals.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v).slice(0, 3)
+      .sort((a, b) => a.i - b.i).map(x => DAY_NAMES[x.i]);
+    const horas = [...new Set(Object.values(profile.horaSugerida))].slice(0, 2).join(' y ');
+    setHorarios(`${topDays.join(', ')} · ${horas} (sugerido por IA según tu sector)`);
+    if (!frecuencia) {
+      const piezas = client.piezas_mensuales ?? 12;
+      setFrecuencia(String(Math.max(2, Math.round(piezas / 4))));
+    }
+    setSugiriendo(false);
+  };
   const [objetivo, setObjetivo] = useState(existing?.objetivo_principal ?? '');
   const [urlLanding, setUrlLanding] = useState(existing?.url_landing ?? '');
 
@@ -444,6 +468,17 @@ export default function BriefMaestro() {
             </Field>
           </div>
           <Field label="Horarios de mayor engagement">
+            <button
+              type="button"
+              onClick={sugerirHorarios}
+              disabled={sugiriendo}
+              className="mb-2 flex items-center gap-1 text-[10px] font-semibold bg-violet-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-60"
+            >
+              {sugiriendo
+                ? <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : '✨'}
+              {sugiriendo ? 'Analizando sector y público…' : 'Sugerir con IA'}
+            </button>
             <input
               type="text"
               value={horarios}

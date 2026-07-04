@@ -239,8 +239,13 @@ export default function Cronopost({ canCreate = false }: Props) {
                 <span className="text-[10px] text-slate-400">{pieces.length} {pieces.length === 1 ? 'pieza' : 'piezas'}</span>
               </div>
 
-              {/* Piece cards grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {/* Piece cards: en el portal móvil cada semana se desliza en horizontal
+                  (tipo carrusel) para ver más publicaciones sin perder contexto;
+                  en pantallas amplias vuelve a la cuadrícula editorial. */}
+              <div className={canCreate
+                ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3'
+                : 'flex sm:grid sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0'
+              }>
                 {pieces.map(cp => {
                   const chip = getStateChip(cp.estado, !canCreate);
                   const visual = getTypeVisual(cp.tipo);
@@ -248,6 +253,8 @@ export default function Cronopost({ canCreate = false }: Props) {
                   const isPending = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';
                   const needsWork = isPending || cp.estado === 'cambios_solicitados' || cp.estado === 'en_produccion' || cp.estado === 'borrador';
                   const prio = needsWork ? getPriority(cp.fecha_publicacion) : null;
+                  // Pieza planificada por IA que aún no tiene contenido real
+                  const pendienteCompletar = cp.origen === 'planificada' && (cp.archivos.length === 0 || !cp.copy_activo);
 
                   return (
                     <button
@@ -263,6 +270,8 @@ export default function Cronopost({ canCreate = false }: Props) {
                         handleSwap(e.dataTransfer.getData('text/piece-id'), cp.id);
                       } : undefined}
                       className={`flex flex-col bg-white border rounded-xl overflow-hidden text-left hover:shadow-md active:scale-[0.98] transition-all ${
+                        canCreate ? '' : 'min-w-[46vw] sm:min-w-0 snap-start '
+                      }${
                         dragOverId === cp.id ? 'ring-2 ring-violet-400 ring-offset-1 scale-[1.02]' :
                         isPending ? 'ring-2 ring-amber-300 ring-offset-1' : 'border-slate-100'
                       } ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -307,6 +316,12 @@ export default function Cronopost({ canCreate = false }: Props) {
                         {cp.copy_activo && (
                           <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
                             {cp.copy_activo}
+                          </p>
+                        )}
+
+                        {canCreate && pendienteCompletar && (
+                          <p className="text-[8px] font-semibold text-violet-600 bg-violet-50 border border-violet-100 rounded-lg px-1.5 py-1 leading-tight">
+                            ✨ Generada por IA — completa multimedia y copy
                           </p>
                         )}
 

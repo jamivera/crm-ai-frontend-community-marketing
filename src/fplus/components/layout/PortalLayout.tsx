@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Layers, CheckCircle, Sparkles, ImageIcon, BarChart3 } from 'lucide-react';
+import { Home, Layers, CheckCircle, Sparkles, Megaphone, BarChart3 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import type { ContentState } from '../../types';
 
@@ -37,7 +37,7 @@ export function PortalLayout({
     { label: 'Inicio', href: base, icon: Home, exact: true },
     { label: 'Cronopost', href: `${base}/cronopost`, icon: Layers },
     { label: 'Aprobar', href: `${base}/approvals`, icon: CheckCircle, badge: pendingCount },
-    { label: 'Contenido', href: `${base}/multimedia`, icon: ImageIcon },
+    { label: 'Pauta', href: `${base}/pauta`, icon: Megaphone },
     { label: 'Mi Marca', href: `${base}/brand`, icon: Sparkles },
     ...(isPremium ? [
       { label: 'Resultados', href: `${base}/metrics`, icon: BarChart3 },

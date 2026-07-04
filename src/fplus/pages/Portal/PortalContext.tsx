@@ -8,6 +8,7 @@ import { PortalApprovalsList, PortalApprovalDetail } from './PortalApprovals';
 import PortalCalendar from './PortalCalendar';
 import PortalMultimedia from './PortalMultimedia';
 import PortalBrand from './PortalBrand';
+import PortalPauta from './PortalPauta';
 import Placeholder from '../Placeholder';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ export function PortalRouteWrapper() {
           <Route path="calendar" element={<PortalCalendar />} />
           <Route path="multimedia" element={<PortalMultimedia />} />
           <Route path="brand" element={<PortalBrand />} />
+          <Route path="pauta" element={<PortalPauta />} />
           <Route path="metrics" element={<Placeholder />} />
           <Route path="profile" element={<Placeholder />} />
           <Route path="*" element={<Navigate to="" replace />} />
