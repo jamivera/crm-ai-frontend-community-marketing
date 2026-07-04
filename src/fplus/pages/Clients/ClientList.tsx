@@ -165,6 +165,33 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
   const updateClient = useFplusStore(st => st.updateClient);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Invitación al Portal del Cliente: genera el enlace seguro de activación.
+  // En producción el correo lo envía el backend (user_invitations + Auth);
+  // en el entorno de pruebas el enlace se copia al portapapeles.
+  const handleInvite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    let email = client.email;
+    if (!email) {
+      email = window.prompt(`${client.nombre} no tiene correo registrado.\nIngresa el correo del cliente para enviar la invitación:`)?.trim() || undefined;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return;
+      updateClient(client.id, { email });
+    }
+    const token = client.portal_invitacion?.token
+      ?? `inv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    updateClient(client.id, {
+      portal_invitacion: {
+        ...client.portal_invitacion,
+        email,
+        token,
+        enviada_at: new Date().toISOString(),
+      },
+    });
+    const link = `${window.location.origin}/activar/${token}`;
+    navigator.clipboard?.writeText(link).catch(() => {});
+    window.alert(`✉️ Invitación enviada a ${email}\n\nEnlace de activación (copiado al portapapeles):\n${link}\n\nEl cliente creará su contraseña en el primer ingreso.`);
+  };
+
   // Archivar en lugar de eliminar: el historial del cliente nunca se pierde.
   // Solo el rol Administrador ve esta acción; requiere doble confirmación.
   const handleArchive = (e: React.MouseEvent) => {
@@ -267,6 +294,16 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
                   📦 Archivar cliente
                 </button>
               )}
+              <button
+                onClick={handleInvite}
+                className="w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50"
+              >
+                ✉️ {client.portal_invitacion?.aceptada_at
+                  ? 'Portal activo — reenviar invitación'
+                  : client.portal_invitacion
+                  ? 'Reenviar invitación'
+                  : 'Enviar invitación al portal'}
+              </button>
               <p className="px-3 py-1.5 text-[9px] text-slate-300 border-t border-slate-50">Solo Administrador</p>
             </div>
           )}

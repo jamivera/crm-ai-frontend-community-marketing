@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { useFplusStore } from '../store';
 import { Sparkles } from 'lucide-react';
 
 // Login genérico para el entorno de pruebas (VITE_FPLUS_DEMO=true).
@@ -8,6 +9,7 @@ import { Sparkles } from 'lucide-react';
 
 export default function DemoLogin() {
   const navigate = useNavigate();
+  const clients = useFplusStore(s => s.clients);
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
@@ -20,11 +22,22 @@ export default function DemoLogin() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (user.trim() === 'admin' && pass === 'admin') {
+      // Rol agencia → Portal de Agencia
       sessionStorage.setItem('fplus-demo-auth', 'true');
       navigate('/fplus/dashboard', { replace: true });
-    } else {
-      setError('Credenciales incorrectas. Usa admin / admin en el entorno de pruebas.');
+      return;
     }
+    // Rol cliente: mismo login, misma plataforma — la interfaz cambia por rol.
+    const cliente = clients.find(c =>
+      c.portal_invitacion?.aceptada_at &&
+      c.portal_invitacion.email.toLowerCase() === user.trim().toLowerCase() &&
+      c.portal_invitacion.password_demo === pass,
+    );
+    if (cliente) {
+      navigate(`/fplus/portal/${cliente.id}`, { replace: true });
+      return;
+    }
+    setError('Credenciales incorrectas. Agencia: admin / admin. Clientes: el correo y contraseña creados al activar la invitación.');
   };
 
   return (

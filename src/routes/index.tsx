@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import FplusApp from '@/fplus/FplusApp';
 import { FplusRoute } from '@/fplus/components/FplusRoute';
 import DemoLogin from '@/fplus/pages/DemoLogin';
+import PortalActivation from '@/fplus/pages/PortalActivation';
 
 // Entorno de pruebas FPLUS: login genérico admin/admin en lugar del auth de Evo CRM
 const FPLUS_DEMO = import.meta.env.VITE_FPLUS_DEMO === 'true';
@@ -155,6 +156,9 @@ const AppRouter = () => {
               )
             }
           />
+
+          {/* Activación del Portal del Cliente (enlace de invitación) */}
+          <Route path="/activar/:token" element={<PortalActivation />} />
 
           {/* Rotas públicas */}
           <Route

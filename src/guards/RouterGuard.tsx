@@ -11,7 +11,7 @@ interface RouterGuardProps {
 }
 
 const SPECIAL_ROUTES = {
-  PUBLIC_ROUTES: ['/auth', '/login', '/register', '/widget', '/setup', '/fplus'],
+  PUBLIC_ROUTES: ['/auth', '/login', '/register', '/widget', '/setup', '/fplus', '/activar'],
   // Routes that bypass the "redirect authenticated users to /conversations" rule
   AUTH_EXEMPT_ROUTES: ['/setup/onboarding'],
 };

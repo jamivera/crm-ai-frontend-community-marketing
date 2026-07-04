@@ -101,6 +101,15 @@ export interface Client {
   pauta_publicitaria?: PautaPublicitaria;
   pauta_plataformas?: string[]; // Meta Ads, Google Ads, TikTok Ads, LinkedIn Ads
   presupuesto_pauta?: number;
+  // Invitación al Portal del Cliente (demo local; con backend será
+  // user_invitations + Supabase Auth — mismo flujo, mismo modelo)
+  portal_invitacion?: {
+    email: string;
+    token: string;
+    enviada_at: string;
+    aceptada_at?: string;
+    password_demo?: string;   // SOLO entorno de pruebas; Auth real lo reemplaza
+  };
   // Firma electrónica del contrato (data URL + metadata)
   firma_contrato?: { imagen: string; firmante: string; fecha: string; ip?: string; usuario?: string };
   // Contrato operativo — base de la planificación del Cronopost

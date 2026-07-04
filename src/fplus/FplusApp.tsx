@@ -47,7 +47,11 @@ export default function FplusApp() {
       />
 
       {/* ── Portal del Cliente (dynamic :clientId) ── */}
-      <Route path="portal" element={<Navigate to="portal/1" replace />} />
+      {/* La ruta base del portal SIEMPRE necesita clientId; el redirect relativo
+          anterior producía /portal/portal/1 (cliente inexistente). El demo
+          redirige al primer cliente; con auth real, SmartRedirect enviará a
+          cada usuario cliente a su propio portal. */}
+      <Route path="portal" element={<Navigate to="/fplus/portal/cl1" replace />} />
       <Route path="portal/:clientId/*" element={<PortalRouteWrapper />} />
 
       {/* ── Main App (agency layout) ── */}
