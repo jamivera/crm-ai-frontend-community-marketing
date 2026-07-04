@@ -328,6 +328,16 @@ export default function ClientContract() {
         </div>
       )}
 
+      {/* Aclaración de inversión publicitaria */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3.5">
+        <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wide mb-1.5">Inversión Publicitaria</p>
+        <p className="text-xs text-blue-800 leading-relaxed">
+          Los <strong>servicios de la agencia</strong> son facturados por Primero Digital.
+          La <strong>inversión publicitaria (pauta)</strong> pertenece siempre al cliente y se paga
+          directamente a Meta, Google, TikTok o LinkedIn — nunca forma parte del presupuesto de Primero Digital.
+        </p>
+      </div>
+
       {/* Firma electrónica */}
       <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">Firma Electrónica</p>
@@ -339,6 +349,10 @@ export default function ClientContract() {
                 <p className="text-sm font-semibold text-slate-700">{client.firma_contrato.firmante}</p>
                 <p className="text-[11px] text-slate-400">
                   Firmado el {new Date(client.firma_contrato.fecha).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {' a las '}{new Date(client.firma_contrato.fecha).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  IP: {client.firma_contrato.ip ?? '—'} · Usuario: {client.firma_contrato.usuario ?? '—'}
                 </p>
                 <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">✓ Contrato firmado — el PDF se generará automáticamente</p>
               </div>
@@ -346,8 +360,16 @@ export default function ClientContract() {
           </div>
         ) : signing ? (
           <SignaturePad
-            onSave={(imagen, firmante) => {
-              updateClient(client.id, { firma_contrato: { imagen, firmante, fecha: new Date().toISOString() } });
+            onSave={async (imagen, firmante) => {
+              // Firma electrónica con respaldo comercial: fecha+hora, usuario e IP
+              let ip = '';
+              try {
+                const r = await fetch('https://api.ipify.org?format=json');
+                ip = (await r.json()).ip;
+              } catch { ip = 'no disponible'; }
+              updateClient(client.id, {
+                firma_contrato: { imagen, firmante, fecha: new Date().toISOString(), ip, usuario: 'admin' },
+              });
               setSigning(false);
             }}
           />

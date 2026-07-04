@@ -169,13 +169,20 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!nombre.trim())  e.nombre = 'El nombre de la pieza es obligatorio.';
-    if (!tipo)           e.tipo = 'Selecciona el formato.';
-    if (!plataforma)     e.plataforma = 'Selecciona la plataforma.';
-    if (!fecha)          e.fecha = 'Indica la fecha de publicación.';
-    if (!filePreview)    e.archivo = 'Sube el archivo multimedia de la pieza.';
-    if (!copy.trim())    e.copy = 'El copy es obligatorio.';
+    if (!filePreview)    e.archivo = 'Falta subir imagen o video.';
+    if (!tipo)           e.tipo = 'Falta el formato.';
+    if (!plataforma)     e.plataforma = 'Falta la plataforma.';
+    if (!fecha)          e.fecha = 'Falta la fecha de publicación.';
+    if (!nombre.trim())  e.nombre = 'Falta el nombre de la pieza.';
+    if (!copy.trim())    e.copy = 'Falta el copy.';
     setErrors(e);
+    // Llevar automáticamente al primer campo con error
+    const first = Object.keys(e)[0];
+    if (first) {
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-field="${first}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -244,8 +251,8 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
 
               {/* Upload zone */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Archivo multimedia
+                <label data-field="archivo" className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Archivo multimedia *
                 </label>
                 <input
                   ref={fileRef}
@@ -324,7 +331,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
               {/* Fecha + Hora */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Fecha</label>
+                  <label data-field="fecha" className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Fecha *</label>
                   <input
                     type="date"
                     value={fecha}
@@ -345,7 +352,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
 
               {/* Nombre + Estado */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                <label data-field="nombre" className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   Nombre de la pieza *
                 </label>
                 <input
@@ -377,7 +384,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
               {/* Copy */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Copy *</label>
+                  <label data-field="copy" className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Copy *</label>
                   <button
                     onClick={async () => {
                       if (!client) return;
@@ -410,7 +417,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
                     ) : (
                       <Sparkles className="w-3 h-3" />
                     )}
-                    {copyLoading ? 'Generando…' : 'Generar Copy con IA'}
+                    {copyLoading ? 'Generando…' : 'Generar con IA'}
                   </button>
                 </div>
                 <textarea
@@ -422,7 +429,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
                 />
                 {copyResult && (
                   <div className="mt-2 bg-violet-50 border border-violet-100 rounded-xl px-3 py-2.5 space-y-1.5">
-                    <p className="text-[9px] font-bold text-violet-500 uppercase tracking-wide">Metodología Andrómeda</p>
+                    <p className="text-[9px] font-bold text-violet-500 uppercase tracking-wide">Estructura estratégica</p>
                     <p className="text-[11px] text-slate-600"><strong className="text-violet-700">Hook:</strong> {copyResult.hook}</p>
                     <p className="text-[11px] text-slate-600"><strong className="text-violet-700">CTA:</strong> {copyResult.cta}</p>
                     <p className="text-[11px] text-slate-600"><strong className="text-violet-700">Ángulo de venta:</strong> {copyResult.angulo_venta}</p>

@@ -215,6 +215,21 @@ export function getAllowedPlatforms(client: { redes_contratadas?: Platform[]; pl
   return tpl?.redes_permitidas ?? ['instagram', 'facebook'];
 }
 
+// ─── Prioridad automática por fecha de publicación ─────────────────────────────
+// Calcula la urgencia del trabajo pendiente según cuándo debe publicarse.
+
+export interface Priority { emoji: string; label: string; cls: string; rank: number }
+
+export function getPriority(fechaPublicacion?: string): Priority {
+  if (!fechaPublicacion) return { emoji: '🟢', label: 'Baja', cls: 'bg-emerald-50 text-emerald-700', rank: 3 };
+  const diff = new Date(fechaPublicacion).getTime() - Date.now();
+  const dias = diff / 86400000;
+  if (dias <= 2)  return { emoji: '🔴', label: 'Urgente', cls: 'bg-red-50 text-red-700', rank: 0 };
+  if (dias <= 7)  return { emoji: '🟠', label: 'Alta', cls: 'bg-orange-50 text-orange-700', rank: 1 };
+  if (dias <= 14) return { emoji: '🟡', label: 'Media', cls: 'bg-amber-50 text-amber-700', rank: 2 };
+  return { emoji: '🟢', label: 'Baja', cls: 'bg-emerald-50 text-emerald-700', rank: 3 };
+}
+
 // ─── Tipos de mercado ──────────────────────────────────────────────────────────
 // Alimentan el Motor de Planificación Inteligente (y a futuro, Andrómeda).
 

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sparkles, Megaphone, Target, Users, Layers, Image as ImageIcon } from 'lucide-react';
 import { useFplusStore } from '../../store';
@@ -27,15 +27,39 @@ export default function ClientCampaigns() {
   const { clientId } = usePortalContext();
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
   const contentPieces = useFplusStore(s => s.contentPieces);
+  const brief = useFplusStore(s => s.briefs[clientId]);
 
   const piezasPauta = contentPieces.filter(p => p.client_id === clientId && p.seleccionado_pauta);
 
-  const strategy = useMemo(
-    () => (client ? generateAdStrategy(client, piezasPauta) : null),
-    [client, piezasPauta],
-  );
+  // Presupuesto editable: al cambiarlo, toda la estrategia se recalcula.
+  // La IA propone — el estratega decide.
+  const [presupuestoEdit, setPresupuestoEdit] = useState<number | null>(null);
+
+  const strategy = useMemo(() => {
+    if (!client) return null;
+    const c = presupuestoEdit != null ? { ...client, presupuesto_pauta: presupuestoEdit } : client;
+    return generateAdStrategy(c, piezasPauta, brief);
+  }, [client, piezasPauta, presupuestoEdit, brief]);
 
   if (!client || !strategy) return null;
+
+  // La estrategia no puede construirse sin conocer al cliente:
+  // Campañas permanece bloqueado hasta completar el Brief.
+  if (!brief) {
+    return (
+      <div className="px-4 pt-16 text-center text-slate-400 max-w-md mx-auto">
+        <span className="text-4xl block mb-3">🔒</span>
+        <p className="text-sm font-medium text-slate-600">Completa el Brief para desbloquear Campañas.</p>
+        <p className="text-xs mt-1.5 mb-5">La estrategia publicitaria se construye con la información del Brief: objetivos, productos, público y presupuesto.</p>
+        <button
+          onClick={() => navigate(location.pathname.replace(/\/campaigns$/, '/brief'))}
+          className="px-4 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700"
+        >
+          Ir al Brief →
+        </button>
+      </div>
+    );
+  }
 
   const incluyePauta = client.pauta_publicitaria && client.pauta_publicitaria !== 'no_incluye';
 
@@ -88,9 +112,18 @@ export default function ClientCampaigns() {
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
             <Megaphone className="w-3.5 h-3.5" /> Distribución recomendada
           </p>
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-            ${strategy.presupuesto_total.toLocaleString('en')}/mes
-          </span>
+          <div className="flex items-center gap-1 bg-blue-50 rounded-full px-2.5 py-1">
+            <span className="text-xs font-bold text-blue-600">$</span>
+            <input
+              type="number"
+              min={0}
+              value={presupuestoEdit ?? strategy.presupuesto_total}
+              onChange={e => setPresupuestoEdit(parseInt(e.target.value) || 0)}
+              className="w-16 text-xs font-bold text-blue-600 bg-transparent focus:outline-none"
+              title="Edita el presupuesto — la estrategia se recalcula automáticamente"
+            />
+            <span className="text-xs font-bold text-blue-600">/mes</span>
+          </div>
         </div>
         <div className="space-y-3">
           {strategy.plataformas.map(p => (
@@ -120,6 +153,11 @@ export default function ClientCampaigns() {
           ))}
         </div>
       </div>
+
+      <p className="text-[10px] text-slate-400 -mt-3 px-1">
+        💡 La inversión publicitaria pertenece al cliente y se paga directamente a Meta, Google, TikTok o LinkedIn.
+        Los servicios de Primero Digital se facturan por separado.
+      </p>
 
       {/* Embudo */}
       <div className="bg-white border border-slate-100 rounded-2xl p-4">

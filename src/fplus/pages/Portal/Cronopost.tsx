@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Layers, Sparkles } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
-import { CONTENT_TYPE_LABELS, getTypeVisual } from '../../constants';
+import { CONTENT_TYPE_LABELS, getTypeVisual, getPriority } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
 import { PlanCronopostModal } from '../../components/modals/PlanCronopostModal';
@@ -241,6 +241,8 @@ export default function Cronopost({ canCreate = false }: Props) {
                   const visual = getTypeVisual(cp.tipo);
                   const pubDate = new Date(cp.fecha_publicacion!);
                   const isPending = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';
+                  const needsWork = isPending || cp.estado === 'cambios_solicitados' || cp.estado === 'en_produccion' || cp.estado === 'borrador';
+                  const prio = needsWork ? getPriority(cp.fecha_publicacion) : null;
 
                   return (
                     <button
@@ -277,6 +279,11 @@ export default function Cronopost({ canCreate = false }: Props) {
                           <span className="text-[9px] font-bold text-slate-400 uppercase">{CONTENT_TYPE_LABELS[cp.tipo]}</span>
                           {cp.origen === 'extraordinaria' && (
                             <span className="text-[8px] font-bold bg-violet-100 text-violet-700 px-1 py-px rounded-full">⚡</span>
+                          )}
+                          {prio && (
+                            <span className={`text-[8px] font-bold px-1 py-px rounded-full ${prio.cls}`} title={`Prioridad ${prio.label}`}>
+                              {prio.emoji} {prio.label}
+                            </span>
                           )}
                           {cp.plataforma && (
                             <>

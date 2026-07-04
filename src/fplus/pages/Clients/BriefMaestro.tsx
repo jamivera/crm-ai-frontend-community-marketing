@@ -22,9 +22,10 @@ const ALL_PLATFORMS: Platform[] = ['instagram', 'facebook', 'tiktok', 'youtube',
 const CONTENT_TYPES: ContentType[] = ['reel', 'carrusel', 'post_imagen', 'historia', 'post_video', 'short', 'tiktok', 'infografia'];
 const RANGOS_EDAD = ['18-24', '25-34', '35-44', '45-54', '55+', 'Todos'];
 
-type WizardStep = 'negocio' | 'audiencia' | 'contenido' | 'canales';
+type WizardStep = 'negocio' | 'comercial' | 'audiencia' | 'contenido' | 'canales';
 const STEPS: { key: WizardStep; label: string; icon: React.ElementType }[] = [
   { key: 'negocio', label: 'Negocio', icon: Building2 },
+  { key: 'comercial', label: 'Comercial', icon: Building2 },
   { key: 'audiencia', label: 'Audiencia', icon: Users },
   { key: 'contenido', label: 'Contenido', icon: Layers },
   { key: 'canales', label: 'Canales', icon: Radio },
@@ -46,6 +47,15 @@ export default function BriefMaestro() {
   const [diferenciadores, setDiferenciadores] = useState(existing?.diferenciadores ?? '');
   const [competencia, setCompetencia] = useState(existing?.competencia ?? '');
   const [historiaMarca, setHistoriaMarca] = useState(existing?.historia_marca ?? '');
+
+  // Comercial — alimenta la estrategia publicitaria y la IA
+  const [objetivosComerciales, setObjetivosComerciales] = useState(existing?.objetivos_comerciales ?? '');
+  const [servicios, setServicios] = useState(existing?.servicios ?? '');
+  const [productos, setProductos] = useState(existing?.productos ?? '');
+  const [ticketPromedio, setTicketPromedio] = useState(existing?.ticket_promedio ?? '');
+  const [presupuestoMarketing, setPresupuestoMarketing] = useState(existing?.presupuesto_marketing ?? '');
+  const [procesoComercial, setProcesoComercial] = useState(existing?.proceso_comercial ?? '');
+  const [embudoActual, setEmbudoActual] = useState(existing?.embudo_actual ?? '');
 
   // ── Audiencia ──
   const [perfilCliente, setPerfilCliente] = useState(existing?.perfil_cliente ?? '');
@@ -87,6 +97,13 @@ export default function BriefMaestro() {
   function handleSave() {
     if (!clientId) return;
     saveBrief({
+      objetivos_comerciales: objetivosComerciales,
+      servicios,
+      productos,
+      ticket_promedio: ticketPromedio,
+      presupuesto_marketing: presupuestoMarketing,
+      proceso_comercial: procesoComercial,
+      embudo_actual: embudoActual,
       client_id: clientId,
       propuesta_valor: propuestaValor,
       diferenciadores,
@@ -211,6 +228,34 @@ export default function BriefMaestro() {
       )}
 
       {/* ── Step: Audiencia ── */}
+      {step === 'comercial' && (
+        <Card title="Comercial" subtitle="Cómo vende la empresa — esta información alimenta directamente la estrategia de campañas.">
+          <Field label="Objetivos comerciales">
+            <textarea value={objetivosComerciales} onChange={e => setObjetivosComerciales(e.target.value)} placeholder="¿Qué quiere lograr el negocio en los próximos 6-12 meses? (ventas, sucursales, nuevos mercados…)" rows={2} className={ta} />
+          </Field>
+          <Field label="Servicios">
+            <textarea value={servicios} onChange={e => setServicios(e.target.value)} placeholder="Servicios que ofrece, del más al menos importante" rows={2} className={ta} />
+          </Field>
+          <Field label="Productos">
+            <textarea value={productos} onChange={e => setProductos(e.target.value)} placeholder="Productos estrella y de temporada" rows={2} className={ta} />
+          </Field>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Ticket promedio">
+              <input value={ticketPromedio} onChange={e => setTicketPromedio(e.target.value)} placeholder="Ej: $25 por persona" className={inp} />
+            </Field>
+            <Field label="Presupuesto de marketing">
+              <input value={presupuestoMarketing} onChange={e => setPresupuestoMarketing(e.target.value)} placeholder="Ej: $500/mes en pauta" className={inp} />
+            </Field>
+          </div>
+          <Field label="Proceso comercial">
+            <textarea value={procesoComercial} onChange={e => setProcesoComercial(e.target.value)} placeholder="¿Cómo se concreta una venta? (mensaje → cotización → visita → cierre)" rows={2} className={ta} />
+          </Field>
+          <Field label="Embudo actual">
+            <textarea value={embudoActual} onChange={e => setEmbudoActual(e.target.value)} placeholder="¿De dónde llegan hoy los clientes? (recomendación, redes, Google, local físico…)" rows={2} className={ta} />
+          </Field>
+        </Card>
+      )}
+
       {step === 'audiencia' && (
         <Card title="Audiencia" subtitle="Define con precisión a quién le habla este contenido.">
           <Field label="Perfil del cliente ideal" required>

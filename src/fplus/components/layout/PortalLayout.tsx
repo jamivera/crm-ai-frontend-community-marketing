@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Layers, CheckCircle, Calendar, ImageIcon, BarChart3 } from 'lucide-react';
-import { mockContent } from '../../mock';
+import { useFplusStore } from '../../store';
 import type { ContentState } from '../../types';
 
 interface PortalLayoutProps {
@@ -24,18 +24,21 @@ export function PortalLayout({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const pendingCount = mockContent.filter(
+  const contentPieces = useFplusStore(st => st.contentPieces);
+  const pendingCount = contentPieces.filter(
     cp => cp.client_id === clientId && PORTAL_PENDING_STATES.includes(cp.estado)
   ).length;
 
+  // Las rutas del portal SIEMPRE incluyen el clientId (/fplus/portal/:clientId/*)
+  const base = `/fplus/portal/${clientId}`;
   const navItems = [
-    { label: 'Inicio', href: '/fplus/portal', icon: Home, exact: true },
-    { label: 'Cronopost', href: '/fplus/portal/cronopost', icon: Layers },
-    { label: 'Aprobar', href: '/fplus/portal/approvals', icon: CheckCircle, badge: pendingCount },
-    { label: 'Calendario', href: '/fplus/portal/calendar', icon: Calendar },
-    { label: 'Archivos', href: '/fplus/portal/multimedia', icon: ImageIcon },
+    { label: 'Inicio', href: base, icon: Home, exact: true },
+    { label: 'Cronopost', href: `${base}/cronopost`, icon: Layers },
+    { label: 'Aprobar', href: `${base}/approvals`, icon: CheckCircle, badge: pendingCount },
+    { label: 'Calendario', href: `${base}/calendar`, icon: Calendar },
+    { label: 'Archivos', href: `${base}/multimedia`, icon: ImageIcon },
     ...(isPremium ? [
-      { label: 'Resultados', href: '/fplus/portal/metrics', icon: BarChart3 },
+      { label: 'Resultados', href: `${base}/metrics`, icon: BarChart3 },
     ] : []),
   ];
 

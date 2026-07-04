@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, ArrowRight, Users } from 'lucide-react';
+import { Plus, MoreVertical, Search, ArrowRight, Users } from 'lucide-react';
 import { HealthLight } from '../../components/ui/HealthLight';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -16,13 +16,17 @@ export default function ClientList() {
   const [search, setSearch] = useState('');
   const [healthFilter, setHealthFilter] = useState<FilterHealth>('all');
   const [showNewClient, setShowNewClient] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const filtered = clients.filter(c => {
     const matchSearch = c.nombre.toLowerCase().includes(search.toLowerCase()) ||
       c.industria.toLowerCase().includes(search.toLowerCase());
     const matchHealth = healthFilter === 'all' || c.semaforo === healthFilter;
-    return matchSearch && matchHealth;
+    // Los archivados se conservan siempre (historial), pero se ocultan por defecto
+    const matchArchived = showArchived ? c.estado === 'inactivo' : c.estado !== 'inactivo';
+    return matchSearch && matchHealth && matchArchived;
   });
+  const archivedCount = clients.filter(c => c.estado === 'inactivo').length;
 
   const counts = {
     all: clients.length,
@@ -108,6 +112,14 @@ export default function ClientList() {
           </table>
         </div>
       )}
+      {archivedCount > 0 && (
+        <button
+          onClick={() => setShowArchived(a => !a)}
+          className="mt-3 mr-4 text-xs text-slate-400 hover:text-slate-600 underline"
+        >
+          {showArchived ? '← Volver a clientes activos' : `Ver archivados (${archivedCount})`}
+        </button>
+      )}
       {/* Leyenda de estado de contrato (uso interno) */}
       <div className="flex gap-4 flex-wrap mt-3 text-[11px] text-slate-400">
         <span>🟢 Plan vigente, contrato activo</span>
@@ -139,7 +151,30 @@ const CONTRACT_BADGE: Record<ContractStatus, { dot: string; label: string; cls: 
   sin_contrato: { dot: '⚪', label: 'Sin contrato', cls: 'bg-slate-50 text-slate-500' },
 };
 
+const PLAN_BADGE: Record<string, { label: string; cls: string }> = {
+  plata:      { label: '🥈 Plata',    cls: 'bg-slate-100 text-slate-600' },
+  oro:        { label: '🥇 Oro',      cls: 'bg-amber-50 text-amber-700' },
+  platinum:   { label: '💎 Platinum', cls: 'bg-blue-50 text-blue-700' },
+  basico:     { label: 'Básico',      cls: 'bg-slate-100 text-slate-600' },
+  estandar:   { label: 'Estándar',    cls: 'bg-slate-100 text-slate-600' },
+  premium:    { label: '⭐ Premium',  cls: 'bg-blue-50 text-blue-700' },
+  enterprise: { label: '🏢 Enterprise', cls: 'bg-slate-800 text-white' },
+};
+
 function ClientRow({ client, onClick }: { client: Client; onClick: () => void }) {
+  const updateClient = useFplusStore(st => st.updateClient);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Archivar en lugar de eliminar: el historial del cliente nunca se pierde.
+  // Solo el rol Administrador ve esta acción; requiere doble confirmación.
+  const handleArchive = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (!window.confirm(`¿Archivar al cliente "${client.nombre}"?\n\nEl cliente dejará de aparecer en la lista activa, pero TODA su información histórica se conserva.`)) return;
+    if (!window.confirm('Confirma nuevamente: esta acción archiva al cliente. Podrá restaurarse desde el filtro "Archivados".')) return;
+    updateClient(client.id, { estado: 'inactivo' });
+  };
+
   return (
     <tr className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={onClick}>
       <td className="px-5 py-3.5">
@@ -148,7 +183,14 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
             {client.nombre.charAt(0)}
           </div>
           <div>
-            <div className="text-sm font-medium text-slate-900">{client.nombre}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-900">{client.nombre}</span>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                (PLAN_BADGE[client.plan_contratado ?? ''] ?? { cls: 'bg-slate-100 text-slate-400' }).cls
+              }`}>
+                {(PLAN_BADGE[client.plan_contratado ?? ''] ?? { label: 'Sin plan' }).label}
+              </span>
+            </div>
             <div className="text-xs text-slate-400">{client.industria}</div>
           </div>
         </div>
@@ -200,7 +242,36 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
         <span className="text-sm font-medium text-slate-700">{client.leads_mes}</span>
       </td>
       <td className="px-4 py-3.5">
-        <ArrowRight className="w-4 h-4 text-slate-300" />
+        <div className="flex items-center gap-1 justify-end relative">
+          <button
+            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+            title="Acciones"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-8 z-20 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-44" onClick={e => e.stopPropagation()}>
+              {client.estado === 'inactivo' ? (
+                <button
+                  onClick={e => { e.stopPropagation(); setMenuOpen(false); updateClient(client.id, { estado: 'activo' }); }}
+                  className="w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
+                >
+                  ♻️ Restaurar cliente
+                </button>
+              ) : (
+                <button
+                  onClick={handleArchive}
+                  className="w-full text-left px-3 py-2 text-xs text-amber-600 hover:bg-amber-50"
+                >
+                  📦 Archivar cliente
+                </button>
+              )}
+              <p className="px-3 py-1.5 text-[9px] text-slate-300 border-t border-slate-50">Solo Administrador</p>
+            </div>
+          )}
+          <ArrowRight className="w-4 h-4 text-slate-300" />
+        </div>
       </td>
     </tr>
   );

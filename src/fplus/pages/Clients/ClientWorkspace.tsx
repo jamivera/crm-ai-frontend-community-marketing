@@ -38,8 +38,10 @@ const WORKSPACE_TABS: WorkspaceTab[] = [
   { id: 'approvals',  label: 'Aprobaciones', icon: CheckSquare,     path: 'approvals' },
   { id: 'comments',   label: 'Comentarios',  icon: MessageSquare,   path: 'comments' },
   { id: 'history',    label: 'Historial',    icon: Clock,           path: 'history' },
-  { id: 'campaigns',  label: 'Campañas',     icon: Megaphone,       path: 'campaigns' },
+  // El Brief va ANTES de Campañas: la estrategia no puede construirse
+  // sin conocer al cliente. Campañas queda bloqueado hasta completar el Brief.
   { id: 'brief',      label: 'Brief',        icon: BookOpen,        path: 'brief' },
+  { id: 'campaigns',  label: 'Campañas',     icon: Megaphone,       path: 'campaigns' },
   { id: 'contract',   label: 'Contrato',     icon: FileText,        path: 'contract' },
   { id: 'metrics',    label: 'Métricas',     icon: BarChart3,       path: 'metrics' },
 ];

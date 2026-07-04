@@ -268,7 +268,10 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                           <span className="text-[9px] shrink-0">{v.emoji}</span>
                         )}
                         <span className={`text-[8px] leading-tight truncate flex-1 ${isSelected ? 'text-white' : 'text-slate-700'}`}>
-                          {piece.nombre}
+                          {CONTENT_TYPE_LABELS[piece.tipo]}
+                        </span>
+                        <span className={`text-[7px] shrink-0 ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
+                          {getPieceStateLabel(piece.estado)}
                         </span>
                       </span>
                     );

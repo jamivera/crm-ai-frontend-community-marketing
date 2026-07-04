@@ -5,7 +5,7 @@
 // y material aprobado para pauta. Futuro: se enriquece con Andrómeda y las
 // métricas reales vía API Meta/Google/TikTok/LinkedIn.
 
-import type { Client, ContentPiece, MarketingObjective } from '../types';
+import type { Client, ContentPiece, MarketingObjective, BriefMaestro } from '../types';
 
 export interface PlatformPlan {
   plataforma: string;         // Meta Ads, Google Ads, TikTok Ads, LinkedIn Ads
@@ -66,7 +66,7 @@ function audiencesFor(mercado: string, ciudad = 'Quito'): string[] {
   return base;
 }
 
-export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[]): AdStrategy {
+export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], brief?: BriefMaestro): AdStrategy {
   const mercado = client.tipo_mercado ?? client.industria;
   const objetivo = client.objetivo_marketing ?? 'alcance';
   const presupuesto = client.presupuesto_pauta ?? Math.round((client.presupuesto_mensual ?? 500) * 0.4);
@@ -80,15 +80,20 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[]):
   const activos = contratadas.map(p => ({ p, w: weights[p] ?? 10 }));
   const totalW = activos.reduce((a, x) => a + x.w, 0) || 1;
 
+  // El Brief afina las audiencias: ubicación real y perfil del cliente ideal
+  const ciudad = brief?.ubicacion?.split(/[,;]/)[0]?.trim() || 'Quito';
+
   const plataformas: PlatformPlan[] = activos.map(({ p, w }) => {
     const pct = Math.round((w / totalW) * 100);
+    const audiencias = audiencesFor(mercado, ciudad);
+    if (brief?.perfil_cliente) audiencias.unshift(`Perfil del Brief: ${brief.perfil_cliente.slice(0, 80)}${brief.perfil_cliente.length > 80 ? '…' : ''}`);
     return {
       plataforma: p,
       porcentaje: pct,
       presupuesto: Math.round((presupuesto * pct) / 100),
       objetivo_campana: CAMPAIGN_GOALS[objetivo][p] ?? 'Tráfico',
       tipos_campana: CAMPAIGN_TYPES[p] ?? [],
-      audiencias: audiencesFor(mercado),
+      audiencias,
       razon: `${p} pondera ${pct}% para ${mercado.toLowerCase()} con objetivo de ${objetivo}.`,
     };
   }).sort((a, b) => b.porcentaje - a.porcentaje);
@@ -110,6 +115,7 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[]):
 
   // Score estratégico: qué tan completa está la información
   const checks: [boolean, string][] = [
+    [!!brief, 'Completar el Brief del cliente'],
     [!!client.tipo_mercado || !!client.industria, 'Definir el tipo de mercado del cliente'],
     [!!client.objetivo_marketing, 'Definir el objetivo de marketing'],
     [(client.pauta_plataformas?.length ?? 0) > 0, 'Seleccionar plataformas de pauta en el contrato'],

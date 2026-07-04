@@ -5,8 +5,8 @@ import {
   Send, Clock, ChevronRight, X
 } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
-import { useFplusStore } from '../../store';
-import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
+import { useFplusStore, STATE_TRANSITIONS, ACTION_LABELS } from '../../store';
+import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS, getPriority } from '../../constants';
 import type { ContentState } from '../../types';
 
 const PENDING_STATES: ContentState[] = ['enviado_cliente', 'en_revision_cliente'];
@@ -15,13 +15,14 @@ const PENDING_STATES: ContentState[] = ['enviado_cliente', 'en_revision_cliente'
 
 export function PortalApprovalsList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { clientId } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
   const portalComments = useFplusStore(s => s.portalComments);
 
-  const pending = contentPieces.filter(
-    cp => cp.client_id === clientId && PENDING_STATES.includes(cp.estado)
-  );
+  const pending = contentPieces
+    .filter(cp => cp.client_id === clientId && PENDING_STATES.includes(cp.estado))
+    .sort((a, b) => getPriority(a.fecha_publicacion).rank - getPriority(b.fecha_publicacion).rank);
 
   if (pending.length === 0) {
     return (
@@ -53,7 +54,7 @@ export function PortalApprovalsList() {
         {pending.map((cp, idx) => (
           <button
             key={cp.id}
-            onClick={() => navigate(`/fplus/portal/approvals/${cp.id}`)}
+            onClick={() => navigate(`${location.pathname.replace(/\/$/, '')}/${cp.id}`)}
             className="w-full flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-4 text-left active:scale-[0.98] transition-transform"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
@@ -66,6 +67,9 @@ export function PortalApprovalsList() {
                 {cp.fecha_limite && ` · vence ${new Date(cp.fecha_limite).toLocaleDateString('es', { day: 'numeric', month: 'short' })}`}
               </p>
             </div>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${getPriority(cp.fecha_publicacion).cls}`}>
+              {getPriority(cp.fecha_publicacion).emoji} {getPriority(cp.fecha_publicacion).label}
+            </span>
             {portalComments[cp.id]?.length > 0 && (
               <div className="flex items-center gap-1 text-xs text-slate-400">
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -97,6 +101,7 @@ export function PortalApprovalDetail() {
   const approveContent = useFplusStore(s => s.approveContent);
   const requestChanges = useFplusStore(s => s.requestChanges);
   const addPortalComment = useFplusStore(s => s.addPortalComment);
+  const updateContentState = useFplusStore(s => s.updateContentState);
 
   const cp = contentPieces.find(c => c.id === id && c.client_id === clientId);
   const brief = briefs[clientId];
@@ -111,7 +116,7 @@ export function PortalApprovalDetail() {
     return (
       <div className="px-4 pt-10 text-center text-slate-400">
         <p className="text-sm">Pieza no encontrada.</p>
-        <button onClick={() => navigate('/fplus/portal/approvals')} className="mt-3 text-blue-600 text-sm">
+        <button onClick={() => navigate(isAgency ? location.pathname.replace(/\/approvals\/.*$/, '/approvals') : `/fplus/portal/${clientId}/approvals`)} className="mt-3 text-blue-600 text-sm">
           ← Volver
         </button>
       </div>
@@ -169,7 +174,7 @@ export function PortalApprovalDetail() {
             : 'Tus comentarios fueron enviados. El equipo los revisará y te enviará una nueva versión.'}
         </p>
         <button
-          onClick={() => navigate('/fplus/portal/approvals')}
+          onClick={() => navigate(isAgency ? location.pathname.replace(/\/approvals\/.*$/, '/approvals') : `/fplus/portal/${clientId}/approvals`)}
           className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm"
         >
           Ver siguiente pendiente
@@ -183,7 +188,7 @@ export function PortalApprovalDetail() {
       {/* Header */}
       <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 z-10">
         <button
-          onClick={() => navigate('/fplus/portal/approvals')}
+          onClick={() => navigate(isAgency ? location.pathname.replace(/\/approvals\/.*$/, '/approvals') : `/fplus/portal/${clientId}/approvals`)}
           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -343,6 +348,36 @@ export function PortalApprovalDetail() {
             <Send className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Acciones de la agencia — flujo de estados (Enviar a revisión, Aprobar, etc.) */}
+        {isAgency && (STATE_TRANSITIONS[cp.estado]?.length ?? 0) > 0 && (
+          <div className="bg-white border border-slate-100 rounded-2xl p-4">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Acciones del equipo</p>
+            <div className="flex flex-wrap gap-2">
+              {STATE_TRANSITIONS[cp.estado]!.map(next => {
+                const label = ACTION_LABELS[cp.estado]?.[next] ?? next;
+                const isSend = next === 'enviado_cliente';
+                const isApprove = next === 'aprobado_cliente' || next === 'aprobado_final' || next === 'publicado';
+                return (
+                  <button
+                    key={next}
+                    onClick={() => updateContentState(cp.id, next, 'Agencia')}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      isSend ? 'bg-blue-600 text-white hover:bg-blue-700' :
+                      isApprove ? 'bg-emerald-600 text-white hover:bg-emerald-700' :
+                      'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2">
+              Al enviar a revisión, el cliente lo verá en su portal, se habilitan los comentarios y el Dashboard marcará el pendiente.
+            </p>
+          </div>
+        )}
 
         {/* Action buttons */}
         {isPending && (

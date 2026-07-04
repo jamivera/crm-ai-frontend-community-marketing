@@ -102,7 +102,7 @@ export interface Client {
   pauta_plataformas?: string[]; // Meta Ads, Google Ads, TikTok Ads, LinkedIn Ads
   presupuesto_pauta?: number;
   // Firma electrónica del contrato (data URL + metadata)
-  firma_contrato?: { imagen: string; firmante: string; fecha: string };
+  firma_contrato?: { imagen: string; firmante: string; fecha: string; ip?: string; usuario?: string };
   // Contrato operativo — base de la planificación del Cronopost
   piezas_mensuales?: number;
   distribucion_piezas?: DistribucionPiezas;
@@ -313,6 +313,14 @@ export interface Publication {
 
 export interface BriefMaestro {
   client_id: string;
+  // Comercial — alimenta el Centro de Estrategia y la IA
+  objetivos_comerciales?: string;
+  servicios?: string;
+  productos?: string;
+  ticket_promedio?: string;
+  presupuesto_marketing?: string;
+  proceso_comercial?: string;
+  embudo_actual?: string;
   // Negocio
   propuesta_valor: string;
   diferenciadores: string;
