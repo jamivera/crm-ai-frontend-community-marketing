@@ -5,6 +5,7 @@ import {
   Send, Clock, ChevronRight, X
 } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
+import { CompletePieceModal } from '../../components/modals/CompletePieceModal';
 import { useFplusStore, STATE_TRANSITIONS, ACTION_LABELS } from '../../store';
 import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS, getPriority } from '../../constants';
 import type { ContentState } from '../../types';
@@ -128,6 +129,9 @@ export function PortalApprovalDetail() {
 
   const [commentText, setCommentText] = useState('');
   const [actionTaken, setActionTaken] = useState<'approved' | 'changes' | null>(null);
+  const [showComplete, setShowComplete] = useState(false);
+  const [editPlan, setEditPlan] = useState(false);
+  const updateContent = useFplusStore(s => s.updateContent);
   const [showChangesInput, setShowChangesInput] = useState(false);
   const [changesText, setChangesText] = useState('');
 
@@ -237,19 +241,68 @@ export function PortalApprovalDetail() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Aviso: pieza planificada por IA pendiente de completar */}
-        {isAgency && cp.origen === 'planificada' && (cp.archivos.length === 0 || !cp.copy_activo) && (
-          <div className="flex items-start gap-2 bg-violet-50 border border-violet-200 rounded-2xl p-3">
-            <span className="text-sm">✨</span>
-            <div>
-              <p className="text-xs font-semibold text-violet-700">Esta publicación fue generada por IA.</p>
-              <p className="text-[11px] text-violet-600 mt-0.5">
-                Completa la información restante para continuar:
-                {cp.archivos.length === 0 && ' subir imagen o video'}
-                {cp.archivos.length === 0 && !cp.copy_activo && ' ·'}
-                {!cp.copy_activo && ' generar el copy y hashtags'}. Luego envíala a revisión.
-              </p>
+        {/* Pieza planificada por IA: separar edición de planificación vs contenido */}
+        {isAgency && cp.origen === 'planificada' && (
+          <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 space-y-2.5">
+            {(cp.archivos.length === 0 || !cp.copy_activo) && (
+              <div className="flex items-start gap-2">
+                <span className="text-sm">✨</span>
+                <div>
+                  <p className="text-xs font-semibold text-violet-700">Esta publicación fue generada por IA.</p>
+                  <p className="text-[11px] text-violet-600 mt-0.5">
+                    🟡 Pendiente de completar:
+                    {cp.archivos.length === 0 && ' subir imagen o video'}
+                    {cp.archivos.length === 0 && !cp.copy_activo && ' ·'}
+                    {!cp.copy_activo && ' copy y hashtags'}.
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditPlan(e => !e)}
+                className="flex-1 py-2 bg-white border border-violet-200 text-violet-700 text-xs font-semibold rounded-xl hover:bg-violet-100"
+              >
+                ✏️ Editar planificación
+              </button>
+              <button
+                onClick={() => setShowComplete(true)}
+                className="flex-1 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700"
+              >
+                📂 Completar contenido
+              </button>
             </div>
+
+            {/* Editar solo la planificación: fecha, hora, plataforma, nombre */}
+            {editPlan && (
+              <div className="bg-white rounded-xl p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={cp.fecha_publicacion?.slice(0, 10) ?? ''}
+                    onChange={e => updateContent(cp.id, {
+                      fecha_publicacion: `${e.target.value}${cp.fecha_publicacion?.slice(10) ?? 'T12:00:00'}`,
+                    })}
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5"
+                  />
+                  <input
+                    type="time"
+                    value={cp.fecha_publicacion?.slice(11, 16) ?? '12:00'}
+                    onChange={e => updateContent(cp.id, {
+                      fecha_publicacion: `${cp.fecha_publicacion?.slice(0, 10)}T${e.target.value}:00`,
+                    })}
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5"
+                  />
+                </div>
+                <input
+                  value={cp.nombre}
+                  onChange={e => updateContent(cp.id, { nombre: e.target.value })}
+                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5"
+                  placeholder="Nombre de la pieza"
+                />
+                <p className="text-[10px] text-slate-400">Los cambios se guardan al instante en las 3 vistas.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -457,6 +510,10 @@ export function PortalApprovalDetail() {
           </div>
         )}
       </div>
+
+      {showComplete && (
+        <CompletePieceModal piece={cp} onClose={() => setShowComplete(false)} />
+      )}
     </div>
   );
 }

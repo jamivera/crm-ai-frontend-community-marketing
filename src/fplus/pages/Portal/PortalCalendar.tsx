@@ -270,7 +270,9 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                           {CONTENT_TYPE_LABELS[piece.tipo]}
                         </span>
                         <span className={`text-[7px] shrink-0 ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
-                          {getPieceStateLabel(piece.estado, !canCreate)}
+                          {canCreate && piece.origen === 'planificada' && (piece.archivos.length === 0 || !piece.copy_activo)
+                            ? '🟡'
+                            : getPieceStateLabel(piece.estado, !canCreate)}
                         </span>
                       </span>
                     );
@@ -326,13 +328,15 @@ export default function PortalCalendar({ canCreate = false }: Props) {
               </button>
             )}
           </div>
-          {selectedPieces.map(piece => (
+          {selectedPieces.map(piece => {
+            const incompleta = canCreate && piece.origen === 'planificada' && (piece.archivos.length === 0 || !piece.copy_activo);
+            return (
             <button
               key={piece.id}
               onClick={() => handlePieceClick(piece)}
               draggable={canCreate}
               onDragStart={canCreate ? e => e.dataTransfer.setData('text/piece-id', piece.id) : undefined}
-              className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left active:scale-[0.98] transition-transform ${getPieceCardColor(piece.estado)} ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              className={`w-full flex items-center gap-3 p-3 border rounded-xl text-left active:scale-[0.98] transition-transform ${incompleta ? 'bg-amber-50 border-amber-200' : getPieceCardColor(piece.estado)} ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
             >
               <div className="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center shrink-0 text-xl">
                 {getTypeEmoji(piece.tipo)}
@@ -350,10 +354,19 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                 piece.estado === 'enviado_cliente' || piece.estado === 'en_revision_cliente' ? 'text-amber-700' :
                 'text-slate-500'
               }`}>
-                {getPieceStateLabel(piece.estado, !canCreate)}
+                {incompleta ? '🟡 Pendiente de completar' : getPieceStateLabel(piece.estado, !canCreate)}
               </span>
+              {incompleta && (
+                <span
+                  onClick={e => { e.stopPropagation(); handlePieceClick(piece); }}
+                  className="text-[10px] font-bold bg-violet-600 text-white px-2 py-1 rounded-lg shrink-0 hover:bg-violet-700"
+                >
+                  Completar contenido
+                </span>
+              )}
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -419,7 +432,13 @@ export default function PortalCalendar({ canCreate = false }: Props) {
 
       {/* Planner modal */}
       {showPlanner && client && (
-        <PlanCronopostModal client={client} onClose={() => setShowPlanner(false)} />
+        <PlanCronopostModal
+          client={client}
+          initialYear={year}
+          initialMonth={month}
+          onApplied={(y, m) => { setYear(y); setMonth(m); setSelectedDay(null); }}
+          onClose={() => setShowPlanner(false)}
+        />
       )}
 
       {/* Create modal */}

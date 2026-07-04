@@ -9,6 +9,11 @@ import type { Client, ContentPiece, ContentType, MarketingObjective, Platform } 
 interface Props {
   client: Client;
   onClose: () => void;
+  // Mes visible en el calendario que abrió el planificador
+  initialYear?: number;
+  initialMonth?: number;
+  // Al aplicar: el calendario salta al mes planificado (nunca se ve vacío)
+  onApplied?: (year: number, month: number) => void;
 }
 
 const OBJETIVOS: { value: MarketingObjective; label: string; emoji: string }[] = [
@@ -26,15 +31,15 @@ const TYPE_EMOJI: Record<string, string> = {
 
 const EDITABLE_TYPES: ContentType[] = ['reel', 'carrusel', 'historia', 'post_imagen', 'post_video', 'tiktok'];
 
-export function PlanCronopostModal({ client, onClose }: Props) {
+export function PlanCronopostModal({ client, onClose, initialYear, initialMonth, onApplied }: Props) {
   const createManyContent = useFplusStore(s => s.createManyContent);
 
   const now = new Date();
   const defaultMonth = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
   const defaultYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
 
-  const [year, setYear] = useState(defaultYear);
-  const [month, setMonth] = useState(defaultMonth);
+  const [year, setYear] = useState(initialYear ?? defaultYear);
+  const [month, setMonth] = useState(initialMonth ?? defaultMonth);
   const [objetivo, setObjetivo] = useState<MarketingObjective>(client.objetivo_marketing ?? 'alcance');
   const [seed, setSeed] = useState(0); // fuerza regeneración
   const [pieces, setPieces] = useState<ProposedPiece[] | null>(null);
@@ -118,6 +123,7 @@ export function PlanCronopostModal({ client, onClose }: Props) {
       };
     });
     createManyContent(newPieces);
+    onApplied?.(year, month);
     onClose();
   };
 

@@ -49,8 +49,10 @@ export function PortalLayout({
     return location.pathname.startsWith(item.href);
   };
 
+  // El shell de Evo fija body{overflow:hidden}; el portal gestiona su propio
+  // scroll con altura de viewport dinámica (100dvh) para móviles.
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col max-w-lg mx-auto relative">
+    <div className="h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto overscroll-contain bg-slate-50 flex flex-col max-w-lg mx-auto relative">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div>
