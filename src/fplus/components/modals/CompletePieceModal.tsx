@@ -108,6 +108,22 @@ export function CompletePieceModal({ piece, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Contexto: de planificación a producción */}
+          <div className="bg-violet-50 border border-violet-100 rounded-xl px-3.5 py-3">
+            <p className="text-xs font-semibold text-violet-700 mb-1.5">
+              ✨ Esta publicación ya fue planificada.
+            </p>
+            <p className="text-[11px] text-violet-600 leading-relaxed">
+              Ahora completa la información restante para pasarla a producción:
+            </p>
+            <div className="mt-1.5 space-y-0.5 text-[11px] text-violet-600">
+              <p>{piece.archivos.length > 0 ? '✅' : '⬜'} Subir imagen o video</p>
+              <p>{piece.copy_activo ? '✅' : '⬜'} Generar o editar el Copy</p>
+              <p>{(piece.hashtags?.length ?? 0) > 0 ? '✅' : '⬜'} Generar Hashtags</p>
+              <p>⬜ Revisar plataforma y enviar a revisión</p>
+            </div>
+          </div>
+
           {/* Multimedia */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">

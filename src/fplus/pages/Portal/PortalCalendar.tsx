@@ -6,6 +6,7 @@ import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS, getTypeVisual } from '../../constants';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
 import { PlanCronopostModal } from '../../components/modals/PlanCronopostModal';
+import { CompletePieceModal } from '../../components/modals/CompletePieceModal';
 import { getMonthEvents } from '../../utils/cronoplanner';
 import type { ContentPiece, ContentState } from '../../types';
 
@@ -74,6 +75,10 @@ export default function PortalCalendar({ canCreate = false }: Props) {
   const [createDate, setCreateDate] = useState<string | null>(null);
   const [dragOverDay, setDragOverDay] = useState<number | null>(null);
   const [showPlanner, setShowPlanner] = useState(false);
+  const [completingPiece, setCompletingPiece] = useState<ContentPiece | null>(null);
+
+  const esIncompleta = (piece: ContentPiece) =>
+    piece.origen === 'planificada' && (piece.archivos.length === 0 || !piece.copy_activo);
 
   // Eventos inteligentes del mes (feriados, fechas comerciales, sectoriales)
   const monthEvents = getMonthEvents(year, month, client?.industria ?? '', clientId);
@@ -132,6 +137,12 @@ export default function PortalCalendar({ canCreate = false }: Props) {
   const totalThisMonth = Array.from(piecesByDay.values()).flat();
 
   const handlePieceClick = (piece: ContentPiece) => {
+    // Pieza planificada sin contenido: pasar de planificación a producción
+    // con contexto claro, en lugar de abrir la ficha vacía.
+    if (canCreate && esIncompleta(piece)) {
+      setCompletingPiece(piece);
+      return;
+    }
     // Navigate relative to current location
     if (canCreate) {
       // Agency: go to approvals tab within workspace
@@ -256,9 +267,15 @@ export default function PortalCalendar({ canCreate = false }: Props) {
                     return (
                       <span
                         key={piece.id}
-                        title={`${piece.nombre} · ${CONTENT_TYPE_LABELS[piece.tipo]} · ${getPieceStateLabel(piece.estado, !canCreate)}`}
+                        onClick={e => { e.stopPropagation(); handlePieceClick(piece); }}
+                        title={canCreate && esIncompleta(piece)
+                          ? `⚠️ ${piece.nombre} — forma parte de la planificación mensual. Haz clic para completar el contenido antes de enviarlo a revisión.`
+                          : `${piece.nombre} · ${CONTENT_TYPE_LABELS[piece.tipo]} · ${getPieceStateLabel(piece.estado, !canCreate)}`}
                         className={`flex items-center gap-1 rounded-md px-1 py-0.5 mb-0.5 text-left overflow-hidden ${
-                          isSelected ? 'bg-white/20' : `bg-gradient-to-r ${v.gradient} border-l-2 ${v.border}`
+                          isSelected ? 'bg-white/20' :
+                          canCreate && esIncompleta(piece)
+                            ? 'bg-white border border-dashed border-amber-400 opacity-80'
+                            : `bg-gradient-to-r ${v.gradient} border-l-2 ${v.border}`
                         }`}
                       >
                         {file ? (
@@ -358,7 +375,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
               </span>
               {incompleta && (
                 <span
-                  onClick={e => { e.stopPropagation(); handlePieceClick(piece); }}
+                  onClick={e => { e.stopPropagation(); setCompletingPiece(piece); }}
                   className="text-[10px] font-bold bg-violet-600 text-white px-2 py-1 rounded-lg shrink-0 hover:bg-violet-700"
                 >
                   Completar contenido
@@ -428,6 +445,14 @@ export default function PortalCalendar({ canCreate = false }: Props) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Flujo Completar contenido: de planificación a producción */}
+      {completingPiece && (
+        <CompletePieceModal
+          piece={completingPiece}
+          onClose={() => setCompletingPiece(null)}
+        />
       )}
 
       {/* Planner modal */}

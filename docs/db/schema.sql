@@ -107,6 +107,42 @@ create table clients (
 alter table users
   add constraint users_client_fk foreign key (client_id) references clients(id);
 
+-- ─── ACCESO Y GESTIÓN DE USUARIOS (una sola app, roles) ─────────────────────
+-- Arquitectura de acceso (Opción C): una única Web App/PWA con autenticación
+-- por roles. Supabase Auth maneja login, recuperación de contraseña y
+-- verificación de email; estas tablas modelan la capa de negocio.
+--
+-- users.activo permite desactivar sin eliminar (historial intacto).
+-- users.client_id cubre el caso simple (un usuario = un cliente).
+-- user_clients cubre los casos avanzados:
+--   · un cliente con varios usuarios (gerente + asistente de marketing)
+--   · un mismo usuario externo administrando varias marcas
+
+create table user_clients (
+  user_id    uuid not null references users(id),
+  client_id  uuid not null references clients(id),
+  rol        user_role not null default 'client_standard',
+  primary key (user_id, client_id)
+);
+
+-- Invitaciones seguras por correo: la agencia crea el cliente → el sistema
+-- genera un token de un solo uso → el cliente define su contraseña en el
+-- primer ingreso → entra por la misma URL y ve su portal según rol.
+create table user_invitations (
+  id           uuid primary key default uuid_generate_v4(),
+  agency_id    uuid not null references agencies(id),
+  client_id    uuid references clients(id),   -- NULL = invitación a colaborador
+  email        text not null,
+  rol          user_role not null,
+  token        uuid not null default uuid_generate_v4() unique,
+  invited_by   uuid references users(id),
+  expires_at   timestamptz not null default now() + interval '7 days',
+  accepted_at  timestamptz,                   -- NULL = pendiente
+  created_at   timestamptz not null default now()
+);
+
+create index idx_invitations_token on user_invitations (token) where accepted_at is null;
+
 -- ─── PLANES Y CONTRATOS ──────────────────────────────────────────────────────
 -- Las plantillas viven en BD (no quemadas en código): Plata/Oro/Platinum
 -- iniciales + planes personalizados futuros.
