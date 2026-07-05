@@ -6,12 +6,16 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // consume el Data Access Layer (src/fplus/services). Ver ADR-004 y Principio 1.
 //
 // Las credenciales vienen de variables de entorno (nunca hardcodeadas):
-//   VITE_SUPABASE_URL       — URL pública del proyecto
-//   VITE_SUPABASE_ANON_KEY  — anon/public key (segura para el frontend)
-// La service_role key JAMÁS llega al frontend (solo Edge Functions — Principio 4).
+//   VITE_SUPABASE_URL              — URL pública del proyecto
+//   VITE_SUPABASE_PUBLISHABLE_KEY  — Publishable Key (sb_publishable_…), pública
+// Supabase migró la antigua "anon key" a la nueva Publishable Key; ambas son
+// PÚBLICAS y seguras en el frontend. La service_role / secret key JAMÁS llega
+// al navegador (solo Edge Functions — Principio 4).
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Nueva Publishable Key; fallback al nombre anterior por compatibilidad.
+const anonKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined;
 
 let client: SupabaseClient | null = null;
 

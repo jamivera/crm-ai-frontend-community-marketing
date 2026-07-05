@@ -14,7 +14,6 @@
 --     (src/fplus/types) para una migración 1:1 del store.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-create extension if not exists "uuid-ossp";
 
 -- ─── ENUMS ───────────────────────────────────────────────────────────────────
 
@@ -62,13 +61,13 @@ create type funnel_stage as enum (
 -- ─── TENANCY Y USUARIOS ──────────────────────────────────────────────────────
 
 create table agencies (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   nombre      text not null,            -- 'Primero Digital'
   created_at  timestamptz not null default now()
 );
 
 create table users (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   agency_id   uuid not null references agencies(id),
   email       text not null unique,
   nombre      text not null,
@@ -82,7 +81,7 @@ create table users (
 -- ─── CLIENTES ────────────────────────────────────────────────────────────────
 
 create table clients (
-  id                  uuid primary key default uuid_generate_v4(),
+  id                  uuid primary key default gen_random_uuid(),
   agency_id           uuid not null references agencies(id),
   nombre              text not null,
   empresa             text,
@@ -129,12 +128,12 @@ create table user_clients (
 -- genera un token de un solo uso → el cliente define su contraseña en el
 -- primer ingreso → entra por la misma URL y ve su portal según rol.
 create table user_invitations (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   agency_id    uuid not null references agencies(id),
   client_id    uuid references clients(id),   -- NULL = invitación a colaborador
   email        text not null,
   rol          user_role not null,
-  token        uuid not null default uuid_generate_v4() unique,
+  token        uuid not null default gen_random_uuid() unique,
   invited_by   uuid references users(id),
   expires_at   timestamptz not null default now() + interval '7 days',
   accepted_at  timestamptz,                   -- NULL = pendiente
@@ -148,7 +147,7 @@ create index idx_invitations_token on user_invitations (token) where accepted_at
 -- iniciales + planes personalizados futuros.
 
 create table plan_templates (
-  id                uuid primary key default uuid_generate_v4(),
+  id                uuid primary key default gen_random_uuid(),
   agency_id         uuid not null references agencies(id),
   codigo            text not null,      -- 'plata' | 'oro' | 'platinum' | custom
   label             text not null,
@@ -164,7 +163,7 @@ create table plan_templates (
 
 -- Un cliente puede renovar: histórico de contratos, nunca sobrescribir.
 create table contracts (
-  id                  uuid primary key default uuid_generate_v4(),
+  id                  uuid primary key default gen_random_uuid(),
   client_id           uuid not null references clients(id),
   plan_template_id    uuid references plan_templates(id),
   plan_codigo         text,             -- snapshot del plan al firmar
@@ -190,7 +189,7 @@ create table contracts (
 
 -- Distribución de piezas por tipo (editable por contrato — planes a medida)
 create table contract_items (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   contract_id  uuid not null references contracts(id) on delete cascade,
   tipo         content_type not null,
   cantidad     int not null check (cantidad > 0),
@@ -200,7 +199,7 @@ create table contract_items (
 -- ─── BRIEF (el corazón estratégico) ─────────────────────────────────────────
 
 create table briefs (
-  id                    uuid primary key default uuid_generate_v4(),
+  id                    uuid primary key default gen_random_uuid(),
   client_id             uuid not null references clients(id) unique,
   -- Comercial (alimenta Centro de Estrategia e IA)
   objetivos_comerciales text,
@@ -240,7 +239,7 @@ create table briefs (
 -- Eventos propios del cliente para el Calendario Inteligente
 -- (el banco global de feriados/fechas comerciales vive en smart_events)
 create table smart_events (
-  id                    uuid primary key default uuid_generate_v4(),
+  id                    uuid primary key default gen_random_uuid(),
   agency_id             uuid references agencies(id),  -- NULL = banco global
   client_id             uuid references clients(id),   -- NULL = para todos
   fecha                 date not null,
@@ -253,7 +252,7 @@ create table smart_events (
 -- ─── CONTENIDO (fuente única de verdad) ──────────────────────────────────────
 
 create table content_pieces (
-  id                  uuid primary key default uuid_generate_v4(),
+  id                  uuid primary key default gen_random_uuid(),
   client_id           uuid not null references clients(id),
   campaign_id         uuid,             -- FK diferida a campaigns
   nombre              text not null,
@@ -286,7 +285,7 @@ create index idx_pieces_pauta on content_pieces (client_id) where seleccionado_p
 -- Archivos: los binarios van a Storage (S3/Supabase); aquí solo referencias.
 -- Versionado: cada subida es una fila nueva; es_version_activa marca la vigente.
 create table content_files (
-  id                uuid primary key default uuid_generate_v4(),
+  id                uuid primary key default gen_random_uuid(),
   content_piece_id  uuid not null references content_pieces(id) on delete cascade,
   nombre            text not null,
   tipo              text not null,      -- imagen|video|pdf|audio|otro
@@ -301,7 +300,7 @@ create table content_files (
 
 -- Comentarios unificados: internos (agencia) y del portal (cliente)
 create table comments (
-  id                uuid primary key default uuid_generate_v4(),
+  id                uuid primary key default gen_random_uuid(),
   content_piece_id  uuid not null references content_pieces(id) on delete cascade,
   autor_id          uuid references users(id),
   autor_nombre      text not null,      -- snapshot por si el usuario cambia
@@ -313,7 +312,7 @@ create table comments (
 -- Historial de aprobación/estados: append-only, jamás se edita.
 -- Da gratis: tab Historial, auditoría, prioridades y disputas con clientes.
 create table approval_events (
-  id                uuid primary key default uuid_generate_v4(),
+  id                uuid primary key default gen_random_uuid(),
   content_piece_id  uuid not null references content_pieces(id) on delete cascade,
   estado_anterior   content_state,
   estado_nuevo      content_state not null,
@@ -328,7 +327,7 @@ create index idx_events_piece on approval_events (content_piece_id, created_at);
 -- ─── CAMPAÑAS Y ESTRATEGIA ───────────────────────────────────────────────────
 
 create table campaigns (
-  id                 uuid primary key default uuid_generate_v4(),
+  id                 uuid primary key default gen_random_uuid(),
   client_id          uuid not null references clients(id),
   nombre             text not null,
   nomenclatura       text,              -- KINARA_META_CONVERSION_…
@@ -350,7 +349,7 @@ alter table content_pieces
 -- Cada proveedor tiene su conector; todos alimentan estas mismas tablas.
 
 create table ad_accounts (
-  id                   uuid primary key default uuid_generate_v4(),
+  id                   uuid primary key default gen_random_uuid(),
   client_id            uuid not null references clients(id),
   provider             ad_provider not null,
   external_account_id  text not null,
@@ -362,7 +361,7 @@ create table ad_accounts (
 );
 
 create table ad_campaigns (
-  id                    uuid primary key default uuid_generate_v4(),
+  id                    uuid primary key default gen_random_uuid(),
   campaign_id           uuid references campaigns(id),   -- vínculo a FPLUS
   ad_account_id         uuid not null references ad_accounts(id),
   provider              ad_provider not null,
@@ -376,7 +375,7 @@ create table ad_campaigns (
 );
 
 create table ad_sets (
-  id                  uuid primary key default uuid_generate_v4(),
+  id                  uuid primary key default gen_random_uuid(),
   ad_campaign_id      uuid not null references ad_campaigns(id),
   provider            ad_provider not null,
   external_adset_id   text not null,
@@ -389,7 +388,7 @@ create table ad_sets (
 -- copy/hashtags/ángulo se congelan al lanzar (snapshot) para que el
 -- análisis histórico no se contamine si la pieza se edita después.
 create table ads (
-  id                 uuid primary key default uuid_generate_v4(),
+  id                 uuid primary key default gen_random_uuid(),
   ad_set_id          uuid not null references ad_sets(id),
   provider           ad_provider not null,
   external_ad_id     text not null,
@@ -406,7 +405,7 @@ create index idx_ads_piece on ads (content_piece_id);
 -- ─── PUBLICACIONES ORGÁNICAS ─────────────────────────────────────────────────
 
 create table publications (
-  id                uuid primary key default uuid_generate_v4(),
+  id                uuid primary key default gen_random_uuid(),
   content_piece_id  uuid not null references content_pieces(id),
   client_id         uuid not null references clients(id),
   plataforma        platform not null,
@@ -426,7 +425,7 @@ create table publications (
 -- Derivados (CTR, CPC, CPM, ROAS) NO se guardan: se calculan al consultar.
 
 create table metric_snapshots (
-  id              uuid primary key default uuid_generate_v4(),
+  id              uuid primary key default gen_random_uuid(),
   -- exactamente uno de los dos orígenes:
   ad_id           uuid references ads(id),           -- métrica de pauta
   publication_id  uuid references publications(id),  -- métrica orgánica
@@ -552,7 +551,7 @@ create type integration_provider as enum (
 );
 
 create table integrations (
-  id              uuid primary key default uuid_generate_v4(),
+  id              uuid primary key default gen_random_uuid(),
   agency_id       uuid not null references agencies(id),
   client_id       uuid references clients(id),   -- NULL = a nivel agencia
   provider        integration_provider not null,
@@ -574,7 +573,7 @@ create index idx_integrations_tenant on integrations (agency_id, provider);
 -- costo, y a qué entidad pertenece. Permite cambiar de proveedor sin tocar la
 -- app y responder "qué ángulo/modelo generó mejores resultados".
 create table ai_generations (
-  id            uuid primary key default uuid_generate_v4(),
+  id            uuid primary key default gen_random_uuid(),
   agency_id     uuid not null references agencies(id),
   client_id     uuid references clients(id),
   provider      text not null,          -- 'openai' | 'anthropic' | 'gemini'
@@ -597,7 +596,7 @@ create index idx_ai_tenant on ai_generations (agency_id, created_at);
 
 -- ─── FEATURE FLAGS (por agencia o por plan) ─────────────────────────────────
 create table feature_flags (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   clave       text not null,            -- 'metrics_v2', 'ai_copy', 'whatsapp'
   descripcion text,
   -- Alcance: global, por plan o por agencia específica
@@ -610,7 +609,7 @@ create table feature_flags (
 
 -- ─── BILLING (suscripciones — preparado, sin usar aún) ──────────────────────
 create table subscription_plans (
-  id            uuid primary key default uuid_generate_v4(),
+  id            uuid primary key default gen_random_uuid(),
   codigo        text not null unique,   -- 'starter','growth','agency','enterprise'
   nombre        text not null,
   precio_mensual numeric(10,2),
@@ -620,7 +619,7 @@ create table subscription_plans (
 );
 
 create table subscriptions (
-  id             uuid primary key default uuid_generate_v4(),
+  id             uuid primary key default gen_random_uuid(),
   agency_id      uuid not null references agencies(id),
   plan_id        uuid not null references subscription_plans(id),
   estado         text not null default 'trial',   -- trial|activa|morosa|cancelada
@@ -632,7 +631,7 @@ create table subscriptions (
 );
 
 create table invoices (
-  id              uuid primary key default uuid_generate_v4(),
+  id              uuid primary key default gen_random_uuid(),
   agency_id       uuid not null references agencies(id),
   subscription_id uuid references subscriptions(id),
   numero          text,
@@ -645,7 +644,7 @@ create table invoices (
 );
 
 create table payments (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   invoice_id   uuid not null references invoices(id),
   monto        numeric(10,2) not null,
   metodo       text,                    -- card | transfer | …
@@ -658,7 +657,7 @@ create table payments (
 -- Sincronización con Meta, generación de IA, envío de correos, cálculo de
 -- métricas… no bloquean la app: se encolan y un worker los procesa.
 create table jobs (
-  id            uuid primary key default uuid_generate_v4(),
+  id            uuid primary key default gen_random_uuid(),
   agency_id     uuid references agencies(id),
   tipo          text not null,          -- 'sync_meta' | 'ai_generate' | 'email'
   payload       jsonb not null,
@@ -692,7 +691,7 @@ create index idx_webhooks_provider on webhook_logs (provider, received_at);
 
 -- ─── NOTIFICACIONES (unificadas: in-app, email, push futuro) ────────────────
 create table notifications (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   agency_id   uuid not null references agencies(id),
   user_id     uuid references users(id),      -- destinatario
   canal       text not null default 'in_app', -- in_app | email | push
