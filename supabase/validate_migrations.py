@@ -23,7 +23,18 @@ if not files:
 
 # Acumula el schema conocido a medida que "aplicamos" las migraciones en orden.
 known_tables, known_indexes = set(), set()
+table_cols = {}          # tabla -> set(columnas)  (para validar policies)
 policies_by_table = {}   # tabla -> set(policy_name)
+
+CONSTRAINT_KW = {'primary','foreign','unique','check','constraint','partition'}
+
+def extract_columns(create_body: str) -> set:
+    cols = set()
+    for line in create_body.split('\n'):
+        w = re.match(r'\s+(\w+)\s', line)
+        if w and w.group(1).lower() not in CONSTRAINT_KW:
+            cols.add(w.group(1).lower())
+    return cols
 
 for path in files:
     name = os.path.basename(path)
@@ -53,14 +64,38 @@ for path in files:
         if campo not in head:
             warn(f'[DOC] {name}: falta "{campo}" en el encabezado')
 
-    # 3 · Referencias al schema: CREATE TABLE registra; ALTER/policy deben existir
-    for t in re.findall(r'create table (?:if not exists )?(\w+)', low):
-        known_tables.add(t)
+    # 3 · Referencias al schema: CREATE TABLE registra tabla + columnas
+    for m in re.finditer(r'create table (?:if not exists )?(\w+)\s*\((.*?)\n\)', low, re.S):
+        tname = m.group(1)
+        known_tables.add(tname)
+        table_cols.setdefault(tname, set()).update(extract_columns(m.group(2)))
 
     # ALTER TABLE sobre tablas — deben existir (excepto las creadas aquí)
     for t in re.findall(r'alter table (?:if exists )?(\w+)', low):
         if t not in known_tables:
             err(f'[SCHEMA] {name}: ALTER TABLE {t} pero la tabla no existe aún')
+    # ALTER ADD COLUMN registra columnas nuevas
+    for tname, col in re.findall(r'alter table (?:if exists )?(\w+) add column (?:if not exists )?(\w+)', low):
+        table_cols.setdefault(tname, set()).add(col)
+
+    # 11 · Policies: la columna usada debe existir en la tabla (bug agency_id)
+    #   a) Policies generadas en loop: foreach t in array[...] loop ... using (col = ...)
+    for arr, body in re.findall(r'foreach\s+\w+\s+in\s+array\s+array\[(.*?)\]\s+loop(.*?)end loop', low, re.S):
+        tablas_loop = re.findall(r"'(\w+)'", arr)
+        # columna simple usada en el policy del loop (using (col = ...)), sin subquery
+        for col in re.findall(r'create policy[^;]*?using\s*\(\s*(\w+)\s*=', body):
+            for tl in tablas_loop:
+                if tl in table_cols and col not in table_cols[tl]:
+                    err(f'[RLS/COLUMNA] {name}: policy en loop usa "{col}" pero la tabla '
+                        f'"{tl}" no tiene esa columna → falla en ejecución')
+    #   b) Policies directas simples: create policy X on T ... using (col = ...) sin exists/select
+    for tbl, using in re.findall(r'create policy \w+ on (\w+)[^;]*?using\s*\((.*?)\)\s*;', low, re.S):
+        if 'select' in using or 'exists' in using:
+            continue  # policy con JOIN/subquery: no se valida la columna directa
+        col = re.match(r'\s*(\w+)\s*=', using)
+        if col and tbl in table_cols and col.group(1) not in table_cols[tbl]:
+            err(f'[RLS/COLUMNA] {name}: policy en "{tbl}" usa "{col.group(1)}" '
+                f'pero la tabla no tiene esa columna')
 
     # 7 · ADD COLUMN NOT NULL sin DEFAULT (rompe filas existentes)
     for m in re.finditer(r'add column (?:if not exists )?(\w+)[^,;]*', low):

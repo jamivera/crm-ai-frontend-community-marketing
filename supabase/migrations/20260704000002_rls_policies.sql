@@ -29,16 +29,18 @@ create or replace function auth_rol() returns text
 create or replace function is_agency_user() returns boolean
   language sql stable as $$ select coalesce(auth.jwt() ->> 'rol','') not in ('client_standard','client_premium') $$;
 
--- ─── Tablas con agency_id directo ────────────────────────────────────────────
--- Agencia ve lo suyo; cliente no accede (estas son tablas de gestión interna).
+-- ─── Tablas con agency_id DIRECTO ────────────────────────────────────────────
+-- Agencia ve lo suyo; cliente no accede (gestión interna).
+-- IMPORTANTE: solo tablas que realmente tienen la columna agency_id NOT NULL.
+--   · payments NO tiene agency_id → tenant vía invoices (más abajo).
+--   · feature_flags tiene agency_id NULLABLE (NULL = global) → policy propia.
 
 do $$
 declare t text;
 begin
   foreach t in array array[
     'clients','plan_templates','integrations','ai_generations',
-    'feature_flags','subscriptions','invoices','payments','jobs',
-    'notifications','audit_log'
+    'subscriptions','invoices','jobs','notifications','audit_log'
   ] loop
     execute format('alter table %I enable row level security;', t);
     execute format($p$
@@ -47,6 +49,20 @@ begin
     $p$, t);
   end loop;
 end $$;
+
+-- feature_flags: agency_id NULLABLE — los flags globales (agency_id IS NULL)
+-- deben ser visibles para todas las agencias.
+alter table feature_flags enable row level security;
+create policy feature_flags_access on feature_flags
+  using (agency_id is null or agency_id = auth_agency_id());
+
+-- payments: NO tiene agency_id — el tenant se obtiene vía invoices (JOIN).
+alter table payments enable row level security;
+create policy payments_access on payments
+  using (exists (
+    select 1 from invoices i
+    where i.id = payments.invoice_id and i.agency_id = auth_agency_id()
+  ));
 
 -- users: la agencia gestiona sus usuarios; cada quien se ve a sí mismo.
 alter table users enable row level security;
