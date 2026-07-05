@@ -66,6 +66,7 @@ Staging, pruebas de instalación desde cero, validación de migraciones o recupe
 | 0001 | `20260704000001_initial_schema.sql` | Schema completo (32 tablas, enums, índices, vista) |
 | 0002 | `20260704000002_rls_policies.sql` | Row Level Security (aislamiento agencia/cliente) |
 | 0003 | `20260704000003_soft_delete_audit.sql` | Soft delete, `updated_at`, audit triggers, particiones |
+| 0004 | `20260704000004_rls_performance_indexes.sql` | Índices de FK usados por los JOINs de las policies RLS (escalabilidad) |
 
 ## Nuevas migraciones (a futuro)
 

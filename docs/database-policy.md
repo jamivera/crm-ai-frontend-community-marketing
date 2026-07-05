@@ -61,7 +61,8 @@ luego se genera/ajusta la migración.**
 | 2 | Compatibilidad con el CLI | Validador: nombre `<timestamp>_<nombre>.sql`, sin `\ir` en migraciones |
 | 3 | Compatibilidad con el schema existente | Validador: referencias a tablas/columnas existentes |
 | 4 | Dependencias entre migraciones | Validador: orden por timestamp; las posteriores dependen de las previas |
-| 5 | Conflictos con RLS | Validador: policy única por tabla **y que la columna usada exista en la tabla** (evita `agency_id does not exist`) |
+| 5 | Conflictos con RLS | Validador: policy única por tabla; columna usada existe; **tablas de JOIN existen, columnas de JOIN válidas, sin ciclos de dependencia** |
+| 5b | Escalabilidad de RLS | Validador: **columnas de FK usadas en JOINs de policies deben estar indexadas** (RLS corre en cada query) |
 | 6 | Conflictos con índices | Validador: nombres de índice únicos |
 | 7 | Conflictos con datos existentes | Validador: `ADD COLUMN NOT NULL` sin `DEFAULT` = riesgo → alerta |
 | 8 | Conflictos con Auth | Revisión: ¿toca claims/roles/hooks? Probar login tras aplicar |
