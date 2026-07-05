@@ -64,8 +64,12 @@ Así entenderemos la historia del proyecto dentro de años.
 
 ## Flujo de despliegue (resumen)
 
-- **Staging** (entorno reproducible/desechable): `supabase db reset --linked` → migraciones + seed, todo por CLI.
-- **Producción** (datos reales): **solo** `supabase db push` → aplica migraciones nuevas. **Nunca** `reset`, nunca el seed de desarrollo.
+Flujo estándar por migraciones, **sin `reset`**, idéntico en ambos entornos:
+
+- **Staging:** `supabase db push --include-seed` → migraciones + seed de desarrollo (no destructivo, CLI-nativo).
+- **Producción:** `supabase db push` → **solo** migraciones nuevas. **Sin** `--include-seed`, sin seed de desarrollo.
+- **`supabase db reset`:** reservado a casos específicos (reconstrucción total de Staging, instalación desde
+  cero, validación de migraciones, recuperación). **Nunca** en el flujo normal ni en Producción.
 
 Detalle operativo en [`supabase/README.md`](../supabase/README.md).
 

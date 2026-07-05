@@ -12,7 +12,15 @@ Producción** → paridad garantizada y **historial completo de migraciones** pr
 - **Access Token:** supabase.com → Account → Access Tokens (para `supabase login`).
 - **Contraseña de la base:** la que definiste al crear el proyecto (queda solo en tu máquina).
 
-## Despliegue a un entorno (Staging o Producción)
+## Flujo oficial del proyecto
+
+Flujo estándar por **migraciones versionadas** (nunca `reset`), igual en Staging y Producción.
+
+> El CLI actual **no** tiene `supabase db seed` para datos. El seeding se ejecuta con
+> `db push --include-seed`, que aplica migraciones **y** corre el seed de `config.toml [db.seed]` de forma
+> **no destructiva**. (`supabase seed buckets` es solo para Storage.)
+
+### Staging (con seed de desarrollo)
 
 ```bash
 # 0. Desde la raíz del repo (donde está la carpeta supabase/)
@@ -21,19 +29,29 @@ supabase login                                   # pega tu Access Token
 # 1. Enlazar el proyecto (pide la contraseña de la base)
 supabase link --project-ref <PROJECT_REF>        # staging: rbhorgjriovyyeurzuiy
 
-# 2. Aplicar las migraciones versionadas (registra el historial en el remoto)
-supabase db push
+# 2. Migraciones + seed (no destructivo, CLI-nativo desde config.toml)
+supabase db push --include-seed
 
-# 3. Confirmar que quedaron aplicadas
-supabase migration list                          # 0001/0002/0003 deben figurar como aplicadas
-
-# 4. Ejecutar el Seed modular (idempotente, con \ir)
-#    Connection string: Dashboard → Settings → Database → Connection string (URI)
-psql "<CONNECTION_STRING>" -f supabase/seed.sql   # imprime el resumen al final
+# 3. Confirmar el historial aplicado
+supabase migration list                          # 0001/0002/0003 como aplicadas
 ```
 
-> El `CONNECTION_STRING` contiene la contraseña de la base: se usa solo en tu terminal, nunca se
-> comparte ni se sube al repo.
+### Producción (solo migraciones, SIN seed de desarrollo)
+
+```bash
+supabase link --project-ref <PROD_REF>
+supabase db push                                 # SIN --include-seed
+supabase migration list
+```
+
+Mismo comando `db push`, misma migración → **paridad garantizada**. La única diferencia es el flag
+`--include-seed`, que jamás se usa en Producción.
+
+## `supabase db reset` — solo casos específicos
+
+`reset` es **destructivo** y NO forma parte del flujo normal. Se reserva para: reconstrucción completa de
+Staging, pruebas de instalación desde cero, validación de migraciones o recuperación de un entorno.
+**Nunca en Producción.**
 
 ## Migraciones existentes
 
