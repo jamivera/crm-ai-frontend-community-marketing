@@ -508,3 +508,202 @@ group by cp.client_id, cp.id, cp.nombre, cp.tipo, cp.angulo_andromeda,
 --
 -- (Las policies completas se implementan al montar Supabase; este esquema
 --  ya está estructurado para soportarlas sin cambios.)
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- SCHEMA v2 — Mejoras arquitectónicas (Constitución Técnica, punto 16)
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Estas tablas NO se implementan en la app todavía; nacen en el diseño para
+-- que la base de datos esté preparada y no requiera migraciones estructurales.
+
+-- ─── SEGURIDAD TRANSVERSAL: audit log + soft delete ─────────────────────────
+-- Soft delete: se agrega `deleted_at timestamptz` a TODAS las tablas de
+-- negocio (clients, content_pieces, campaigns, briefs, contracts, users, …).
+-- Nada se borra físicamente; las queries y policies filtran deleted_at IS NULL.
+-- Ejemplo:  alter table clients add column deleted_at timestamptz;
+
+-- Registro automático de cambios (alimentado por triggers de PostgreSQL).
+create table audit_log (
+  id          bigint generated always as identity,
+  agency_id   uuid,                    -- tenant (para RLS y particionado)
+  actor_id    uuid,                    -- users.id que ejecutó la acción
+  actor_email text,
+  accion      text not null,           -- insert | update | delete | login | …
+  entidad     text not null,           -- 'clients', 'content_pieces', …
+  entidad_id  uuid,
+  before      jsonb,                   -- estado anterior
+  after       jsonb,                   -- estado nuevo
+  ip          inet,
+  user_agent  text,
+  created_at  timestamptz not null default now(),
+  -- La PK de una tabla particionada debe incluir la columna de partición
+  primary key (id, created_at)
+) partition by range (created_at);     -- append-only de alto volumen → particionada
+
+create index idx_audit_agency on audit_log (agency_id, created_at);
+create index idx_audit_entidad on audit_log (entidad, entidad_id);
+
+-- ─── INTEGRACIONES (genérica, multi-proveedor) ──────────────────────────────
+-- Una sola tabla para Meta, Google, TikTok, LinkedIn, WhatsApp, Calendar,
+-- Drive, Analytics, Search Console, Stripe… Los tokens van cifrados en Vault.
+create type integration_provider as enum (
+  'meta','google_ads','tiktok','linkedin','openai','anthropic','gemini',
+  'whatsapp','google_calendar','google_drive','google_analytics',
+  'search_console','looker','stripe'
+);
+
+create table integrations (
+  id              uuid primary key default uuid_generate_v4(),
+  agency_id       uuid not null references agencies(id),
+  client_id       uuid references clients(id),   -- NULL = a nivel agencia
+  provider        integration_provider not null,
+  external_id     text,                          -- id de cuenta/página externa
+  credentials_ref text,                          -- referencia a Supabase Vault
+  scopes          text[],
+  estado          text not null default 'desconectado',
+  metadata        jsonb,
+  connected_at    timestamptz,
+  expires_at      timestamptz,                   -- vencimiento del token
+  created_at      timestamptz not null default now(),
+  deleted_at      timestamptz
+);
+
+create index idx_integrations_tenant on integrations (agency_id, provider);
+
+-- ─── INTELIGENCIA ARTIFICIAL (Andrómeda, multi-proveedor) ───────────────────
+-- Guarda cada generación de IA: qué proveedor, modelo, prompt, respuesta,
+-- costo, y a qué entidad pertenece. Permite cambiar de proveedor sin tocar la
+-- app y responder "qué ángulo/modelo generó mejores resultados".
+create table ai_generations (
+  id            uuid primary key default uuid_generate_v4(),
+  agency_id     uuid not null references agencies(id),
+  client_id     uuid references clients(id),
+  provider      text not null,          -- 'openai' | 'anthropic' | 'gemini'
+  modelo        text not null,          -- 'gpt-4o' | 'claude-…' | 'gemini-…'
+  tarea         text not null,          -- copy | hashtags | estrategia | plan
+  entidad       text,                   -- 'content_pieces' | 'campaigns' | …
+  entidad_id    uuid,
+  angulo_andromeda text,
+  input         jsonb not null,         -- prompt + variables
+  output        jsonb,                  -- respuesta estructurada
+  tokens_input  int,
+  tokens_output int,
+  costo_usd     numeric(10,6),
+  latencia_ms   int,
+  created_at    timestamptz not null default now()
+);
+
+create index idx_ai_entidad on ai_generations (entidad, entidad_id);
+create index idx_ai_tenant on ai_generations (agency_id, created_at);
+
+-- ─── FEATURE FLAGS (por agencia o por plan) ─────────────────────────────────
+create table feature_flags (
+  id          uuid primary key default uuid_generate_v4(),
+  clave       text not null,            -- 'metrics_v2', 'ai_copy', 'whatsapp'
+  descripcion text,
+  -- Alcance: global, por plan o por agencia específica
+  agency_id   uuid references agencies(id),   -- NULL = aplica a todas
+  plan_codigo text,                            -- NULL = cualquier plan
+  activo      boolean not null default false,
+  created_at  timestamptz not null default now(),
+  unique (clave, agency_id, plan_codigo)
+);
+
+-- ─── BILLING (suscripciones — preparado, sin usar aún) ──────────────────────
+create table subscription_plans (
+  id            uuid primary key default uuid_generate_v4(),
+  codigo        text not null unique,   -- 'starter','growth','agency','enterprise'
+  nombre        text not null,
+  precio_mensual numeric(10,2),
+  moneda        text not null default 'USD',
+  limites       jsonb,                  -- { max_clients, max_users, storage_gb }
+  activo        boolean not null default true
+);
+
+create table subscriptions (
+  id             uuid primary key default uuid_generate_v4(),
+  agency_id      uuid not null references agencies(id),
+  plan_id        uuid not null references subscription_plans(id),
+  estado         text not null default 'trial',   -- trial|activa|morosa|cancelada
+  stripe_customer_id     text,
+  stripe_subscription_id text,
+  periodo_inicio timestamptz,
+  periodo_fin    timestamptz,
+  created_at     timestamptz not null default now()
+);
+
+create table invoices (
+  id              uuid primary key default uuid_generate_v4(),
+  agency_id       uuid not null references agencies(id),
+  subscription_id uuid references subscriptions(id),
+  numero          text,
+  monto           numeric(10,2) not null,
+  moneda          text not null default 'USD',
+  estado          text not null default 'pendiente', -- pendiente|pagada|vencida
+  stripe_invoice_id text,
+  emitida_at      timestamptz not null default now(),
+  pagada_at       timestamptz
+);
+
+create table payments (
+  id           uuid primary key default uuid_generate_v4(),
+  invoice_id   uuid not null references invoices(id),
+  monto        numeric(10,2) not null,
+  metodo       text,                    -- card | transfer | …
+  stripe_payment_intent_id text,
+  estado       text not null default 'procesando',
+  created_at   timestamptz not null default now()
+);
+
+-- ─── JOBS / QUEUE (procesos pesados asíncronos) ─────────────────────────────
+-- Sincronización con Meta, generación de IA, envío de correos, cálculo de
+-- métricas… no bloquean la app: se encolan y un worker los procesa.
+create table jobs (
+  id            uuid primary key default uuid_generate_v4(),
+  agency_id     uuid references agencies(id),
+  tipo          text not null,          -- 'sync_meta' | 'ai_generate' | 'email'
+  payload       jsonb not null,
+  estado        text not null default 'pendiente', -- pendiente|corriendo|ok|error
+  intentos      int not null default 0,
+  max_intentos  int not null default 3,
+  error         text,
+  programado_at timestamptz not null default now(),
+  iniciado_at   timestamptz,
+  finalizado_at timestamptz,
+  created_at    timestamptz not null default now()
+);
+
+create index idx_jobs_pendientes on jobs (estado, programado_at) where estado = 'pendiente';
+
+-- ─── WEBHOOK LOGS (auditoría de webhooks entrantes) ─────────────────────────
+create table webhook_logs (
+  id           bigint generated always as identity,
+  provider     text not null,          -- 'meta' | 'stripe' | 'google' | …
+  evento       text,                   -- tipo de evento del proveedor
+  headers      jsonb,
+  payload      jsonb not null,
+  firma_valida boolean,                -- verificación de firma HMAC
+  procesado    boolean not null default false,
+  error        text,
+  received_at  timestamptz not null default now(),
+  primary key (id, received_at)
+) partition by range (received_at);    -- alto volumen → particionada
+
+create index idx_webhooks_provider on webhook_logs (provider, received_at);
+
+-- ─── NOTIFICACIONES (unificadas: in-app, email, push futuro) ────────────────
+create table notifications (
+  id          uuid primary key default uuid_generate_v4(),
+  agency_id   uuid not null references agencies(id),
+  user_id     uuid references users(id),      -- destinatario
+  canal       text not null default 'in_app', -- in_app | email | push
+  tipo        text not null,                  -- 'aprobacion' | 'comentario' | …
+  titulo      text not null,
+  cuerpo      text,
+  entidad     text,                           -- deep-link a la entidad
+  entidad_id  uuid,
+  leida       boolean not null default false,
+  enviada_at  timestamptz,
+  created_at  timestamptz not null default now()
+);
+
+create index idx_notif_user on notifications (user_id, leida, created_at);
