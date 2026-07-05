@@ -41,12 +41,14 @@ dejando la plataforma lista para validar con Primero Digital como primer cliente
 - [x] A7. Seed base (`supabase/seed.sql`) con la agencia Primero Digital.
 
 ### Bloque B — Requiere el proyecto Supabase (🔒 bloqueado en acción del usuario)
-- [ ] B1. Crear proyecto **Supabase Pro** en `us-east-1` (lo hace el usuario; me pasa URL + anon key).
-- [ ] B2. Ejecutar migraciones (`supabase db push`) en DEV → STAGING → PROD.
+> **Ambientes (ADR-010):** todo el Bloque B se ejecuta en **`fplus-staging`**. Producción solo recibe lo validado.
+- [ ] B1. Crear proyectos **`fplus-staging`** y **`fplus-production`** en `us-east-1` (usuario). Comparte URL + anon key de **Staging**.
+- [ ] B2. Ejecutar migraciones (`supabase db push`) en **Staging**.
 - [ ] B3. Configurar Auth: proveedores, plantillas de correo, custom claims (`agency_id`, `rol`, `client_id`).
 - [ ] B4. Crear buckets de Storage con sus policies.
 - [ ] B5. Cargar seed y verificar aislamiento por RLS con usuarios de prueba.
-- [ ] B6. Conectar el store al DAL real y validar el flujo completo end-to-end.
+- [ ] B6. Conectar el store al DAL real y validar el flujo completo end-to-end en Staging.
+- [ ] B7. Promover a **Producción** solo lo validado (mismas migraciones, sin datos de prueba).
 
 ## Riesgos
 

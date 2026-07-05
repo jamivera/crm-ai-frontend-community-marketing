@@ -53,3 +53,5 @@ yarn.lock
 /e2e/playwright-report/
 /playwright-report/
 /test-results/
+.env.staging
+.env.*.local

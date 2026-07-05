@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:staging": "vite --mode staging",
+    "build:staging": "tsc -b && vite build --mode staging",
+    "build:production": "tsc -b && vite build --mode production"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
