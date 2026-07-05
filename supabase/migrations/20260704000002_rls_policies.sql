@@ -1,10 +1,19 @@
+-- ─── Migración 0002 · rls_policies ──────────────────────────────────────────
+-- Por qué:   aislamiento multi-tenant obligatorio antes de cargar datos reales.
+-- Resuelve:  ninguna agencia puede ver datos de otra; el cliente solo ve lo suyo.
+-- Tablas:    habilita RLS + policies en todas las tablas de negocio.
+-- Riesgos:   una policy mal escrita bloquea/expone datos → validar con pruebas
+--            de aislamiento por rol. Reversible: disable RLS + drop policies.
+-- ════════════════════════════════════════════════════════════════════════════
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- FPLUS — Migración 0002: Row Level Security (aislamiento multi-tenant)
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Principio (ADR-003, ADR-006): el aislamiento vive en la base de datos.
 --   · Usuario de agencia → ve todo lo de SU agency_id.
 --   · Usuario cliente   → ve solo SU client_id, sin notas internas.
--- Los claims agency_id, rol y client_id viajan en el JWT (Auth Hook, migración 0003).
+-- Los claims agency_id, rol y client_id viajan en el JWT vía un Auth Hook
+-- (Custom Access Token Hook), que se creará como migración 0004 al configurar Auth.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Helpers: leen los claims del JWT del usuario autenticado.

@@ -1,3 +1,11 @@
+-- ─── Migración 0003 · soft_delete_audit ─────────────────────────────────────
+-- Por qué:   seguridad y trazabilidad transversales desde el día uno.
+-- Resuelve:  no se borra físicamente (deleted_at); todo cambio queda auditado.
+-- Tablas:    +deleted_at en tablas de negocio; triggers updated_at y audit;
+--            particiones 2026 de audit_log y webhook_logs.
+-- Riesgos:   bajo. Reversible: drop triggers/funciones + drop column deleted_at.
+-- ════════════════════════════════════════════════════════════════════════════
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- FPLUS — Migración 0003: Soft delete universal + triggers de audit log
 -- ═══════════════════════════════════════════════════════════════════════════

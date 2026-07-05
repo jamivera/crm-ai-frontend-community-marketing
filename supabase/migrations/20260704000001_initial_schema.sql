@@ -1,3 +1,11 @@
+-- ─── Migración 0001 · initial_schema ────────────────────────────────────────
+-- Por qué:   fundación del producto — primer despliegue del modelo de datos.
+-- Resuelve:  crea todo el schema base sobre el que opera FPlus.
+-- Tablas:    32 tablas (agencias, usuarios, clientes, contratos, briefs,
+--            contenido, campañas, ads, publicaciones, métricas, plataforma) + enums + vista.
+-- Riesgos:   ninguno (base limpia). Reversible: DROP del schema public.
+-- ════════════════════════════════════════════════════════════════════════════
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- FPLUS — Schema de Base de Datos v1 (PostgreSQL / Supabase)
 -- ═══════════════════════════════════════════════════════════════════════════

@@ -5,6 +5,24 @@ project_id = "fplus"
 port = 54322
 major_version = 15
 
+# Seed integrado al CLI: `supabase db reset` (local o --linked) ejecuta estos
+# archivos en orden, sin procesos manuales ni \ir. Idempotente.
+# Producción NO usa reset ni este seed de desarrollo (ver docs/database-policy.md).
+[db.seed]
+enabled = true
+sql_paths = [
+  "./seed/seed_agencies.sql",
+  "./seed/seed_users.sql",
+  "./seed/seed_clients.sql",
+  "./seed/seed_contracts.sql",
+  "./seed/seed_briefs.sql",
+  "./seed/seed_content.sql",
+  "./seed/seed_campaigns.sql",
+  "./seed/seed_metrics.sql",
+  "./seed/seed_media.sql",
+  "./seed/seed_notifications.sql"
+]
+
 [auth]
 # Los custom claims (agency_id, rol, client_id) se inyectan vía Auth Hook.
 enable_signup = false          # Alta solo por invitación de la agencia
