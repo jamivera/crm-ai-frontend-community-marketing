@@ -38,7 +38,8 @@ dejando la plataforma lista para validar con Primero Digital como primer cliente
 - [x] A4. Migración de soft delete + triggers de audit (`0003_soft_delete_audit.sql`).
 - [x] A5. Estructura de la Data Access Layer (`src/fplus/services/`): cliente, interfaces, implementación de referencia, factory.
 - [x] A6. Variables de entorno (`.env.example`) y dependencia `@supabase/supabase-js`.
-- [x] A7. Seed base (`supabase/seed.sql`) con la agencia Primero Digital.
+- [x] A7. **Seed profesional modular** (`supabase/seed/` + orquestador `seed.sql`): 10 archivos por dominio, idempotente, con **fechas relativas**. Primero Digital + 6 usuarios (roles variados) + 5 clientes reales (Kinara, Velora, ATUK, Lexaval, Pesatronic) en estados distintos + contratos (vigente/por vencer/vencido) + 4 briefs + 20 piezas (todos los estados) + comentarios + historial + 2 campañas + cadena de ads (IDs externos placeholder) + métricas orgánicas y de pauta + media + notificaciones.
+- [x] A8. **Factories** (`supabase/factories/`): contrato base + `clientFactory` de referencia + orquestador `runBulk` para pruebas de carga (estructura preparada; resto stubs). Seed y factories conviven (§12).
 
 ### Bloque B — Requiere el proyecto Supabase (🔒 bloqueado en acción del usuario)
 > **Ambientes (ADR-010):** todo el Bloque B se ejecuta en **`fplus-staging`**. Producción solo recibe lo validado.
