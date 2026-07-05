@@ -12,7 +12,8 @@
     "test": "vitest run",
     "dev:staging": "vite --mode staging",
     "build:staging": "tsc -b && vite build --mode staging",
-    "build:production": "tsc -b && vite build --mode production"
+    "build:production": "tsc -b && vite build --mode production",
+    "validate:migrations": "python3 supabase/validate_migrations.py"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",

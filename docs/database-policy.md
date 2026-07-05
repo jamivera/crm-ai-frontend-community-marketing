@@ -48,6 +48,40 @@ esa es la opción preferida. Si necesita cambios, se analiza el impacto sobre:
 | Nuevo módulo | Tablas nuevas aisladas; el resto del schema no se toca (bajo acoplamiento) |
 | Dato de referencia | Seed/migración de datos idempotente, nunca hardcode en código |
 
+## Validación previa (obligatoria antes de cada migración)
+
+**Ninguna migración se ejecuta sin este análisis.** Se corre el validador automático
+(`supabase/validate_migrations.py`) que comprueba lo estáticamente verificable, y se revisan a mano los
+puntos que dependen del entorno vivo. Si se detecta cualquier riesgo, **primero se propone la solución y
+luego se genera/ajusta la migración.**
+
+| # | Comprobación | Cómo se valida |
+|---|---|---|
+| 1 | Compatibilidad con PostgreSQL de Supabase | Validador: sin `uuid-ossp`/`uuid_generate_v4`, sin sintaxis deprecada |
+| 2 | Compatibilidad con el CLI | Validador: nombre `<timestamp>_<nombre>.sql`, sin `\ir` en migraciones |
+| 3 | Compatibilidad con el schema existente | Validador: referencias a tablas/columnas existentes |
+| 4 | Dependencias entre migraciones | Validador: orden por timestamp; las posteriores dependen de las previas |
+| 5 | Conflictos con RLS | Validador: nombres de policy únicos por tabla; sin duplicados |
+| 6 | Conflictos con índices | Validador: nombres de índice únicos |
+| 7 | Conflictos con datos existentes | Validador: `ADD COLUMN NOT NULL` sin `DEFAULT` = riesgo → alerta |
+| 8 | Conflictos con Auth | Revisión: ¿toca claims/roles/hooks? Probar login tras aplicar |
+| 9 | Conflictos con Storage | Revisión: ¿toca buckets/policies de `storage`? |
+| 10 | Reversibilidad | Validador: encabezado incluye plan de reversión |
+
+Los puntos 1-7 y 10 son automáticos. Los 8-9 requieren revisión + prueba en Staging antes de Producción.
+
+## Backups y snapshots
+
+Antes de una migración **crítica** (destructiva, que altere tipos, que haga backfill masivo o toque tablas
+con datos reales), se evalúa y se indica explícitamente si conviene un snapshot:
+
+- **Staging vacío / desechable:** no requiere backup (no hay nada que perder).
+- **Staging con datos de trabajo:** snapshot recomendado si la migración es destructiva.
+- **Producción (con clientes reales):** **snapshot obligatorio antes de cada migración.** Supabase Pro da
+  backups diarios + PITR; además se toma un snapshot manual (o rama) inmediatamente antes de aplicar.
+
+Cuando FPlus tenga clientes reales, este análisis de backup es **parte obligatoria** del proceso de migración.
+
 ## Documentación de cada migración
 
 Toda migración importante incluye, en su encabezado, un bloque corto:

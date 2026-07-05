@@ -20,6 +20,12 @@ Flujo estándar por **migraciones versionadas** (nunca `reset`), igual en Stagin
 > `db push --include-seed`, que aplica migraciones **y** corre el seed de `config.toml [db.seed]` de forma
 > **no destructiva**. (`supabase seed buckets` es solo para Storage.)
 
+### Validación previa (obligatoria antes de cualquier push)
+
+```bash
+npm run validate:migrations     # compat PG/CLI, schema, deps, RLS, índices, datos, reversibilidad
+```
+
 ### Staging (con seed de desarrollo)
 
 ```bash
