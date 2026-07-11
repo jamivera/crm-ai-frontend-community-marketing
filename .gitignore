@@ -55,3 +55,7 @@ yarn.lock
 /test-results/
 .env.staging
 .env.*.local
+
+# Supabase CLI local state (RC1: no debe versionarse — vincula infra)
+supabase/.temp
+supabase/.branches

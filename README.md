@@ -1,3 +1,27 @@
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- FPLUS — puerta de entrada (capa /fplus/* sobre Evo CRM). El README base de -->
+<!-- Evo CRM se conserva íntegro más abajo.                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+# FPlus — Marketing Operating System
+
+**FPlus** es un SaaS multi-tenant para agencias de marketing, construido como una capa `/fplus/*` sobre
+**Evo CRM Community**. Backend: Supabase (PostgreSQL 15 + Auth + RLS). Primer tenant: **Primero Digital**.
+
+### 📚 Documentación oficial (empieza aquí)
+- **Índice maestro:** [`docs/release/INDEX.md`](docs/release/INDEX.md)
+- **Si eres una IA:** [`docs/release/AI_BOOTSTRAP_GUIDE.md`](docs/release/AI_BOOTSTRAP_GUIDE.md)
+- **Arquitectura:** [`docs/release/ARCHITECTURE.md`](docs/release/ARCHITECTURE.md) · **Decisiones/ADR:** [`docs/adr/`](docs/adr/)
+- **Estado:** [`docs/release/PROJECT_STATUS.md`](docs/release/PROJECT_STATUS.md) · **Setup:** [`docs/release/SETUP.md`](docs/release/SETUP.md)
+- **Manifiesto (reglas inviolables):** [`docs/release/FPLUS_MANIFESTO.md`](docs/release/FPLUS_MANIFESTO.md)
+
+> **Metodología del proyecto:** Evidencia → Diagnóstico → Corrección mínima → Validación.
+> **No modificar** lo congelado (identidad, migraciones 0001–0009, RLS, DAL boundary) sin un nuevo ADR.
+
+---
+
+<!-- ─── README base de Evo CRM (conservado sin cambios) ──────────────────── -->
+
 <p align="center">
   <a href="https://evolutionfoundation.com.br">
     <img src="./public/hover-evolution.png" alt="Evolution Foundation" />

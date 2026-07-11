@@ -1,0 +1,98 @@
+{
+  "project": "FPlus",
+  "description": "Marketing Operating System multi-tenant para agencias, capa /fplus/* sobre Evo CRM Community",
+  "repo_root": "/Users/jamil/AgencyOs",
+  "snapshot_date": "2026-07-10",
+  "freeze_commit": "5a336eb5684f0dc144b2e18290e0de5b89292e18",
+  "branch": "main",
+  "release_label": "rc1-preservation-package",
+  "methodology": "Evidencia -> Diagnostico -> Correccion minima -> Validacion",
+  "overall": {
+    "status": "identity_infrastructure_frozen_login_blocked",
+    "completion_percent": 55,
+    "summary": "Infraestructura de identidad congelada y validada hasta public.users. Login real bloqueado por ISSUE-001. Ningun modulo conectado a datos reales todavia."
+  },
+  "areas": {
+    "infrastructure": { "status": "validated", "percent": 90, "frozen": true },
+    "database": { "status": "validated", "percent": 95, "frozen": true, "tables": 32 },
+    "identity": { "status": "validated_until_public_users", "percent": 80, "frozen": true, "blocker": "ISSUE-001" },
+    "trigger": { "status": "validated", "percent": 100, "frozen": true, "migrations": ["0006", "0009"] },
+    "auth_hook": { "status": "installed_registered_blocked", "percent": 60, "frozen": true, "migration": "0007", "issue": "ISSUE-001" },
+    "bootstrap": { "status": "validated", "percent": 100, "note": "Admin API -> auth.users -> Trigger -> public.users, ids_coinciden=true" },
+    "rls": { "status": "validated", "percent": 95, "frozen": true },
+    "grants": { "status": "validated", "percent": 95, "frozen": true, "migrations": ["0005", "0008"] },
+    "dal": { "status": "scaffold_ready_not_connected", "percent": 30, "frozen_boundary": true },
+    "backend": { "status": "not_started", "percent": 5 },
+    "frontend": { "status": "mock_mode", "percent": 40, "note": "modulos funcionan con mocks; sin datos reales" },
+    "storage": { "status": "not_started", "percent": 0 },
+    "auth_frontend": { "status": "demo_login_pending_real", "percent": 10 }
+  },
+  "modules": {
+    "clientes": { "status": "mock", "connected": false, "next": true },
+    "dashboard": { "status": "mock", "connected": false },
+    "brief": { "status": "mock", "connected": false },
+    "contratos": { "status": "mock", "connected": false },
+    "cronopost": { "status": "mock", "connected": false },
+    "aprobaciones": { "status": "mock", "connected": false },
+    "multimedia": { "status": "mock", "connected": false, "requires": "storage" },
+    "campanias": { "status": "mock", "connected": false },
+    "metricas": { "status": "mock", "connected": false, "requires": "ad_apis_sprint3" }
+  },
+  "migrations": {
+    "frozen_official": ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009"],
+    "experimental_not_frozen": ["0010"],
+    "0010_status": ["EXPERIMENTAL", "HIPOTESIS", "NO_VALIDADA", "NO_CONFIRMADA", "NOT_PART_OF_FREEZE"]
+  },
+  "toolkit_official": [
+    "verify_identity_infra.sql",
+    "verify_clean_state.sql",
+    "test_migrations.mjs",
+    "test_clientes_dal.mjs",
+    "test_clientes_dal_auth.mjs",
+    "bootstrap_admin.mjs",
+    "validate_migrations.py"
+  ],
+  "toolkit_legacy": ["align_admin_user.sql", "verify_admin_user.sql", "bootstrap_staging.sql", "seed.sql"],
+  "freeze": {
+    "frozen": ["identity_architecture_ADR011", "migrations_0001_0009", "rls", "tenant_model_agency", "dal_boundary", "secrets_server_only", "methodology"],
+    "open": ["ISSUE-001_login_fix", "module_dal_connection", "storage", "ad_apis"]
+  },
+  "issues": [
+    {
+      "id": "ISSUE-001",
+      "title": "POST /token 500 al ejecutar el Custom Access Token Hook",
+      "severity": "high",
+      "status": "under_investigation",
+      "confirmed": false,
+      "blocks_login": true,
+      "hypothesis": "El hook sobrescribe el claim reservado client_id de GoTrue (null para el admin)",
+      "next_step": "Obtener el error exacto del hook en Postgres Logs (metodo oficial de Supabase)"
+    }
+  ],
+  "risks": [
+    { "id": "R-01", "priority": "high", "desc": "ISSUE-001 bloquea el login real" },
+    { "id": "R-02", "priority": "high", "desc": "confundir la 0010 experimental con un fix confirmado" },
+    { "id": "R-07", "priority": "high", "desc": "IA futura rompe la disciplina/arquitectura congelada" },
+    { "id": "R-10", "priority": "high", "desc": "perdida del conocimiento del chat (mitigado por docs/release)" },
+    { "id": "R-05", "priority": "medium", "desc": "doble lockfile npm/pnpm" },
+    { "id": "R-04", "priority": "medium", "desc": "i18n journey.json con cadenas tipo-JWT (verificar antes de publicar)" }
+  ],
+  "environment": {
+    "os": "Darwin 25.5.0 x86_64",
+    "node": "24.15.0",
+    "npm": "11.12.1",
+    "pnpm": "not_installed",
+    "supabase_cli": "2.109.0",
+    "supabase_js": "2.110.0",
+    "supabase_project": "rbhorgjriovyyeurzuiy",
+    "region": "us-east-1",
+    "postgres": "15"
+  },
+  "read_first_for_ai": [
+    "docs/release/PROJECT_CONTEXT_FOR_AI.md",
+    "docs/release/AI_BOOTSTRAP_GUIDE.md",
+    "docs/release/AI_HANDOVER.md",
+    "docs/release/ARCHITECTURE.md",
+    "docs/release/KNOWN_ISSUES.md"
+  ]
+}
