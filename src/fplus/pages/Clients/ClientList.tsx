@@ -4,6 +4,7 @@ import { Plus, MoreVertical, Search, ArrowRight, Users } from 'lucide-react';
 import { HealthLight } from '../../components/ui/HealthLight';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { DropdownMenu } from '../../components/ui/DropdownMenu';
 import { useFplusStore } from '../../store';
 import { NewClientModal } from '../../components/modals/NewClientModal';
 import type { Client } from '../../types';
@@ -18,14 +19,44 @@ export default function ClientList() {
   const [showNewClient, setShowNewClient] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
+  const [sortBy, setSortBy] = useState<'nombre' | 'semaforo' | 'fecha_fin_contrato'>('nombre');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
   const filtered = clients.filter(c => {
-    const matchSearch = c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      c.industria.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch =
+      c.nombre.toLowerCase().includes(q) ||
+      (c.empresa && c.empresa.toLowerCase().includes(q)) ||
+      (c.telefono && c.telefono.toLowerCase().includes(q)) ||
+      (c.email && c.email.toLowerCase().includes(q)) ||
+      (c.numero_documento && c.numero_documento.toLowerCase().includes(q)) ||
+      c.industria.toLowerCase().includes(q);
     const matchHealth = healthFilter === 'all' || c.semaforo === healthFilter;
     // Los archivados se conservan siempre (historial), pero se ocultan por defecto
     const matchArchived = showArchived ? c.estado === 'inactivo' : c.estado !== 'inactivo';
     return matchSearch && matchHealth && matchArchived;
   });
+
+  const sorted = [...filtered].sort((a, b) => {
+    let valA: any = a[sortBy] ?? '';
+    let valB: any = b[sortBy] ?? '';
+
+    if (sortBy === 'fecha_fin_contrato') {
+      valA = a.fecha_fin_contrato ? new Date(a.fecha_fin_contrato).getTime() : 0;
+      valB = b.fecha_fin_contrato ? new Date(b.fecha_fin_contrato).getTime() : 0;
+    }
+
+    if (sortBy === 'semaforo') {
+      const order = { verde: 3, amarillo: 2, rojo: 1 };
+      valA = order[a.semaforo as 'verde' | 'amarillo' | 'rojo'] ?? 0;
+      valB = order[b.semaforo as 'verde' | 'amarillo' | 'rojo'] ?? 0;
+    }
+
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   const archivedCount = clients.filter(c => c.estado === 'inactivo').length;
 
   const counts = {
@@ -33,6 +64,20 @@ export default function ClientList() {
     verde: clients.filter(c => c.semaforo === 'verde').length,
     amarillo: clients.filter(c => c.semaforo === 'amarillo').length,
     rojo: clients.filter(c => c.semaforo === 'rojo').length,
+  };
+
+  const toggleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const SortArrow = ({ field }: { field: typeof sortBy }) => {
+    if (sortBy !== field) return null;
+    return <span className="ml-1 text-[9px] text-slate-400">{sortOrder === 'asc' ? '▲' : '▼'}</span>;
   };
 
   return (
@@ -90,14 +135,20 @@ export default function ClientList() {
           description="Intenta con otro término de búsqueda o limpia los filtros."
         />
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Cliente</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 cursor-pointer select-none hover:text-slate-800" onClick={() => toggleSort('nombre')}>
+                  Cliente <SortArrow field="nombre" />
+                </th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden md:table-cell">AM</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Estado</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Contrato</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 cursor-pointer select-none hover:text-slate-800" onClick={() => toggleSort('semaforo')}>
+                  Estado <SortArrow field="semaforo" />
+                </th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 cursor-pointer select-none hover:text-slate-800" onClick={() => toggleSort('fecha_fin_contrato')}>
+                  Contrato <SortArrow field="fecha_fin_contrato" />
+                </th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden lg:table-cell">Piezas</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden lg:table-cell">Próx. publicación</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 hidden xl:table-cell">Leads / mes</th>
@@ -105,8 +156,13 @@ export default function ClientList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map(client => (
-                <ClientRow key={client.id} client={client} onClick={() => navigate(`/fplus/clients/${client.id}`)} />
+              {sorted.map((client, idx) => (
+                <ClientRow
+                  key={client.id}
+                  client={client}
+                  isLast={idx >= sorted.length - 2}
+                  onClick={() => navigate(`/fplus/clients/${client.id}`)}
+                />
               ))}
             </tbody>
           </table>
@@ -144,49 +200,70 @@ function getContractStatus(client: Client): ContractStatus {
   return 'activo';
 }
 
-const CONTRACT_BADGE: Record<ContractStatus, { dot: string; label: string; cls: string }> = {
-  activo:       { dot: '🟢', label: 'Activo',       cls: 'bg-emerald-50 text-emerald-700' },
-  por_vencer:   { dot: '🟡', label: 'Por vencer',   cls: 'bg-amber-50 text-amber-700' },
-  vencido:      { dot: '🔴', label: 'Vencido',      cls: 'bg-red-50 text-red-700' },
-  sin_contrato: { dot: '⚪', label: 'Sin contrato', cls: 'bg-slate-50 text-slate-500' },
+const CONTRACT_BADGE: Record<ContractStatus, { dotClass: string; label: string; cls: string }> = {
+  activo:       { dotClass: 'bg-emerald-500', label: 'Activo',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+  por_vencer:   { dotClass: 'bg-amber-500', label: 'Por vencer',   cls: 'bg-amber-50 text-amber-700 border-amber-100' },
+  vencido:      { dotClass: 'bg-red-500', label: 'Vencido',      cls: 'bg-red-50 text-red-700 border-red-100' },
+  sin_contrato: { dotClass: 'bg-slate-300', label: 'Sin contrato', cls: 'bg-slate-50 text-slate-500 border-slate-100' },
 };
 
 const PLAN_BADGE: Record<string, { label: string; cls: string }> = {
-  plata:      { label: '🥈 Plata',    cls: 'bg-slate-100 text-slate-600' },
-  oro:        { label: '🥇 Oro',      cls: 'bg-amber-50 text-amber-700' },
-  platinum:   { label: '💎 Platinum', cls: 'bg-blue-50 text-blue-700' },
-  basico:     { label: 'Básico',      cls: 'bg-slate-100 text-slate-600' },
-  estandar:   { label: 'Estándar',    cls: 'bg-slate-100 text-slate-600' },
-  premium:    { label: '⭐ Premium',  cls: 'bg-blue-50 text-blue-700' },
-  enterprise: { label: '🏢 Enterprise', cls: 'bg-slate-800 text-white' },
+  plata:      { label: 'Plata',    cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  oro:        { label: 'Oro',      cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  platinum:   { label: 'Platinum', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  basico:     { label: 'Básico',   cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+  estandar:   { label: 'Estándar', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  premium:    { label: 'Premium',  cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  enterprise: { label: 'Enterprise', cls: 'bg-slate-900 text-white border-slate-800' },
+  personalizado: { label: 'Personalizado', cls: 'bg-teal-50 text-teal-700 border-teal-200' },
 };
 
-function ClientRow({ client, onClick }: { client: Client; onClick: () => void }) {
+function ClientRow({ client, onClick }: { client: Client; onClick: () => void; isLast?: boolean }) {
   const updateClient = useFplusStore(st => st.updateClient);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const addProjectHistoryEvent = useFplusStore(st => st.addProjectHistoryEvent);
 
   // Invitación al Portal del Cliente: genera el enlace seguro de activación.
   // En producción el correo lo envía el backend (user_invitations + Auth);
   // en el entorno de pruebas el enlace se copia al portapapeles.
   const handleInvite = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setMenuOpen(false);
-    let email = client.email;
-    if (!email) {
-      email = window.prompt(`${client.nombre} no tiene correo registrado.\nIngresa el correo del cliente para enviar la invitación:`)?.trim() || undefined;
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return;
+    
+    const defaultEmail = client.email || '';
+    const emailInput = window.prompt(
+      `Confirma o edita el correo electrónico para la invitación de ${client.nombre}:`,
+      defaultEmail
+    );
+    
+    if (emailInput === null) return; // User cancelled
+    
+    const email = emailInput.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      window.alert('Por favor ingresa un correo electrónico válido.');
+      return;
+    }
+    
+    if (client.email !== email) {
       updateClient(client.id, { email });
     }
+
     const token = client.portal_invitacion?.token
       ?? `inv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const expiraAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     updateClient(client.id, {
       portal_invitacion: {
         ...client.portal_invitacion,
         email,
         token,
         enviada_at: new Date().toISOString(),
+        expira_at: expiraAt,
       },
     });
+    addProjectHistoryEvent(
+      client.id,
+      'Andrea Solís (Agencia)',
+      'invitacion',
+      `Invitación al Portal del Cliente enviada al correo ${email}.`
+    );
     const link = `${window.location.origin}/activar/${token}`;
     navigator.clipboard?.writeText(link).catch(() => {});
     window.alert(`✉️ Invitación enviada a ${email}\n\nEnlace de activación (copiado al portapapeles):\n${link}\n\nEl cliente creará su contraseña en el primer ingreso.`);
@@ -196,7 +273,6 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
   // Solo el rol Administrador ve esta acción; requiere doble confirmación.
   const handleArchive = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setMenuOpen(false);
     if (!window.confirm(`¿Archivar al cliente "${client.nombre}"?\n\nEl cliente dejará de aparecer en la lista activa, pero TODA su información histórica se conserva.`)) return;
     if (!window.confirm('Confirma nuevamente: esta acción archiva al cliente. Podrá restaurarse desde el filtro "Archivados".')) return;
     updateClient(client.id, { estado: 'inactivo' });
@@ -212,8 +288,8 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-slate-900">{client.nombre}</span>
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                (PLAN_BADGE[client.plan_contratado ?? ''] ?? { cls: 'bg-slate-100 text-slate-400' }).cls
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                (PLAN_BADGE[client.plan_contratado ?? ''] ?? { cls: 'bg-slate-100 text-slate-400 border-slate-200' }).cls
               }`}>
                 {(PLAN_BADGE[client.plan_contratado ?? ''] ?? { label: 'Sin plan' }).label}
               </span>
@@ -237,10 +313,11 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
             : null;
           return (
             <span
-              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${b.cls}`}
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${b.cls}`}
               title={st === 'por_vencer' && dias != null ? `Vence en ${dias} días` : st === 'vencido' ? 'Pendiente de renovación' : undefined}
             >
-              {b.dot} {b.label}
+              <span className={`w-1.5 h-1.5 rounded-full ${b.dotClass}`} />
+              {b.label}
             </span>
           );
         })()}
@@ -268,46 +345,46 @@ function ClientRow({ client, onClick }: { client: Client; onClick: () => void })
       <td className="px-4 py-3.5 hidden xl:table-cell">
         <span className="text-sm font-medium text-slate-700">{client.leads_mes}</span>
       </td>
-      <td className="px-4 py-3.5">
-        <div className="flex items-center gap-1 justify-end relative">
-          <button
-            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-            title="Acciones"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-8 z-20 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-44" onClick={e => e.stopPropagation()}>
-              {client.estado === 'inactivo' ? (
-                <button
-                  onClick={e => { e.stopPropagation(); setMenuOpen(false); updateClient(client.id, { estado: 'activo' }); }}
-                  className="w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
-                >
-                  ♻️ Restaurar cliente
-                </button>
-              ) : (
-                <button
-                  onClick={handleArchive}
-                  className="w-full text-left px-3 py-2 text-xs text-amber-600 hover:bg-amber-50"
-                >
-                  📦 Archivar cliente
-                </button>
-              )}
+      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1 justify-end">
+          <DropdownMenu
+            trigger={
               <button
-                onClick={handleInvite}
-                className="w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50"
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 focus:outline-none"
+                title="Acciones"
               >
-                ✉️ {client.portal_invitacion?.aceptada_at
-                  ? 'Portal activo — reenviar invitación'
-                  : client.portal_invitacion
-                  ? 'Reenviar invitación'
-                  : 'Enviar invitación al portal'}
+                <MoreVertical className="w-4 h-4" />
               </button>
-              <p className="px-3 py-1.5 text-[9px] text-slate-300 border-t border-slate-50">Solo Administrador</p>
-            </div>
-          )}
-          <ArrowRight className="w-4 h-4 text-slate-300" />
+            }
+          >
+            {client.estado === 'inactivo' ? (
+              <button
+                onClick={e => { e.stopPropagation(); updateClient(client.id, { estado: 'activo' }); }}
+                className="w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
+              >
+                ♻️ Restaurar cliente
+              </button>
+            ) : (
+              <button
+                onClick={handleArchive}
+                className="w-full text-left px-3 py-2 text-xs text-amber-600 hover:bg-amber-50"
+              >
+                📦 Archivar cliente
+              </button>
+            )}
+            <button
+              onClick={handleInvite}
+              className="w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50"
+            >
+              ✉️ {client.portal_invitacion?.aceptada_at
+                ? 'Portal activo — reenviar'
+                : client.portal_invitacion
+                ? 'Reenviar invitación'
+                : 'Enviar invitación'}
+            </button>
+            <p className="px-3 py-1.5 text-[9px] text-slate-300 border-t border-slate-50">Solo Administrador</p>
+          </DropdownMenu>
+          <ArrowRight className="w-4 h-4 text-slate-300" onClick={onClick} />
         </div>
       </td>
     </tr>

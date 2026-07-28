@@ -1,14 +1,14 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   AlertCircle, CheckCircle2, Clock, RotateCcw,
   ImageIcon, ArrowRight, MessageSquare, Calendar,
-  TrendingUp, LayoutGrid,
+  TrendingUp, LayoutGrid, Sparkles, Code, Megaphone
 } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { useFplusStore } from '../../store';
 import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
+import { clientIncludesRedes, clientIncludesPauta, clientIncludesWeb } from '../../utils/clientHelpers';
 
 function getTypeEmoji(tipo: string): string {
   const m: Record<string, string> = {
@@ -20,11 +20,15 @@ function getTypeEmoji(tipo: string): string {
 
 export default function PortalDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { clientId, clientNombre } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
   const portalComments = useFplusStore(s => s.portalComments);
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
   const stateHistory = useFplusStore(s => s.stateHistory);
+
+  const match = location.pathname.match(/^(\/fplus\/(portal|clients)\/[^/]+)/);
+  const base = match ? match[1] : `/fplus/portal/${clientId}`;
 
   const pieces = contentPieces.filter(cp => cp.client_id === clientId);
 
@@ -55,10 +59,14 @@ export default function PortalDashboard() {
   const pctAprobacion = planificadas > 0 ? Math.round((aprobadas + publicadas) / planificadas * 100) : 0;
   const pctPublicacion = planificadas > 0 ? Math.round(publicadas / planificadas * 100) : 0;
 
-  const hora = new Date().getHours();
-  const greeting = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const hoy_hora = new Date().getHours();
+  const greeting = hoy_hora < 12 ? 'Buenos días' : hoy_hora < 18 ? 'Buenas tardes' : 'Buenas noches';
 
   const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  const hasRedes = client ? clientIncludesRedes(client) : true;
+  const hasPauta = client ? clientIncludesPauta(client) : true;
+  const hasWeb = client ? clientIncludesWeb(client) : true;
 
   return (
     <div className="px-4 pt-5 pb-8 space-y-5">
@@ -78,11 +86,12 @@ export default function PortalDashboard() {
             <div>
               <p className="text-[10px] text-blue-300 uppercase tracking-wide">Plan contratado</p>
               <p className="text-lg font-bold capitalize">
-                {client.plan_contratado === 'platinum' ? '💎 Platinum' :
-                 client.plan_contratado === 'oro' ? '🥇 Oro' :
-                 client.plan_contratado === 'plata' ? '🥈 Plata' :
+                {client.plan_contratado === 'platinum' ? 'Platinum' :
+                 client.plan_contratado === 'oro' ? 'Oro' :
+                 client.plan_contratado === 'plata' ? 'Plata' :
+                 client.plan_contratado === 'personalizado' ? 'Personalizado' :
                  client.plan_contratado ?? 'Personalizado'}
-                {client.piezas_mensuales ? ` · ${client.piezas_mensuales} piezas/mes` : ''}
+                {client.piezas_mensuales && hasRedes ? ` · ${client.piezas_mensuales} piezas/mes` : ''}
               </p>
             </div>
             <div className="text-right">
@@ -102,10 +111,24 @@ export default function PortalDashboard() {
         </div>
       )}
 
+      {/* Avance del mes (Movido a la parte superior) */}
+      {hasRedes && (
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-slate-400" />
+              <h2 className="text-sm font-semibold text-slate-700">Avance del mes</h2>
+            </div>
+          </div>
+          <MetricBar label="Aprobación" pct={pctAprobacion} color="bg-emerald-500" />
+          <MetricBar label="Publicación" pct={pctPublicacion} color="bg-blue-500" />
+        </div>
+      )}
+
       {/* CTA urgente — pendientes de aprobación */}
-      {pendientes > 0 && (
+      {hasRedes && pendientes > 0 && (
         <button
-          onClick={() => navigate('approvals')}
+          onClick={() => navigate(`${base}/approvals`)}
           className="w-full flex items-center gap-3 p-4 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-transform text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
@@ -121,64 +144,161 @@ export default function PortalDashboard() {
         </button>
       )}
 
-      {/* 6 KPIs en grid */}
-      <div className="grid grid-cols-3 gap-2">
-        <KpiCard
-          icon={<LayoutGrid className="w-4 h-4" />}
-          label="Planificadas"
-          value={planificadas}
-          bg="bg-slate-50" text="text-slate-700" border="border-slate-200"
-          onClick={() => navigate('cronopost')}
-        />
-        <KpiCard
-          icon={<CheckCircle2 className="w-4 h-4" />}
-          label="Aprobadas"
-          value={aprobadas}
-          bg="bg-emerald-50" text="text-emerald-700" border="border-emerald-200"
-          onClick={() => navigate('cronopost')}
-        />
-        <KpiCard
-          icon={<ImageIcon className="w-4 h-4" />}
-          label="Publicadas"
-          value={publicadas}
-          bg="bg-blue-50" text="text-blue-700" border="border-blue-200"
-          onClick={() => navigate('multimedia')}
-        />
-        <KpiCard
-          icon={<Clock className="w-4 h-4" />}
-          label="Pendientes"
-          value={pendientes}
-          bg="bg-amber-50" text="text-amber-700" border="border-amber-200"
-          onClick={() => navigate('approvals')}
-        />
-        <KpiCard
-          icon={<RotateCcw className="w-4 h-4" />}
-          label="Cambios"
-          value={cambios}
-          bg="bg-orange-50" text="text-orange-700" border="border-orange-200"
-          onClick={() => navigate('approvals')}
-        />
-        <KpiCard
-          icon={<MessageSquare className="w-4 h-4" />}
-          label="Comentarios"
-          value={totalComments}
-          bg="bg-violet-50" text="text-violet-700" border="border-violet-200"
-          onClick={() => navigate('cronopost')}
-        />
-      </div>
-
-      {/* Métricas básicas */}
-      <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-1">
-          <TrendingUp className="w-4 h-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-700">Avance del mes</h2>
+      {/* 6 KPIs en grid (Solo si tiene redes sociales) */}
+      {hasRedes && (
+        <div className="grid grid-cols-3 gap-2">
+          <KpiCard
+            icon={<LayoutGrid className="w-4 h-4" />}
+            label="Planificadas"
+            value={planificadas}
+            bg="bg-slate-50" text="text-slate-700" border="border-slate-200"
+            onClick={() => navigate(`${base}/cronopost`)}
+          />
+          <KpiCard
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            label="Aprobadas"
+            value={aprobadas}
+            bg="bg-emerald-50" text="text-emerald-700" border="border-emerald-200"
+            onClick={() => navigate(`${base}/cronopost`)}
+          />
+          <KpiCard
+            icon={<ImageIcon className="w-4 h-4" />}
+            label="Publicadas"
+            value={publicadas}
+            bg="bg-blue-50" text="text-blue-700" border="border-blue-200"
+            onClick={() => navigate(`${base}/multimedia`)}
+          />
+          <KpiCard
+            icon={<Clock className="w-4 h-4" />}
+            label="Pendientes"
+            value={pendientes}
+            bg="bg-amber-50" text="text-amber-700" border="border-amber-200"
+            onClick={() => navigate(`${base}/approvals`)}
+          />
+          <KpiCard
+            icon={<RotateCcw className="w-4 h-4" />}
+            label="Cambios"
+            value={cambios}
+            bg="bg-orange-50" text="text-orange-700" border="border-orange-200"
+            onClick={() => navigate(`${base}/approvals`)}
+          />
+          <KpiCard
+            icon={<MessageSquare className="w-4 h-4" />}
+            label="Comentarios"
+            value={totalComments}
+            bg="bg-violet-50" text="text-violet-700" border="border-violet-200"
+            onClick={() => navigate(`${base}/cronopost`)}
+          />
         </div>
-        <MetricBar label="Aprobación" pct={pctAprobacion} color="bg-emerald-500" />
-        <MetricBar label="Publicación" pct={pctPublicacion} color="bg-blue-500" />
-      </div>
+      )}
 
-      {/* Próximas publicaciones */}
-      {proximas.length > 0 && (
+      {/* Estado de Servicios Contratados (Para planes sin Redes Orgánicas) */}
+      {!hasRedes && (
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-sm">
+          <div>
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-blue-600" />
+              Servicios Contratados Activos
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">Seguimiento de entregables y desarrollos en curso</p>
+          </div>
+          
+          <div className="space-y-4">
+            {client?.servicios_contratados && client.servicios_contratados.length > 0 ? (
+              client.servicios_contratados.map((s, idx) => {
+                const pct = s.prioridad === 'critica' ? 85 : s.prioridad === 'alta' ? 65 : s.prioridad === 'media' ? 45 : 25;
+                return (
+                  <div key={s.id || idx} className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-slate-700">{s.nombre}</span>
+                      <span className="text-slate-400 capitalize">{s.prioridad} · {pct}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-600 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <>
+                {hasWeb && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Code className="w-3.5 h-3.5 text-slate-500" /> Desarrollo Web / E-commerce
+                      </span>
+                      <span className="font-bold text-blue-600">65%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-600 rounded-full" style={{ width: '65%' }} />
+                    </div>
+                  </div>
+                )}
+                {hasPauta && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Megaphone className="w-3.5 h-3.5 text-slate-500" /> Gestión de Campañas de Pauta
+                      </span>
+                      <span className="font-bold text-violet-600">40%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-violet-600 rounded-full" style={{ width: '40%' }} />
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-slate-500" /> Auditoría SEO y Optimización
+                    </span>
+                    <span className="font-bold text-emerald-600">50%</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-600 rounded-full" style={{ width: '50%' }} />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Pauta Publicitaria Resumen (Si está contratada) */}
+      {!hasRedes && hasPauta && (
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3 shadow-sm">
+          <div>
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-violet-600" />
+              Pauta Publicitaria
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">Configuración y canales activos de inversión</p>
+          </div>
+          <div className="bg-slate-50 rounded-xl p-3 flex justify-between items-center text-xs">
+            <div>
+              <p className="text-slate-400 font-semibold text-[10px] uppercase">Presupuesto pauta</p>
+              <p className="text-lg font-bold text-slate-800 mt-0.5">
+                ${(client?.presupuesto_pauta ?? Math.round((client?.presupuesto_mensual ?? 500) * 0.4))} USD / mes
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-slate-400 font-semibold text-[10px] uppercase">Canales conectados</p>
+              <p className="text-slate-800 font-bold mt-0.5">
+                {client?.pauta_plataformas?.join(', ') || 'Meta Ads'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate(`${base}/metrics`)}
+            className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold text-xs transition-colors text-center block"
+          >
+            Ver Resultados y Métricas de Pauta
+          </button>
+        </div>
+      )}
+
+      {/* Próximas publicaciones (Solo si tiene redes) */}
+      {hasRedes && proximas.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
@@ -186,7 +306,7 @@ export default function PortalDashboard() {
               <h2 className="text-sm font-semibold text-slate-700">Próximas publicaciones</h2>
             </div>
             <button
-              onClick={() => navigate('calendar')}
+              onClick={() => navigate(`${base}/calendar`)}
               className="text-xs text-blue-600 font-medium"
             >
               Ver calendario →
@@ -198,7 +318,7 @@ export default function PortalDashboard() {
               return (
                 <button
                   key={cp.id}
-                  onClick={() => navigate(`approvals/${cp.id}`)}
+                  onClick={() => navigate(`${base}/approvals/${cp.id}`)}
                   className="w-full flex items-center gap-3 bg-white border border-slate-100 rounded-xl p-3 text-left active:bg-slate-50 transition-colors"
                 >
                   <div className="text-center shrink-0 w-10">
@@ -226,7 +346,7 @@ export default function PortalDashboard() {
         </section>
       )}
 
-      {planificadas === 0 && (
+      {hasRedes && planificadas === 0 && (
         <div className="text-center py-10 text-slate-400">
           <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm">No hay piezas planificadas aún.</p>

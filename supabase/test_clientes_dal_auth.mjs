@@ -59,7 +59,7 @@ console.log('1 · JWT role:', claims.role);
 console.log('2 · Custom claims:');
 console.log('      agency_id:', has('agency_id') ? claims.agency_id : '❌ AUSENTE');
 console.log('      rol      :', has('rol')       ? claims.rol       : '❌ AUSENTE');
-console.log('      client_id:', has('client_id') ? claims.client_id : '❌ AUSENTE');
+console.log('      fplus_client_id:', has('fplus_client_id') ? claims.fplus_client_id : '❌ AUSENTE');
 console.log('─'.repeat(68));
 console.log('3 · Resultado de cada consulta:');
 

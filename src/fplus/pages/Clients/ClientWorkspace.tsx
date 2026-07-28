@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, LayoutDashboard, CalendarDays, Grid3X3, Image,
-  CheckSquare, MessageSquare, Clock, Megaphone, BookOpen,
+  CheckSquare, Clock, Megaphone, BookOpen,
   AlertCircle, FileText, BarChart3, ExternalLink,
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
@@ -16,8 +16,10 @@ import BriefMaestro from './BriefMaestro';
 import ClientContract from './ClientContract';
 import ClientMetrics from './ClientMetrics';
 import ClientCampaigns from './ClientCampaigns';
+import ClientHistory from './ClientHistory';
 import Placeholder from '../Placeholder';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { clientIncludesRedes, clientIncludesPauta } from '../../utils/clientHelpers';
 
 // ─── Sub-nav tabs ─────────────────────────────────────────────────────────────
 
@@ -36,7 +38,6 @@ const WORKSPACE_TABS: WorkspaceTab[] = [
   { id: 'cronopost',  label: 'Cronopost',    icon: CalendarDays,    path: 'cronopost' },
   { id: 'multimedia', label: 'Multimedia',   icon: Image,           path: 'multimedia' },
   { id: 'approvals',  label: 'Aprobaciones', icon: CheckSquare,     path: 'approvals' },
-  { id: 'comments',   label: 'Comentarios',  icon: MessageSquare,   path: 'comments' },
   { id: 'history',    label: 'Historial',    icon: Clock,           path: 'history' },
   // El Brief va ANTES de Campañas: la estrategia no puede construirse
   // sin conocer al cliente. Campañas queda bloqueado hasta completar el Brief.
@@ -117,30 +118,43 @@ function WorkspaceShell({ children }: { children: React.ReactNode }) {
 
         {/* Sub-tabs */}
         <div className="flex overflow-x-auto scrollbar-none border-t border-white/10">
-          {WORKSPACE_TABS.map(tab => {
-            const active = isActive(tab.path);
-            const Icon = tab.icon;
-            const isApprovals = tab.id === 'approvals';
-            return (
-              <button
-                key={tab.id}
-                onClick={() => navigate(tab.path === '' ? basePath : `${basePath}/${tab.path}`)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
-                  active
-                    ? 'text-white border-blue-400 bg-white/5'
-                    : 'text-blue-300/70 border-transparent hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                {tab.label}
-                {isApprovals && pendientes > 0 && (
-                  <span className="bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                    {pendientes}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {(() => {
+            const hasRedes = client ? clientIncludesRedes(client) : true;
+            const hasPauta = client ? clientIncludesPauta(client) : true;
+            const visibleTabs = WORKSPACE_TABS.filter(tab => {
+              if (['calendar', 'cronopost', 'multimedia', 'approvals'].includes(tab.id)) {
+                return hasRedes;
+              }
+              if (tab.id === 'campaigns') {
+                return hasPauta;
+              }
+              return true;
+            });
+            return visibleTabs.map(tab => {
+              const active = isActive(tab.path);
+              const Icon = tab.icon;
+              const isApprovals = tab.id === 'approvals';
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => navigate(tab.path === '' ? basePath : `${basePath}/${tab.path}`)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
+                    active
+                      ? 'text-white border-blue-400 bg-white/5'
+                      : 'text-blue-300/70 border-transparent hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  {tab.label}
+                  {isApprovals && pendientes > 0 && (
+                    <span className="bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                      {pendientes}
+                    </span>
+                  )}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 
@@ -155,9 +169,10 @@ function WorkspaceShell({ children }: { children: React.ReactNode }) {
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 export default function ClientWorkspace() {
-  const { id = '' } = useParams<{ id: string }>();
+  const { clientId = '' } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const client = useFplusStore(s => s.clients.find(c => c.id === id));
+  const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+
 
   if (!client) {
     return (
@@ -174,7 +189,7 @@ export default function ClientWorkspace() {
   }
 
   return (
-    <PortalContextProvider clientId={id} clientNombre={client.nombre} isPremium={['premium', 'enterprise', 'oro', 'platinum'].includes(client.plan_contratado ?? '')}>
+    <PortalContextProvider clientId={clientId} clientNombre={client.nombre} isPremium={['premium', 'enterprise', 'oro', 'platinum', 'personalizado'].includes(client.plan_contratado ?? '')}>
       <WorkspaceShell>
         <Routes>
           <Route index element={<PortalDashboard />} />
@@ -182,9 +197,9 @@ export default function ClientWorkspace() {
           <Route path="calendar" element={<PortalCalendar canCreate />} />
           <Route path="multimedia" element={<PortalMultimedia canCreate />} />
           <Route path="approvals" element={<PortalApprovalsList />} />
-          <Route path="approvals/:id" element={<PortalApprovalDetail />} />
+          <Route path="approvals/:approvalId" element={<PortalApprovalDetail />} />
           <Route path="comments" element={<Placeholder />} />
-          <Route path="history" element={<Placeholder />} />
+          <Route path="history" element={<ClientHistory />} />
           <Route path="campaigns" element={<ClientCampaigns />} />
           <Route path="brief" element={<BriefMaestro />} />
           <Route path="contract" element={<ClientContract />} />

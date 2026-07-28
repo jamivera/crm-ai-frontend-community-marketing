@@ -1,16 +1,36 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Layers, Sparkles } from 'lucide-react';
+import { Plus, Layers } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
+import { LazyMedia } from '../../components/ui/LazyMedia';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS, getTypeVisual, getPriority } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
-import { PlanCronopostModal } from '../../components/modals/PlanCronopostModal';
 import type { ContentState } from '../../types';
 
 interface Props {
   canCreate?: boolean;
+}
+
+function getCompletenessBadge(cp: any): { label: string; cls: string; dot: string } {
+  const hasCopy = !!cp.copy_activo;
+  const hasMedia = cp.archivos && cp.archivos.length > 0;
+  const hasHashtags = cp.hashtags && cp.hashtags.length > 0;
+  
+  if (hasCopy && hasMedia && hasHashtags) {
+    return { label: 'Completo', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500' };
+  }
+  if (hasCopy && hasMedia && !hasHashtags) {
+    return { label: 'Hashtags pend.', cls: 'bg-yellow-50 text-yellow-700 border-yellow-100', dot: 'bg-yellow-500' };
+  }
+  if (hasCopy && !hasMedia) {
+    return { label: 'Multimedia pend.', cls: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' };
+  }
+  if (!hasCopy && hasMedia) {
+    return { label: 'Copy pend.', cls: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-500' };
+  }
+  return { label: 'Incompleto', cls: 'bg-red-50 text-red-700 border-red-100', dot: 'bg-red-500' };
 }
 
 type FilterTab = 'todo' | 'aprobar' | 'cambios' | 'aprobado' | 'publicado';
@@ -92,7 +112,6 @@ export default function Cronopost({ canCreate = false }: Props) {
   const location = useLocation();
   const { clientId, clientNombre } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
-  const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
   const contentComments = useFplusStore(s => s.contentComments);
   const portalComments = useFplusStore(s => s.portalComments);
 
@@ -103,23 +122,65 @@ export default function Cronopost({ canCreate = false }: Props) {
   const updateContent = useFplusStore(s => s.updateContent);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  // Tablero editorial: arrastrar una tarjeta sobre otra INTERCAMBIA sus fechas
-  // de publicación. Solo se mueven esas dos piezas — el resto del mes queda
-  // intacto. Calendario y Multimedia se actualizan solos (misma fuente).
-  const handleSwap = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return;
-    const a = contentPieces.find(p => p.id === sourceId);
-    const b = contentPieces.find(p => p.id === targetId);
-    if (!a?.fecha_publicacion || !b?.fecha_publicacion) return;
-    updateContent(a.id, { fecha_publicacion: b.fecha_publicacion });
-    updateContent(b.id, { fecha_publicacion: a.fecha_publicacion });
-  };
+  // Estados locales para filtros y modos operativos
+  const [reorganizeMode, setReorganizeMode] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('todo');
   const [showCreate, setShowCreate] = useState(false);
-  const [showPlanner, setShowPlanner] = useState(false);
+
+  // Tablero editorial: reordenamiento por desplazamiento cronológico (Chronological Shift).
+  // Arrastrar una tarjeta de la fecha S (Source) a la fecha T (Target) reordena la secuencia
+  // de publicaciones deslizando las piezas intermedias un día.
+  const handleReorderChronological = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    
+    // Obtener las piezas del cliente actual ordenadas cronológicamente por fecha de publicación
+    const clientPieces = [...contentPieces]
+      .filter(p => p.client_id === clientId && p.fecha_publicacion && p.estado !== 'archivado')
+      .sort((a, b) => a.fecha_publicacion!.localeCompare(b.fecha_publicacion!));
+
+    const sourcePiece = clientPieces.find(p => p.id === sourceId);
+    const targetPiece = clientPieces.find(p => p.id === targetId);
+    if (!sourcePiece || !targetPiece) return;
+
+    // Lineamiento 4: Una publicación programada o publicada no se puede reorganizar
+    if (sourcePiece.estado === 'aprobado_final' || sourcePiece.estado === 'publicado' ||
+        targetPiece.estado === 'aprobado_final' || targetPiece.estado === 'publicado') {
+      window.alert('⚠️ Las publicaciones programadas o publicadas no se pueden reorganizar manualmente.');
+      return;
+    }
+
+    const sourceIdx = clientPieces.findIndex(p => p.id === sourceId);
+    const targetIdx = clientPieces.findIndex(p => p.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    // Guardar las fechas originales asociadas a los índices correspondientes
+    const originalDates = clientPieces.map(p => p.fecha_publicacion!);
+
+    // Reordenar la lista en memoria
+    const reorderedPieces = [...clientPieces];
+    const [movedPiece] = reorderedPieces.splice(sourceIdx, 1);
+    reorderedPieces.splice(targetIdx, 0, movedPiece);
+
+    // Asignar las fechas originales a la nueva secuencia ordenada de piezas
+    reorderedPieces.forEach((piece, idx) => {
+      if (piece.fecha_publicacion !== originalDates[idx]) {
+        updateContent(piece.id, { fecha_publicacion: originalDates[idx] });
+      }
+    });
+  };
 
   const allPieces = contentPieces
-    .filter(cp => cp.client_id === clientId && cp.fecha_publicacion)
+    .filter(cp => {
+      const matchClient = cp.client_id === clientId;
+      const matchDate = !!cp.fecha_publicacion;
+      const matchArchive = cp.estado !== 'archivado';
+      if (!matchClient || !matchDate || !matchArchive) return false;
+      
+      const todayZero = new Date();
+      todayZero.setHours(0, 0, 0, 0);
+      const pieceDate = new Date(cp.fecha_publicacion!);
+      return pieceDate >= todayZero;
+    })
     .sort((a, b) =>
       new Date(a.fecha_publicacion!).getTime() - new Date(b.fecha_publicacion!).getTime()
     );
@@ -134,6 +195,7 @@ export default function Cronopost({ canCreate = false }: Props) {
     publicado: allPieces.filter(cp => FILTER_MAP.publicado.includes(cp.estado)).length,
   };
 
+
   // Group by ISO week key "YYYY-WW"
   const weekMap = new Map<string, typeof filtered>();
   filtered.forEach(cp => {
@@ -147,7 +209,7 @@ export default function Cronopost({ canCreate = false }: Props) {
   const handlePieceClick = (cpId: string) => {
     if (canCreate) {
       const base = location.pathname.replace(/\/cronopost$/, '');
-      navigate(`${base}/approvals/${cpId}`);
+      navigate(`${base}/multimedia?edit=${cpId}`);
     } else {
       navigate(`../approvals/${cpId}`);
     }
@@ -156,34 +218,46 @@ export default function Cronopost({ canCreate = false }: Props) {
   return (
     <div className="px-4 pt-5 pb-8">
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div>
           <h1 className="text-lg font-bold text-slate-800">Cronopost</h1>
           <p className="text-xs text-slate-400 mt-0.5">
             {allPieces.length} {allPieces.length === 1 ? 'pieza planificada' : 'piezas planificadas'}
           </p>
         </div>
-        {canCreate && (
-          <div className="flex gap-2">
-            {client?.distribucion_piezas && (
+        <div className="flex flex-wrap items-center gap-2">
+          {canCreate && (
+            <>
+              {/* Reorganize Mode Toggle Button */}
               <button
-                onClick={() => setShowPlanner(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition-colors"
+                onClick={() => setReorganizeMode(!reorganizeMode)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors border ${
+                  reorganizeMode
+                    ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+                title="Permite arrastrar tarjetas para reordenar la secuencia cronológica"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                Planificar mes
+                🔧 {reorganizeMode ? 'Modo Reorganizar Activo' : 'Reorganizar Cronopost'}
               </button>
-            )}
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Nueva pieza
-            </button>
-          </div>
-        )}
+              <button
+                onClick={() => setShowCreate(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Nueva pieza
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Banner de Modo Reorganizar */}
+      {canCreate && reorganizeMode && (
+        <div className="mb-4 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+          ⚠️ <strong>Modo Reorganizar Activo:</strong> Arrastra y suelta las tarjetas para desplazar cronológicamente las fechas del calendario. Las piezas ya programadas (aprobadas final) o publicadas no se pueden mover.
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 overflow-x-auto scrollbar-none mb-5">
@@ -254,34 +328,47 @@ export default function Cronopost({ canCreate = false }: Props) {
                   const needsWork = isPending || cp.estado === 'cambios_solicitados' || cp.estado === 'en_produccion' || cp.estado === 'borrador';
                   const prio = needsWork ? getPriority(cp.fecha_publicacion) : null;
                   // Pieza planificada por IA que aún no tiene contenido real
-                  const pendienteCompletar = cp.origen === 'planificada' && (cp.archivos.length === 0 || !cp.copy_activo);
+                  const pendienteCompletar = cp.origen === 'planificada' && ((cp.archivos?.length ?? 0) === 0 || !cp.copy_activo);
+
+                  const canDrag = canCreate && reorganizeMode && cp.estado !== 'aprobado_final' && cp.estado !== 'publicado';
 
                   return (
                     <button
                       key={cp.id}
                       onClick={() => handlePieceClick(cp.id)}
-                      draggable={canCreate}
-                      onDragStart={canCreate ? e => e.dataTransfer.setData('text/piece-id', cp.id) : undefined}
-                      onDragOver={canCreate ? e => { e.preventDefault(); setDragOverId(cp.id); } : undefined}
-                      onDragLeave={canCreate ? () => setDragOverId(d => (d === cp.id ? null : d)) : undefined}
-                      onDrop={canCreate ? e => {
+                      draggable={canDrag}
+                      onDragStart={canDrag ? e => e.dataTransfer.setData('text/piece-id', cp.id) : undefined}
+                      onDragOver={canDrag ? e => { e.preventDefault(); setDragOverId(cp.id); } : undefined}
+                      onDragLeave={canDrag ? () => setDragOverId(d => (d === cp.id ? null : d)) : undefined}
+                      onDrop={canDrag ? e => {
                         e.preventDefault();
                         setDragOverId(null);
-                        handleSwap(e.dataTransfer.getData('text/piece-id'), cp.id);
+                        handleReorderChronological(e.dataTransfer.getData('text/piece-id'), cp.id);
                       } : undefined}
                       className={`flex flex-col bg-white border rounded-xl overflow-hidden text-left hover:shadow-md active:scale-[0.98] transition-all ${
                         canCreate ? '' : 'min-w-[46vw] sm:min-w-0 snap-start '
                       }${
                         dragOverId === cp.id ? 'ring-2 ring-violet-400 ring-offset-1 scale-[1.02]' :
                         isPending ? 'ring-2 ring-amber-300 ring-offset-1' : 'border-slate-100'
-                      } ${canCreate ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      } ${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
                     >
                       {/* Preview area */}
-                      <div className={`h-20 bg-gradient-to-br ${visual.gradient} flex items-center justify-center relative border-b`}>
-                        <span className="text-3xl">{visual.emoji}</span>
-                        {cp.archivos.length > 0 && (
-                          <div className="absolute top-1.5 right-1.5 bg-black/40 text-white text-[8px] px-1.5 py-0.5 rounded-full">
-                            {cp.archivos.length === 1 ? '1 arch.' : `${cp.archivos.length} arch.`}
+                      <div className="h-20 relative border-b overflow-hidden bg-slate-900 flex items-center justify-center">
+                        {((cp.archivos?.length ?? 0) > 0 && cp.archivos?.[0]?.url) ? (
+                          <LazyMedia
+                            src={cp.archivos[0].url}
+                            alt={cp.nombre}
+                            typeHint={cp.archivos[0].tipo}
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <div className={`w-full h-full bg-gradient-to-br ${visual.gradient} flex items-center justify-center`}>
+                            <span className="text-3xl">{visual.emoji}</span>
+                          </div>
+                        )}
+                        {((cp.archivos?.length ?? 0) > 0) && (
+                          <div className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded-full">
+                            {cp.archivos?.length === 1 ? '1 arch.' : `${cp.archivos?.length} arch.`}
                           </div>
                         )}
                       </div>
@@ -319,11 +406,22 @@ export default function Cronopost({ canCreate = false }: Props) {
                           </p>
                         )}
 
-                        {canCreate && pendienteCompletar && (
-                          <p className="text-[8px] font-semibold text-violet-600 bg-violet-50 border border-violet-100 rounded-lg px-1.5 py-1 leading-tight">
-                            ✨ Generada por IA — completa multimedia y copy
-                          </p>
-                        )}
+                        {(() => {
+                          const badge = getCompletenessBadge(cp);
+                          return (
+                            <div className="flex gap-1.5 flex-wrap">
+                              <span className={`inline-flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded border ${badge.cls}`}>
+                                <span className={`w-1 h-1 rounded-full ${badge.dot}`} />
+                                {badge.label}
+                              </span>
+                              {canCreate && pendienteCompletar && (
+                                <span className="text-[8px] font-semibold text-violet-600 bg-violet-50 border border-violet-100 rounded px-1 py-0.5 leading-none">
+                                  🤖 IA
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Hashtags + comentarios + aprobación */}
                         <div className="flex items-center gap-2 text-[9px] text-slate-400">
@@ -347,26 +445,13 @@ export default function Cronopost({ canCreate = false }: Props) {
                     </button>
                   );
                 })}
-
-                {/* Add card (agency only) */}
-                {canCreate && (
-                  <button
-                    onClick={() => setShowCreate(true)}
-                    className="flex flex-col items-center justify-center h-full min-h-[140px] border-2 border-dashed border-slate-200 rounded-xl text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/30 transition-all"
-                  >
-                    <Plus className="w-6 h-6 mb-1" />
-                    <span className="text-[10px] font-medium">Agregar</span>
-                  </button>
-                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {showPlanner && client && (
-        <PlanCronopostModal client={client} onClose={() => setShowPlanner(false)} />
-      )}
+
 
       {showCreate && (
         <NewPieceModal

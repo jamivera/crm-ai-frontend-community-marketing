@@ -21,7 +21,8 @@ function timeAgo(ts: string) {
 type CommentTab = 'todos' | 'internos' | 'cliente';
 
 export default function ContentDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { contentId } = useParams<{ contentId: string }>();
+  const id = contentId;
   const navigate = useNavigate();
 
   const contentPieces = useFplusStore(s => s.contentPieces);

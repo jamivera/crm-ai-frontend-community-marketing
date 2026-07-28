@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { X, Sparkles, CalendarDays, Trash2, RefreshCw, Info, PartyPopper, Plus } from 'lucide-react';
+import { X, Sparkles, CalendarDays, Trash2, RefreshCw, Info, PartyPopper, Plus, AlertCircle } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { generatePlan, type ProposedPiece } from '../../utils/cronoplanner';
 import { CONTENT_TYPE_LABELS, PLATFORM_LABELS } from '../../constants';
@@ -33,6 +33,8 @@ const EDITABLE_TYPES: ContentType[] = ['reel', 'carrusel', 'historia', 'post_ima
 
 export function PlanCronopostModal({ client, onClose, initialYear, initialMonth, onApplied }: Props) {
   const createManyContent = useFplusStore(s => s.createManyContent);
+  const allCampaigns = useFplusStore(s => s.campaigns);
+  const campaigns = useMemo(() => allCampaigns.filter(c => c.client_id === client.id), [allCampaigns, client.id]);
 
   const now = new Date();
   const defaultMonth = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
@@ -40,16 +42,24 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
 
   const [year, setYear] = useState(initialYear ?? defaultYear);
   const [month, setMonth] = useState(initialMonth ?? defaultMonth);
+  const [selectedCampaignId, setSelectedCampaignId] = useState(campaigns[0]?.id || '');
   const [objetivo, setObjetivo] = useState<MarketingObjective>(client.objetivo_marketing ?? 'alcance');
   const [seed, setSeed] = useState(0); // fuerza regeneración
   const [pieces, setPieces] = useState<ProposedPiece[] | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'ia' | 'manual'>('ia');
 
   const plan = useMemo(
     () => generatePlan({ client, year, month, objetivo }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [client, year, month, objetivo, seed],
   );
-  const current = pieces ?? plan.pieces;
+  const current = useMemo(() => {
+    if (mode === 'manual') {
+      return pieces ?? [];
+    }
+    return pieces ?? plan.pieces;
+  }, [pieces, plan.pieces, mode]);
 
   const totalContrato = client.piezas_mensuales ?? 0;
   const redes = client.redes_contratadas ?? ['instagram'];
@@ -67,15 +77,17 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
   }, [current]);
 
   const updatePiece = (tempId: string, data: Partial<ProposedPiece>) => {
-    setPieces((pieces ?? plan.pieces).map(p => (p.tempId === tempId ? { ...p, ...data } : p)));
+    const base = mode === 'manual' ? (pieces ?? []) : (pieces ?? plan.pieces);
+    setPieces(base.map(p => (p.tempId === tempId ? { ...p, ...data } : p)));
   };
 
   const removePiece = (tempId: string) => {
-    setPieces((pieces ?? plan.pieces).filter(p => p.tempId !== tempId));
+    const base = mode === 'manual' ? (pieces ?? []) : (pieces ?? plan.pieces);
+    setPieces(base.filter(p => p.tempId !== tempId));
   };
 
   const addPiece = (extraordinaria = false, fecha?: string) => {
-    const base = pieces ?? plan.pieces;
+    const base = mode === 'manual' ? (pieces ?? []) : (pieces ?? plan.pieces);
     const nueva: ProposedPiece = {
       tempId: `prop-extra-${Date.now()}`,
       tipo: 'post_imagen',
@@ -97,15 +109,45 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
   };
 
   const apply = () => {
+    // Validaciones week-by-week y cupo contratado
+    const weekCount: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+    current.forEach(p => {
+      const day = parseInt(p.fecha.slice(8));
+      const w = Math.floor((day - 1) / 7);
+      if (w >= 0 && w <= 4) {
+        weekCount[w] = (weekCount[w] || 0) + 1;
+      }
+    });
+    
+    const emptyWeeks: number[] = [];
+    for (let w = 0; w < 4; w++) {
+      if (!weekCount[w]) emptyWeeks.push(w + 1);
+    }
+
+    if (current.length < totalContrato) {
+      setValidationError(`Faltan publicaciones: El contrato exige ${totalContrato} piezas mensuales, pero solo has planificado ${current.length}. Agrega más piezas.`);
+      return;
+    }
+    if (emptyWeeks.length > 0) {
+      setValidationError(`Estructura incompleta: Las semanas [${emptyWeeks.join(', ')}] no tienen ninguna publicación planificada. Distribuye las piezas para cubrir todo el mes.`);
+      return;
+    }
+
+    setValidationError(null);
     const nowIso = new Date().toISOString();
     const newPieces: ContentPiece[] = current.map((p, i) => {
       const isExtra = (p as ProposedPiece & { extraordinaria?: boolean }).extraordinaria === true;
+      const camp = campaigns.find(c => c.id === selectedCampaignId);
       return {
         id: `cp-plan-${Date.now()}-${i}`,
         client_id: client.id,
         client_nombre: client.nombre,
+        campaign_id: selectedCampaignId || undefined,
+        campaign_nombre: camp?.nombre,
         nombre: `${CONTENT_TYPE_LABELS[p.tipo]} ${MONTHS_LONG[month]} — ${p.fecha.slice(8)}/${month + 1}`,
         tipo: p.tipo,
+        pilar: undefined,
+        tono: p.tono_sugerido ? [p.tono_sugerido] : undefined,
         incluye_cta: false,
         estado: 'borrador',
         account_manager_id: client.account_manager_id,
@@ -115,9 +157,16 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
         iteraciones: 0,
         max_iteraciones: 3,
         archivos: [],
-        hashtags: [],
+        hashtags: p.hashtags_sugeridos || [],
         origen: isExtra ? 'extraordinaria' : 'planificada',
         razon_estrategica: p.razon_estrategica,
+        // Nuevos campos estratégicos:
+        objetivo_marketing: p.objetivo_marketing || objetivo,
+        etapa_embudo: p.etapa_embudo,
+        cta_propuesto: p.cta_propuesto,
+        tono_sugerido: p.tono_sugerido,
+        explicacion_estrategica: p.explicacion_estrategica,
+        copy_activo: p.copy_sugerido,
         created_at: nowIso,
         updated_at: nowIso,
       };
@@ -151,6 +200,19 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
 
         {/* Controls */}
         <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          {/* Campaign Selector Dropdown */}
+          {campaigns.length > 0 && (
+            <select
+              value={selectedCampaignId}
+              onChange={e => setSelectedCampaignId(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white font-medium"
+            >
+              {campaigns.map(c => (
+                <option key={c.id} value={c.id}>🎯 {c.nombre}</option>
+              ))}
+            </select>
+          )}
+
           <select
             value={`${year}-${month}`}
             onChange={e => {
@@ -169,29 +231,72 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
             })}
           </select>
 
-          <div className="flex gap-1.5">
-            {OBJETIVOS.map(o => (
-              <button
-                key={o.value}
-                onClick={() => { setObjetivo(o.value); setPieces(null); }}
-                className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
-                  objetivo === o.value
-                    ? 'border-violet-400 bg-violet-50 text-violet-700 font-semibold'
-                    : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                }`}
-              >
-                {o.emoji} {o.label}
-              </button>
-            ))}
+          {/* Mode Toggle */}
+          <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+            <button
+              onClick={() => { setMode('ia'); setPieces(null); setValidationError(null); }}
+              className={`text-xs px-3 py-1 rounded-md transition-all ${
+                mode === 'ia' ? 'bg-white text-slate-800 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              🤖 IA Andrómeda
+            </button>
+            <button
+              onClick={() => { setMode('manual'); setPieces([]); setValidationError(null); }}
+              className={`text-xs px-3 py-1 rounded-md transition-all ${
+                mode === 'manual' ? 'bg-white text-slate-800 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              ✍️ Manual
+            </button>
           </div>
 
-          <button
-            onClick={regenerate}
-            className="ml-auto flex items-center gap-1.5 text-xs text-violet-600 font-medium hover:underline"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Regenerar
-          </button>
+          {mode === 'ia' && (
+            <div className="flex gap-1.5">
+              {OBJETIVOS.map(o => (
+                <button
+                  key={o.value}
+                  onClick={() => { setObjetivo(o.value); setPieces(null); }}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+                    objetivo === o.value
+                      ? 'border-violet-400 bg-violet-50 text-violet-700 font-semibold'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  {o.emoji} {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === 'ia' ? (
+            <button
+              onClick={regenerate}
+              className="ml-auto flex items-center gap-1.5 text-xs text-violet-600 font-medium hover:underline"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Regenerar
+            </button>
+          ) : (
+            <button
+              onClick={() => setPieces([])}
+              className="ml-auto flex items-center gap-1.5 text-xs text-slate-600 font-medium hover:underline"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Limpiar borrador
+            </button>
+          )}
         </div>
+
+        {/* Validation Errors Pane */}
+        {validationError && (
+          <div className="mx-5 my-2.5 bg-red-50 border border-red-200 text-red-800 text-xs rounded-xl p-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold">Error de validación del plan</p>
+              <p className="mt-0.5">{validationError}</p>
+            </div>
+            <button onClick={() => setValidationError(null)} className="text-red-400 hover:text-red-600 font-bold px-1 text-sm">×</button>
+          </div>
+        )}
 
         {/* Alertas de eventos */}
         {plan.events.length > 0 && (

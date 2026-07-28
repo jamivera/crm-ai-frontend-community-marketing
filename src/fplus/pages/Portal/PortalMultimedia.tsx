@@ -1,15 +1,37 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, CheckCircle2, RotateCcw, MessageSquare, Layers, Hash, Play, Megaphone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Plus, MessageSquare, Layers, Hash, Megaphone } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
+import { LazyMedia } from '../../components/ui/LazyMedia';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS, PLATFORM_LABELS, getTypeVisual } from '../../constants';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { NewPieceModal } from '../../components/modals/NewPieceModal';
+import { CompletePieceModal } from '../../components/modals/CompletePieceModal';
 import type { ContentState } from '../../types';
 
 interface Props {
   canCreate?: boolean;
+}
+
+function getCompletenessBadge(cp: any): { label: string; cls: string; dot: string } {
+  const hasCopy = !!cp.copy_activo;
+  const hasMedia = cp.archivos && cp.archivos.length > 0;
+  const hasHashtags = cp.hashtags && cp.hashtags.length > 0;
+  
+  if (hasCopy && hasMedia && hasHashtags) {
+    return { label: 'Completo', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500' };
+  }
+  if (hasCopy && hasMedia && !hasHashtags) {
+    return { label: 'Hashtags pend.', cls: 'bg-yellow-50 text-yellow-700 border-yellow-100', dot: 'bg-yellow-500' };
+  }
+  if (hasCopy && !hasMedia) {
+    return { label: 'Multimedia pend.', cls: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' };
+  }
+  if (!hasCopy && hasMedia) {
+    return { label: 'Copy pend.', cls: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-500' };
+  }
+  return { label: 'Incompleto', cls: 'bg-red-50 text-red-700 border-red-100', dot: 'bg-red-500' };
 }
 
 type FilterType = 'todo' | 'reel' | 'carrusel' | 'historia' | 'post';
@@ -74,12 +96,20 @@ function weekLabel(year: number, week: number, idx: number): string {
 export default function PortalMultimedia({ canCreate = false }: Props) {
   const navigate  = useNavigate();
   const location  = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const [completePieceId, setCompletePieceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editId) {
+      setCompletePieceId(editId);
+    }
+  }, [editId]);
+
   const { clientId, clientNombre } = usePortalContext();
   const contentPieces  = useFplusStore(s => s.contentPieces);
   const portalComments = useFplusStore(s => s.portalComments);
   const briefs         = useFplusStore(s => s.briefs);
-  const approveContent  = useFplusStore(s => s.approveContent);
-  const requestChanges  = useFplusStore(s => s.requestChanges);
   const updateContent   = useFplusStore(s => s.updateContent);
 
   // Marcar/desmarcar para pauta: la pieza queda registrada y aparecerá
@@ -95,15 +125,17 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
 
   const pieces = contentPieces
     .filter(cp => {
-      if (cp.client_id !== clientId || !cp.fecha_publicacion) return false;
+      if (cp.client_id !== clientId) return false;
       // El cliente ve toda la biblioteca (misma fuente que la agencia);
       // los estados internos se muestran como "En preparación".
       if (!canCreate) return true;
       return true;
     })
-    .sort((a, b) =>
-      new Date(a.fecha_publicacion!).getTime() - new Date(b.fecha_publicacion!).getTime()
-    );
+    .sort((a, b) => {
+      const dateA = new Date(a.fecha_publicacion || a.fecha_limite || a.created_at || '').getTime();
+      const dateB = new Date(b.fecha_publicacion || b.fecha_limite || b.created_at || '').getTime();
+      return dateA - dateB;
+    });
 
   const filtered = pieces.filter(cp => {
     if (activeFilter === 'todo')     return true;
@@ -121,7 +153,10 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
   // Group by ISO week
   const weekMap = new Map<string, typeof filtered>();
   filtered.forEach(cp => {
-    const d = new Date(cp.fecha_publicacion!);
+    let d = new Date(cp.fecha_publicacion || cp.fecha_limite || cp.created_at || '');
+    if (isNaN(d.getTime())) {
+      d = new Date();
+    }
     const { week, year } = getISOWeek(d);
     const key = `${year}-${String(week).padStart(2, '0')}`;
     if (!weekMap.has(key)) weekMap.set(key, []);
@@ -130,22 +165,14 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
 
   const handleDetail = (cpId: string) => {
     if (canCreate) {
-      const base = location.pathname.replace(/\/multimedia$/, '');
-      navigate(`${base}/approvals/${cpId}`);
+      setCompletePieceId(cpId);
     } else {
-      navigate(`../approvals/${cpId}`);
+      const base = location.pathname.replace(/\/(calendar|multimedia|approvals|cronopost|metrics|brand|pauta|campaigns).*$/, '');
+      navigate(`${base}/approvals/${cpId}`);
     }
   };
 
-  const handleApprove = (e: React.MouseEvent, cpId: string) => {
-    e.stopPropagation();
-    approveContent(cpId, clientNombre);
-  };
 
-  const handleChanges = (e: React.MouseEvent, cpId: string) => {
-    e.stopPropagation();
-    requestChanges(cpId, 'Se solicitan cambios.', clientNombre);
-  };
 
   return (
     <div className="px-4 pt-5 pb-8">
@@ -226,43 +253,37 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
                   const comments   = portalComments[cp.id] ?? [];
                   const isPending  = cp.estado === 'enviado_cliente' || cp.estado === 'en_revision_cliente';
                   const hashtags   = cp.hashtags ?? brief?.hashtags_habituales ?? [];
-                  const mainFile   = cp.archivos.find(f => f.es_version_activa) ?? cp.archivos[0];
-                  const pubDate    = new Date(cp.fecha_publicacion!);
+                  const mainFile   = cp.archivos?.find(f => f.es_version_activa) ?? cp.archivos?.[0];
+                  const pubDate    = new Date(cp.fecha_publicacion || cp.fecha_limite || cp.created_at || '');
+
+                  const hasMedia = !!mainFile?.url;
+                  const isLocked = !hasMedia && !canCreate;
 
                   return (
                     <div
                       key={cp.id}
                       className={`flex flex-col bg-white rounded-xl overflow-hidden border hover:shadow-md transition-all ${
                         isPending ? 'ring-2 ring-amber-300 ring-offset-1 border-amber-200' : 'border-slate-100'
-                      }`}
+                      } ${isLocked ? 'opacity-70' : ''}`}
                     >
                       {/* Preview */}
                       <button
                         onClick={() => handleDetail(cp.id)}
-                        className="relative block"
+                        className="relative block w-full text-left cursor-pointer"
                       >
-                        {mainFile?.tipo === 'imagen' && mainFile.url ? (
-                          <img
+                        {hasMedia ? (
+                          <LazyMedia
                             src={mainFile.url}
                             alt={cp.nombre}
-                            className="w-full h-24 object-cover"
+                            typeHint={mainFile.tipo}
+                            className="w-full h-24"
                           />
-                        ) : mainFile?.tipo === 'video' && mainFile.url ? (
-                          <div className="relative w-full h-24 bg-slate-900">
-                            <video
-                              src={mainFile.url}
-                              className="w-full h-full object-cover opacity-70"
-                              muted
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-8 h-8 bg-white/80 rounded-full flex items-center justify-center">
-                                <Play className="w-4 h-4 text-slate-700 ml-0.5" />
-                              </div>
-                            </div>
-                          </div>
                         ) : (
-                          <div className={`h-24 bg-gradient-to-br ${visual.gradient} flex items-center justify-center`}>
-                            <span className="text-3xl">{visual.emoji}</span>
+                          <div className={`h-24 bg-gradient-to-br ${visual.gradient} flex flex-col items-center justify-center p-2 text-center relative`}>
+                            <span className="text-2xl mb-1">⏳</span>
+                            <span className="text-[8px] font-bold text-slate-500 bg-white/95 px-2 py-0.5 rounded-full border border-slate-200 uppercase tracking-wide">
+                              Contenido pendiente
+                            </span>
                           </div>
                         )}
 
@@ -274,9 +295,9 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
                         </div>
 
                         {/* File count */}
-                        {cp.archivos.length > 1 && (
+                        {((cp.archivos?.length ?? 0) > 1) && (
                           <div className="absolute top-1.5 right-1.5 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded-full">
-                            {cp.archivos.length} arch.
+                            {cp.archivos?.length} arch.
                           </div>
                         )}
                       </button>
@@ -301,9 +322,20 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
                         </p>
 
                         {/* Date */}
-                        <p className="text-[9px] text-slate-400">
-                          {pubDate.getDate()} {MONTHS_ES[pubDate.getMonth()]} {pubDate.getFullYear()}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[9px] text-slate-400">
+                            {pubDate.getDate()} {MONTHS_ES[pubDate.getMonth()]} {pubDate.getFullYear()}
+                          </p>
+                          {(() => {
+                            const badge = getCompletenessBadge(cp);
+                            return (
+                              <span className={`inline-flex items-center gap-1 text-[8px] font-bold px-1 py-0.5 rounded border leading-none scale-[0.95] ${badge.cls}`}>
+                                <span className={`w-1 h-1 rounded-full ${badge.dot}`} />
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
 
                         {/* Copy snippet */}
                         {cp.copy_activo && (
@@ -329,61 +361,35 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
                         )}
 
                         {/* Actions */}
-                        <div className="mt-auto pt-1.5 flex gap-1.5">
-                          {isPending ? (
-                            <>
-                              <button
-                                onClick={e => handleApprove(e, cp.id)}
-                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-600 transition-colors"
-                              >
-                                <CheckCircle2 className="w-3 h-3" />
-                                Aprobar
-                              </button>
-                              <button
-                                onClick={e => handleChanges(e, cp.id)}
-                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 text-[10px] font-bold rounded-lg hover:bg-orange-100 transition-colors"
-                              >
-                                <RotateCcw className="w-3 h-3" />
-                                Cambios
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => handleDetail(cp.id)}
-                              className="w-full py-1.5 border border-slate-200 text-slate-500 text-[10px] font-medium rounded-lg hover:bg-slate-50 transition-colors"
-                            >
-                              Ver detalle →
-                            </button>
-                          )}
-                        </div>
-                        {canCreate && (
+                        <div className="mt-auto pt-1.5">
                           <button
-                            onClick={e => togglePauta(e, cp.id, cp.seleccionado_pauta)}
-                            className={`mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold rounded-lg border transition-colors ${
-                              cp.seleccionado_pauta
-                                ? 'bg-violet-600 text-white border-violet-600'
-                                : 'bg-white text-violet-600 border-violet-200 hover:bg-violet-50'
+                            onClick={() => handleDetail(cp.id)}
+                            className={`w-full py-1.5 text-[10px] font-bold rounded-lg border transition-colors flex items-center justify-center gap-1 ${
+                              isLocked
+                                ? 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                : isPending
+                                ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                             }`}
                           >
-                            <Megaphone className="w-3 h-3" />
-                            {cp.seleccionado_pauta ? 'Seleccionado para pauta ✓' : 'Seleccionar para pauta'}
+                            {isLocked ? 'Contenido pendiente (Ver) →' : isPending ? 'Revisar publicación' : 'Ver detalle →'}
                           </button>
-                        )}
+                        </div>
+                        <button
+                          onClick={e => togglePauta(e, cp.id, cp.seleccionado_pauta)}
+                          className={`mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold rounded-lg border transition-colors ${
+                            cp.seleccionado_pauta
+                              ? 'bg-violet-600 text-white border-violet-600'
+                              : 'bg-white text-violet-600 border-violet-200 hover:bg-violet-50'
+                          }`}
+                        >
+                          <Megaphone className="w-3 h-3" />
+                          {cp.seleccionado_pauta ? 'Seleccionado para pauta ✓' : 'Seleccionar para pauta'}
+                        </button>
                       </div>
                     </div>
                   );
                 })}
-
-                {/* Add card */}
-                {canCreate && (
-                  <button
-                    onClick={() => setShowCreate(true)}
-                    className="flex flex-col items-center justify-center min-h-[200px] border-2 border-dashed border-slate-200 rounded-xl text-slate-300 hover:border-blue-300 hover:text-blue-400 hover:bg-blue-50/30 transition-all"
-                  >
-                    <Plus className="w-6 h-6 mb-1" />
-                    <span className="text-[10px] font-medium">Agregar</span>
-                  </button>
-                )}
               </div>
             </div>
           );
@@ -397,6 +403,22 @@ export default function PortalMultimedia({ canCreate = false }: Props) {
           onClose={() => setShowCreate(false)}
         />
       )}
+
+      {completePieceId && (() => {
+        const p = contentPieces.find(cp => cp.id === completePieceId);
+        if (!p) return null;
+        return (
+          <CompletePieceModal
+            piece={p}
+            onClose={() => {
+              setCompletePieceId(null);
+              if (searchParams.get('edit') === completePieceId) {
+                setSearchParams({});
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

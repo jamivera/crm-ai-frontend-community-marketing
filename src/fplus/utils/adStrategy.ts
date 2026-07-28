@@ -85,14 +85,19 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], 
   // El Brief afina las audiencias: ubicación real y perfil del cliente ideal
   const ciudad = brief?.ubicacion?.split(/[,;]/)[0]?.trim() || 'Quito';
 
+  const overrides = client.distribucion_pauta_overrides ?? {};
+
   const plataformas: PlatformPlan[] = activos.map(({ p, w }) => {
     const pct = Math.round((w / totalW) * 100);
+    const suggestedBudget = Math.round((presupuesto * pct) / 100);
+    const actualBudget = overrides[p] !== undefined ? overrides[p] : suggestedBudget;
+    
     const audiencias = audiencesFor(mercado, ciudad);
     if (brief?.perfil_cliente) audiencias.unshift(`Perfil del Brief: ${brief.perfil_cliente.slice(0, 80)}${brief.perfil_cliente.length > 80 ? '…' : ''}`);
     return {
       plataforma: p,
       porcentaje: pct,
-      presupuesto: Math.round((presupuesto * pct) / 100),
+      presupuesto: actualBudget,
       objetivo_campana: CAMPAIGN_GOALS[objetivo][p] ?? 'Tráfico',
       tipos_campana: CAMPAIGN_TYPES[p] ?? [],
       audiencias,
@@ -109,10 +114,26 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], 
   };
   const [rec, con, cnv, rmk] = embudos[objetivo];
 
+  const getStageDescription = (etapa: string, _obj: MarketingObjective, platforms: string[]): string => {
+    const isB2B = platforms.includes('LinkedIn Ads');
+    if (etapa === 'Reconocimiento') {
+      return isB2B 
+        ? `Artículos de opinión y posts de imagen de marca a profesionales`
+        : `Video corto, reels o posts visuales de alto impacto a audiencias frías`;
+    }
+    if (etapa === 'Consideración') {
+      return isB2B
+        ? `Casos de estudio, testimoniales B2B y guías informativas`
+        : `Carruseles informativos, infografías y contenidos de valor/educación`;
+    }
+    if (etapa === 'Conversión') {
+      return `Anuncios con CTA enfocado en soluciones, ofertas o reserva directa`;
+    }
+    return `Historias, testimonios, reviews y ofertas especiales a interactores recientes`;
+  };
+
   // La estrategia parte del contenido: cada creativo seleccionado se asigna
   // a la etapa del embudo donde su formato y ángulo Andrómeda rinden mejor.
-  // Reels/video → Reconocimiento · Carruseles → Consideración ·
-  // piezas con CTA directo en el copy → Conversión · Historias → Remarketing.
   const stageFor = (cp: ContentPiece): string => {
     const copy = (cp.copy_activo ?? '').toLowerCase();
     const hasDirectCTA = /reserva|compra|escríbenos|agenda|cotiza|link en bio|últim|promo|descuento/.test(copy);
@@ -133,11 +154,24 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], 
   };
 
   const embudo: FunnelStage[] = [
-    { etapa: 'Reconocimiento', porcentaje: rec, descripcion: `Reels y video corto a audiencias frías${conteo('Reconocimiento')}` },
-    { etapa: 'Consideración', porcentaje: con, descripcion: `Carruseles y contenido educativo${conteo('Consideración')}` },
-    { etapa: 'Conversión', porcentaje: cnv, descripcion: `Piezas con CTA directo a audiencias calientes${conteo('Conversión')}` },
-    { etapa: 'Remarketing', porcentaje: rmk, descripcion: `Historias y reimpacto a interactores de 30 días${conteo('Remarketing')}` },
+    { etapa: 'Reconocimiento', porcentaje: rec, descripcion: `${getStageDescription('Reconocimiento', objetivo, contratadas)}${conteo('Reconocimiento')}` },
+    { etapa: 'Consideración', porcentaje: con, descripcion: `${getStageDescription('Consideración', objetivo, contratadas)}${conteo('Consideración')}` },
+    { etapa: 'Conversión', porcentaje: cnv, descripcion: `${getStageDescription('Conversión', objetivo, contratadas)}${conteo('Conversión')}` },
+    { etapa: 'Remarketing', porcentaje: rmk, descripcion: `${getStageDescription('Remarketing', objetivo, contratadas)}${conteo('Remarketing')}` },
   ];
+
+  // Dynamic minimum creatives needed based on budget and objective
+  const minCreativosRecomendados = objetivo === 'conversion' 
+    ? (presupuesto > 1500 ? 5 : presupuesto > 600 ? 3 : 2)
+    : (presupuesto > 1000 ? 4 : 2);
+
+  // Recommended baseline budget per platform
+  const getMinRecommendedBudget = (platform: string, obj: MarketingObjective): number => {
+    if (platform === 'LinkedIn Ads') return 250;
+    if (obj === 'conversion') return 150;
+    return 100;
+  };
+  const lowBudgetPlatforms = plataformas.filter(p => p.presupuesto < getMinRecommendedBudget(p.plataforma, objetivo));
 
   // Score estratégico: qué tan completa está la información
   const checks: [boolean, string][] = [
@@ -147,14 +181,19 @@ export function generateAdStrategy(client: Client, piezasPauta: ContentPiece[], 
     [(client.pauta_plataformas?.length ?? 0) > 0, 'Seleccionar plataformas de pauta en el contrato'],
     [!!client.presupuesto_pauta || !!client.presupuesto_mensual, 'Definir el presupuesto de pauta'],
     [piezasPauta.length > 0, 'Marcar material aprobado para pauta desde Multimedia'],
-    [piezasPauta.length >= 3, 'Tener al menos 3 creativos para rotar (evita fatiga de anuncio)'],
+    [piezasPauta.length >= minCreativosRecomendados, `Tener al menos ${minCreativosRecomendados} creativos para rotar (evita fatiga de anuncio)`],
+    [lowBudgetPlatforms.length === 0, lowBudgetPlatforms.length > 0 
+      ? `Ajustar presupuesto para: ${lowBudgetPlatforms.map(p => `${p.plataforma} (min. sugerido: $${getMinRecommendedBudget(p.plataforma, objetivo)} USD)`).join(', ')}`
+      : 'Asignación de presupuesto óptima por plataforma'
+    ]
   ];
   const passed = checks.filter(([ok]) => ok).length;
   const score = Math.round((passed / checks.length) * 100);
   const score_detalle = checks.filter(([ok]) => !ok).map(([, msg]) => msg);
 
-  const mes = new Date().toLocaleDateString('es', { month: 'short', year: '2-digit' }).replace(' ', '');
-  const nomenclatura = `${client.nombre.toUpperCase().slice(0, 6)}_{PLATAFORMA}_{ETAPA}_{OBJETIVO}_${mes}`;
+  const mes = new Date().toLocaleDateString('es', { month: 'short', year: '2-digit' }).replace(' ', '').replace('.', '');
+  const nomenclatura = client.nomenclatura_campana || `${client.nombre.toUpperCase().slice(0, 6)}_{PLATAFORMA}_{ETAPA}_{OBJETIVO}_${mes}`;
+  const totalBudget = plataformas.reduce((a, pl) => a + pl.presupuesto, 0);
 
-  return { presupuesto_total: presupuesto, plataformas, embudo, creativos: piezasPauta, creativos_por_etapa, nomenclatura, score, score_detalle };
+  return { presupuesto_total: totalBudget, plataformas, embudo, creativos: piezasPauta, creativos_por_etapa, nomenclatura, score, score_detalle };
 }

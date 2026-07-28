@@ -49,5 +49,6 @@ export function useFplusRole(): {
     return LANDINGS[fplusRole] ?? '/fplus/dashboard';
   })();
 
+
   return { fplusRole, hasFplusAccess: fplusRole !== null, isClient, landingPath, clientId };
 }

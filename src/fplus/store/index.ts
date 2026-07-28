@@ -7,7 +7,7 @@ import {
 import type {
   Client, Campaign, ContentPiece, Publication, Lead,
   ContentState, ContentType, Platform, HealthStatus,
-  BriefMaestro, PublicationMetric,
+  BriefMaestro, PublicationMetric, FplusNotification,
 } from '../types';
 
 // ─── Local types (not persisted to backend) ────────────────────────────────────
@@ -38,6 +38,67 @@ export interface StateHistoryEvent {
   timestamp: string;
 }
 
+export interface ProjectHistoryEvent {
+  id: string;
+  client_id: string;
+  actor: string;
+  categoria: 'contenido' | 'brief' | 'campana' | 'invitacion' | 'aprobacion' | 'comentario' | 'configuracion';
+  descripcion: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+const seedProjectHistory: ProjectHistoryEvent[] = [
+  {
+    id: 'ph1',
+    client_id: 'cl3',
+    actor: 'Andrea Solís (Agencia)',
+    categoria: 'brief',
+    descripcion: 'Creación y guardado inicial del Brief Maestro de la marca.',
+    timestamp: new Date(Date.now() - 10 * 86400000).toISOString(),
+  },
+  {
+    id: 'ph2',
+    client_id: 'cl3',
+    actor: 'Andrea Solís (Agencia)',
+    categoria: 'invitacion',
+    descripcion: 'Generación del enlace de invitación al portal para Chef Marco Andrade.',
+    timestamp: new Date(Date.now() - 9 * 86400000).toISOString(),
+  },
+  {
+    id: 'ph3',
+    client_id: 'cl3',
+    actor: 'Chef Marco Andrade (Cliente)',
+    categoria: 'invitacion',
+    descripcion: 'Invitación aceptada. Portal activado y contraseña de acceso configurada.',
+    timestamp: new Date(Date.now() - 9 * 86400000).toISOString(),
+  },
+  {
+    id: 'ph4',
+    client_id: 'cl3',
+    actor: 'Andrea Solís (Agencia)',
+    categoria: 'campana',
+    descripcion: 'Campaña "Festival de Mariscos" creada de forma orgánica.',
+    timestamp: new Date(Date.now() - 8 * 86400000).toISOString(),
+  },
+  {
+    id: 'ph5',
+    client_id: 'cl3',
+    actor: 'Carlos Ramos (Diseñador)',
+    categoria: 'contenido',
+    descripcion: 'Carga de material multimedia en "Reel Cocina Abierta con el Chef".',
+    timestamp: new Date(Date.now() - 6 * 86400000).toISOString(),
+  },
+  {
+    id: 'ph6',
+    client_id: 'cl3',
+    actor: 'Chef Marco Andrade (Cliente)',
+    categoria: 'aprobacion',
+    descripcion: 'Publicación "Reel Cocina Abierta con el Chef" aprobada oficialmente.',
+    timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
+  }
+];
+
 // ─── State machine transitions ─────────────────────────────────────────────────
 // Maps current state → valid next states
 export const STATE_TRANSITIONS: Partial<Record<ContentState, ContentState[]>> = {
@@ -46,8 +107,8 @@ export const STATE_TRANSITIONS: Partial<Record<ContentState, ContentState[]>> = 
   revision_interna: ['enviado_cliente', 'cambios_internos'],
   cambios_internos: ['revision_interna'],
   listo_para_cliente: ['enviado_cliente'],
-  enviado_cliente: ['aprobado_cliente', 'cambios_solicitados'],
-  en_revision_cliente: ['aprobado_cliente', 'cambios_solicitados'],
+  enviado_cliente: ['aprobado_final', 'cambios_solicitados'],
+  en_revision_cliente: ['aprobado_final', 'cambios_solicitados'],
   cambios_solicitados: ['en_produccion'],
   aprobado_cliente: ['aprobado_final'],
   aprobado_final: ['en_produccion_pauta', 'publicado'],
@@ -58,10 +119,10 @@ export const STATE_TRANSITIONS: Partial<Record<ContentState, ContentState[]>> = 
 export const ACTION_LABELS: Partial<Record<ContentState, Partial<Record<ContentState, string>>>> = {
   borrador: { en_produccion: 'Iniciar producción' },
   en_produccion: { revision_interna: 'Enviar a revisión interna', bloqueado: 'Marcar bloqueado' },
-  revision_interna: { enviado_cliente: 'Enviar al cliente', cambios_internos: 'Solicitar cambios internos' },
+  revision_interna: { enviado_cliente: 'Enviar a revisión', cambios_internos: 'Solicitar cambios internos' },
   cambios_internos: { revision_interna: 'Lista para revisión' },
-  listo_para_cliente: { enviado_cliente: 'Enviar al cliente' },
-  enviado_cliente: { aprobado_cliente: 'Registrar aprobación', cambios_solicitados: 'Registrar cambios' },
+  listo_para_cliente: { enviado_cliente: 'Enviar a revisión' },
+  enviado_cliente: { aprobado_final: 'Registrar aprobación', cambios_solicitados: 'Registrar cambios' },
   cambios_solicitados: { en_produccion: 'Iniciar correcciones' },
   aprobado_cliente: { aprobado_final: 'Aprobar final' },
   aprobado_final: { en_produccion_pauta: 'Pasar a pauta', publicado: 'Marcar publicado' },
@@ -105,6 +166,13 @@ interface FplusStore {
   portalComments: Record<string, PortalComment[]>;
   contentComments: ContentComment[];
   stateHistory: StateHistoryEvent[];
+  projectHistory: ProjectHistoryEvent[];
+  notifications: FplusNotification[];
+
+  // ─── Notification actions ──────────────────────────────────────────────────
+  addNotification: (clientId: string, agencyId: string, titulo: string, mensaje: string, tipo: 'estado' | 'comentario' | 'sistema') => void;
+  markNotificationRead: (id: string) => void;
+  clearNotificationsForClient: (clientId: string) => void;
 
   // ─── Content actions ───────────────────────────────────────────────────────
   updateContentState: (id: string, state: ContentState, actor?: string) => void;
@@ -120,6 +188,10 @@ interface FplusStore {
   createContent: (piece: ContentPiece) => void;
   createManyContent: (pieces: ContentPiece[]) => void;
   deleteContent: (id: string) => void;
+  archiveCampaignPlanning: (campaignId: string) => void;
+  clearMonthPlanning: (clientId: string, year: number, month: number, campaignId?: string) => void;
+  updateFileProcessingState: (pieceId: string, fileId: string, processingState: 'pending' | 'processing' | 'ready' | 'failed') => void;
+  uploadFileAndProcess: (pieceId: string, fileData: { id: string; nombre: string; tipo: 'imagen' | 'video' | 'pdf' | 'audio' | 'otro'; url: string; size: number }) => void;
 
   // ─── Publication actions ───────────────────────────────────────────────────
   createPublication: (pub: Publication) => void;
@@ -142,6 +214,15 @@ interface FplusStore {
   // ─── Brief actions ─────────────────────────────────────────────────────────
   saveBrief: (brief: BriefMaestro) => void;
   getBrief: (clientId: string) => BriefMaestro | undefined;
+
+  // ─── Project History actions ───────────────────────────────────────────────
+  addProjectHistoryEvent: (
+    client_id: string,
+    actor: string,
+    categoria: 'contenido' | 'brief' | 'campana' | 'invitacion' | 'aprobacion' | 'comentario' | 'configuracion',
+    descripcion: string,
+    metadata?: Record<string, any>
+  ) => void;
 }
 
 // ─── Store implementation ───────────────────────────────────────────────────────
@@ -157,6 +238,8 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   portalComments: { ...mockPortalComments },
   contentComments: [...seedComments],
   stateHistory: [...seedHistory],
+  projectHistory: [...seedProjectHistory],
+  notifications: [],
 
   // ─── Content ───────────────────────────────────────────────────────────────
 
@@ -171,6 +254,24 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
         actor,
         timestamp: new Date().toISOString(),
       };
+      
+      const newNotifications = [...(s.notifications || [])];
+      if (state === 'enviado_cliente' || state === 'en_revision_cliente') {
+        const client = s.clients.find(c => c.id === piece?.client_id);
+        const agencyId = client?.agency_id || 'agency-pd';
+        newNotifications.push({
+          id: `not-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: piece?.client_id || '',
+          agency_id: agencyId,
+          titulo: 'Nueva publicación para revisión',
+          mensaje: `La agencia ha subido contenido para "${piece?.nombre || 'Sin nombre'}". Por favor, revísalo.`,
+          leido: false,
+          tipo: 'estado',
+          destinatario: 'cliente',
+          created_at: new Date().toISOString(),
+        });
+      }
+
       return {
         contentPieces: s.contentPieces.map(cp =>
           cp.id === id
@@ -178,6 +279,7 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
             : cp
         ),
         stateHistory: [...s.stateHistory, historyEvent],
+        notifications: newNotifications,
       };
     }),
 
@@ -191,11 +293,49 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
     get().stateHistory.filter(e => e.content_piece_id === pieceId),
 
   updateContent: (id, data) =>
-    set(s => ({
-      contentPieces: s.contentPieces.map(cp =>
-        cp.id === id ? { ...cp, ...data, updated_at: new Date().toISOString() } : cp
-      ),
-    })),
+    set(s => {
+      const piece = s.contentPieces.find(cp => cp.id === id);
+      if (!piece) return {};
+      
+      const newPiece = { ...piece, ...data, updated_at: new Date().toISOString() };
+      
+      const changes: string[] = [];
+      const actor = data.archivos ? 'Agencia (Material Carga)' : 'Agencia';
+      
+      if (data.copy_activo && data.copy_activo !== piece.copy_activo) {
+        changes.push('el copy/copywriting');
+      }
+      if (data.hashtags && JSON.stringify(data.hashtags) !== JSON.stringify(piece.hashtags)) {
+        changes.push('los hashtags');
+      }
+      if (data.archivos && JSON.stringify(data.archivos) !== JSON.stringify(piece.archivos)) {
+        changes.push('el material multimedia');
+      }
+      if (data.fecha_publicacion && data.fecha_publicacion !== piece.fecha_publicacion) {
+        const parseString = data.fecha_publicacion.includes('T') ? data.fecha_publicacion : (data.fecha_publicacion + 'T12:00:00');
+        const dObj = new Date(parseString);
+        const formattedDate = isNaN(dObj.getTime()) ? 'Fecha inválida' : dObj.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+        changes.push(`la fecha al ${formattedDate}`);
+      }
+
+      let historyUpdate = {};
+      if (changes.length > 0) {
+        const phEvent: ProjectHistoryEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: piece.client_id,
+          actor: actor,
+          categoria: 'contenido',
+          descripcion: `Modificación en pieza "${piece.nombre}": se actualizó ${changes.join(', ')}.`,
+          timestamp: new Date().toISOString(),
+        };
+        historyUpdate = { projectHistory: [...(s.projectHistory || []), phEvent] };
+      }
+
+      return {
+        contentPieces: s.contentPieces.map(cp => cp.id === id ? newPiece : cp),
+        ...historyUpdate,
+      };
+    }),
 
   // ─── Creation ──────────────────────────────────────────────────────────────
 
@@ -220,6 +360,86 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
       contentComments: s.contentComments.filter(cc => cc.content_piece_id !== id),
       stateHistory: s.stateHistory.filter(h => h.content_piece_id !== id),
     })),
+
+  archiveCampaignPlanning: (campaignId) =>
+    set(s => ({
+      contentPieces: s.contentPieces.map(cp =>
+        cp.campaign_id === campaignId && cp.estado !== 'publicado'
+          ? { ...cp, estado: 'archivado' as ContentState, updated_at: new Date().toISOString() }
+          : cp
+      )
+    })),
+
+  clearMonthPlanning: (clientId, year, month, campaignId) =>
+    set(s => ({
+      contentPieces: s.contentPieces.map(cp => {
+        if (cp.client_id !== clientId) return cp;
+        if (cp.estado === 'publicado') return cp;
+        if (campaignId && campaignId !== 'todas' && cp.campaign_id !== campaignId) return cp;
+        if (cp.fecha_publicacion) {
+          const d = new Date(cp.fecha_publicacion);
+          if (d.getFullYear() === year && d.getMonth() === month) {
+            return { ...cp, estado: 'archivado' as ContentState, updated_at: new Date().toISOString() };
+          }
+        }
+        return cp;
+      })
+    })),
+
+  updateFileProcessingState: (pieceId, fileId, processingState) =>
+    set(s => ({
+      contentPieces: s.contentPieces.map(cp =>
+        cp.id === pieceId
+          ? {
+              ...cp,
+              archivos: cp.archivos.map(f =>
+                f.id === fileId ? { ...f, estado_procesamiento: processingState } : f
+              ),
+            }
+          : cp
+      )
+    })),
+
+  uploadFileAndProcess: (pieceId, fileData) => {
+    const now = new Date().toISOString();
+    set(s => ({
+      contentPieces: s.contentPieces.map(cp => {
+        if (cp.id === pieceId) {
+          const newFile = {
+            id: fileData.id,
+            nombre: fileData.nombre,
+            tipo: fileData.tipo,
+            url: fileData.url,
+            tamanio_bytes: fileData.size,
+            version: (cp.archivos[0]?.version ?? 0) + 1,
+            es_version_activa: true,
+            subido_por_nombre: 'Agencia',
+            created_at: now,
+            estado_procesamiento: 'pending' as const,
+            // Simular metadata técnica inicial
+            resolucion: fileData.tipo === 'video' ? '1080x1920 px' : '1080x1080 px',
+            duracion_segundos: fileData.tipo === 'video' ? 15 : undefined,
+            peso_formateado: fileData.size > 0 ? `${(fileData.size / 1024 / 1024).toFixed(1)} MB` : '4.2 MB',
+            formato: fileData.tipo === 'video' ? 'MP4' : 'PNG',
+          };
+          return {
+            ...cp,
+            archivos: [newFile],
+            updated_at: now,
+          };
+        }
+        return cp;
+      })
+    }));
+
+    // Disparar flujo de eventos asíncronos simulando backend storage triggers
+    setTimeout(() => {
+      get().updateFileProcessingState(pieceId, fileData.id, 'processing');
+      setTimeout(() => {
+        get().updateFileProcessingState(pieceId, fileData.id, 'ready');
+      }, 1800);
+    }, 1200);
+  },
 
   // ─── Publications ──────────────────────────────────────────────────────────
 
@@ -249,55 +469,168 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   // ─── Portal ────────────────────────────────────────────────────────────────
 
   approveContent: (contentId, clientNombre) =>
-    set(s => ({
-      contentPieces: s.contentPieces.map(cp =>
-        cp.id === contentId
-          ? { ...cp, estado: 'aprobado_final' as ContentState, updated_at: new Date().toISOString() }
-          : cp
-      ),
-      portalComments: {
-        ...s.portalComments,
-        [contentId]: [
-          ...(s.portalComments[contentId] ?? []),
-          {
-            id: `auto-${Date.now()}`,
-            autor: clientNombre,
-            esAgencia: false,
-            texto: '✅ Aprobado.',
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      },
-    })),
+    set(s => {
+      const piece = s.contentPieces.find(cp => cp.id === contentId);
+      const client = s.clients.find(c => c.id === piece?.client_id);
+      const agencyId = client?.agency_id || 'agency-pd';
+
+      const historyEvent: StateHistoryEvent = {
+        id: `sh-${Date.now()}`,
+        content_piece_id: contentId,
+        estado_anterior: piece?.estado,
+        estado_nuevo: 'aprobado_final',
+        actor: clientNombre,
+        timestamp: new Date().toISOString(),
+      };
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: piece?.client_id || '',
+        actor: `${clientNombre} (Cliente)`,
+        categoria: 'aprobacion',
+        descripcion: `Pieza "${piece?.nombre || 'Sin nombre'}" aprobada oficialmente. Listo para publicar.`,
+        timestamp: new Date().toISOString(),
+      };
+      const newNotification: FplusNotification = {
+        id: `not-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: piece?.client_id || '',
+        agency_id: agencyId,
+        titulo: 'Publicación Aprobada',
+        mensaje: `El cliente ${clientNombre} aprobó la pieza "${piece?.nombre || 'Sin nombre'}".`,
+        leido: false,
+        tipo: 'estado',
+        destinatario: 'agencia',
+        created_at: new Date().toISOString(),
+      };
+      return {
+        contentPieces: s.contentPieces.map(cp =>
+          cp.id === contentId
+            ? { ...cp, estado: 'aprobado_final' as ContentState, updated_at: new Date().toISOString() }
+            : cp
+        ),
+        stateHistory: [...s.stateHistory, historyEvent],
+        projectHistory: [...(s.projectHistory || []), phEvent],
+        notifications: [...(s.notifications || []), newNotification],
+        portalComments: {
+          ...s.portalComments,
+          [contentId]: [
+            ...(s.portalComments[contentId] ?? []),
+            {
+              id: `auto-${Date.now()}`,
+              autor: clientNombre,
+              esAgencia: false,
+              texto: '✅ Aprobado.',
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        },
+      };
+    }),
 
   requestChanges: (contentId, comment, clientNombre) =>
-    set(s => ({
-      contentPieces: s.contentPieces.map(cp =>
-        cp.id === contentId
-          ? { ...cp, estado: 'cambios_solicitados' as ContentState, updated_at: new Date().toISOString() }
-          : cp
-      ),
-      portalComments: {
-        ...s.portalComments,
-        [contentId]: [
-          ...(s.portalComments[contentId] ?? []),
-          {
-            id: `req-${Date.now()}`,
-            autor: clientNombre,
-            esAgencia: false,
-            texto: comment,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      },
-    })),
+    set(s => {
+      const piece = s.contentPieces.find(cp => cp.id === contentId);
+      const client = s.clients.find(c => c.id === piece?.client_id);
+      const agencyId = client?.agency_id || 'agency-pd';
+
+      const historyEvent: StateHistoryEvent = {
+        id: `sh-${Date.now()}`,
+        content_piece_id: contentId,
+        estado_anterior: piece?.estado,
+        estado_nuevo: 'cambios_solicitados',
+        actor: clientNombre,
+        timestamp: new Date().toISOString(),
+      };
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: piece?.client_id || '',
+        actor: `${clientNombre} (Cliente)`,
+        categoria: 'aprobacion',
+        descripcion: `Cambios solicitados en pieza "${piece?.nombre || 'Sin nombre'}": "${comment.slice(0, 50)}${comment.length > 50 ? '...' : ''}"`,
+        timestamp: new Date().toISOString(),
+      };
+      const newNotification: FplusNotification = {
+        id: `not-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: piece?.client_id || '',
+        agency_id: agencyId,
+        titulo: 'Cambios Solicitados',
+        mensaje: `El cliente ${clientNombre} solicitó cambios en "${piece?.nombre || 'Sin nombre'}": "${comment.slice(0, 40)}..."`,
+        leido: false,
+        tipo: 'comentario',
+        destinatario: 'agencia',
+        created_at: new Date().toISOString(),
+      };
+      return {
+        contentPieces: s.contentPieces.map(cp =>
+          cp.id === contentId
+            ? { ...cp, estado: 'cambios_solicitados' as ContentState, updated_at: new Date().toISOString() }
+            : cp
+        ),
+        stateHistory: [...s.stateHistory, historyEvent],
+        projectHistory: [...(s.projectHistory || []), phEvent],
+        notifications: [...(s.notifications || []), newNotification],
+        portalComments: {
+          ...s.portalComments,
+          [contentId]: [
+            ...(s.portalComments[contentId] ?? []),
+            {
+              id: `req-${Date.now()}`,
+              autor: clientNombre,
+              esAgencia: false,
+              texto: comment,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        },
+      };
+    }),
 
   addPortalComment: (contentId, comment) =>
+    set(s => {
+      const piece = s.contentPieces.find(cp => cp.id === contentId);
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: piece?.client_id || '',
+        actor: comment.esAgencia ? 'Andrea Solís (Agencia)' : `${comment.autor} (Cliente)`,
+        categoria: 'comentario',
+        descripcion: `Nuevo comentario en pieza "${piece?.nombre || 'Sin nombre'}": "${comment.texto.slice(0, 50)}${comment.texto.length > 50 ? '...' : ''}"`,
+        timestamp: new Date().toISOString(),
+      };
+      return {
+        portalComments: {
+          ...s.portalComments,
+          [contentId]: [...(s.portalComments[contentId] ?? []), comment],
+        },
+        projectHistory: [...(s.projectHistory || []), phEvent],
+      };
+    }),
+
+  addNotification: (clientId, agencyId, titulo, mensaje, tipo) =>
+    set(s => {
+      const newNotification: FplusNotification = {
+        id: `not-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: clientId,
+        agency_id: agencyId,
+        titulo,
+        mensaje,
+        leido: false,
+        tipo,
+        created_at: new Date().toISOString(),
+      };
+      return {
+        notifications: [...(s.notifications || []), newNotification],
+      };
+    }),
+
+  markNotificationRead: (id) =>
     set(s => ({
-      portalComments: {
-        ...s.portalComments,
-        [contentId]: [...(s.portalComments[contentId] ?? []), comment],
-      },
+      notifications: (s.notifications || []).map(n =>
+        n.id === id ? { ...n, leido: true } : n
+      ),
+    })),
+
+  clearNotificationsForClient: (clientId) =>
+    set(s => ({
+      notifications: (s.notifications || []).filter(n => n.client_id !== clientId),
     })),
 
   // ─── Metrics ───────────────────────────────────────────────────────────────
@@ -323,21 +656,38 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   // ─── Brief ─────────────────────────────────────────────────────────────────
 
   saveBrief: (brief) =>
-    set(s => ({
-      briefs: { ...s.briefs, [brief.client_id]: brief },
-    })),
+    set(s => ({ briefs: { ...s.briefs, [brief.client_id]: brief } })),
 
   getBrief: (clientId) => get().briefs[clientId],
+
+  addProjectHistoryEvent: (client_id, actor, categoria, descripcion, metadata) =>
+    set(s => {
+      const newEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id,
+        actor,
+        categoria,
+        descripcion,
+        timestamp: new Date().toISOString(),
+        metadata,
+      };
+      return {
+        projectHistory: [...(s.projectHistory || []), newEvent]
+      };
+    }),
 }), {
   name: 'fplus-store',
-  version: 2,
-  // Al subir la versión (cambios en el mock semilla), se descarta el estado
-  // persistido anterior y se rehidrata desde el mock actualizado.
+  version: 4,
   migrate: () => ({}) as FplusStore,
   // Los archivos base64 grandes pueden exceder la cuota de localStorage (~5MB):
   // se persiste todo menos las URLs de archivos que superen ~2MB por pieza.
   partialize: (state) => ({
-    clients: state.clients,
+    clients: state.clients.map(c => ({
+      ...c,
+      firma_contrato: c.firma_contrato
+        ? { ...c.firma_contrato, imagen: '' }
+        : undefined,
+    })),
     campaigns: state.campaigns,
     contentPieces: state.contentPieces.map(cp => ({
       ...cp,
@@ -352,7 +702,8 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
     portalComments: state.portalComments,
     contentComments: state.contentComments,
     stateHistory: state.stateHistory,
-  }),
+    projectHistory: state.projectHistory || [],
+  } as any),
 }));
 
 // Export unused type aliases needed by creation forms

@@ -7,6 +7,8 @@ import { Sparkles } from 'lucide-react';
 // Credenciales: admin / admin. Se reemplazará por la autenticación real
 // de Evo CRM al conectar el backend.
 
+import { getSupabase } from './../services/supabaseClient';
+
 export default function DemoLogin() {
   const navigate = useNavigate();
   const clients = useFplusStore(s => s.clients);
@@ -14,29 +16,65 @@ export default function DemoLogin() {
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
 
-  // Sesión demo ya iniciada → directo al dashboard
+  // Sesión demo ya iniciada → directo al dashboard o portal según rol
   if (sessionStorage.getItem('fplus-demo-auth') === 'true') {
+    const role = sessionStorage.getItem('fplus-demo-role');
+    const clientId = sessionStorage.getItem('fplus-demo-client-id');
+    if (role === 'client' && clientId) {
+      return <Navigate to={`/fplus/portal/${clientId}`} replace />;
+    }
     return <Navigate to="/fplus/dashboard" replace />;
   }
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user.trim() === 'admin' && pass === 'admin') {
       // Rol agencia → Portal de Agencia
       sessionStorage.setItem('fplus-demo-auth', 'true');
+      sessionStorage.setItem('fplus-demo-role', 'agency');
       navigate('/fplus/dashboard', { replace: true });
       return;
     }
-    // Rol cliente: mismo login, misma plataforma — la interfaz cambia por rol.
-    const cliente = clients.find(c =>
-      c.portal_invitacion?.aceptada_at &&
-      c.portal_invitacion.email.toLowerCase() === user.trim().toLowerCase() &&
-      c.portal_invitacion.password_demo === pass,
-    );
-    if (cliente) {
-      navigate(`/fplus/portal/${cliente.id}`, { replace: true });
-      return;
+
+    const sb = getSupabase();
+    if (sb) {
+      // Supabase Auth real
+      const { error: authErr } = await sb.auth.signInWithPassword({
+        email: user.trim(),
+        password: pass
+      });
+      if (authErr) {
+        setError(authErr.message);
+        return;
+      }
+      
+      const cliente = clients.find(c => c.portal_invitacion?.email.toLowerCase() === user.trim().toLowerCase());
+      if (cliente) {
+        sessionStorage.setItem('fplus-demo-auth', 'true');
+        sessionStorage.setItem('fplus-demo-role', 'client');
+        sessionStorage.setItem('fplus-demo-client-id', cliente.id);
+        navigate(`/fplus/portal/${cliente.id}`, { replace: true });
+        return;
+      }
+    } else {
+      // Simulación local leyendo de localStorage
+      const simulatedPasswords = JSON.parse(localStorage.getItem('fplus-simulated-auth') || '{}');
+      const correctPass = simulatedPasswords[user.trim().toLowerCase()];
+      
+      const cliente = clients.find(c =>
+        c.portal_invitacion?.aceptada_at &&
+        c.portal_invitacion.email.toLowerCase() === user.trim().toLowerCase()
+      );
+      
+      if (cliente && correctPass === pass) {
+        sessionStorage.setItem('fplus-demo-auth', 'true');
+        sessionStorage.setItem('fplus-demo-role', 'client');
+        sessionStorage.setItem('fplus-demo-client-id', cliente.id);
+        navigate(`/fplus/portal/${cliente.id}`, { replace: true });
+        return;
+      }
     }
+
     setError('Credenciales incorrectas. Agencia: admin / admin. Clientes: el correo y contraseña creados al activar la invitación.');
   };
 
@@ -51,7 +89,7 @@ export default function DemoLogin() {
             </div>
             <span className="text-2xl font-bold text-white">FPLUS</span>
           </div>
-          <p className="text-xs text-blue-300/70 mt-2">Plataforma de gestión de contenido · Primero Digital</p>
+          <p className="text-xs text-blue-300/70 mt-2">Plataforma de gestión de contenido y pauta publicitaria</p>
         </div>
 
         <form onSubmit={submit} className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6 space-y-4">
@@ -99,6 +137,16 @@ export default function DemoLogin() {
           >
             Ingresar
           </button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/auth/reset-password')}
+              className="text-xs text-blue-300/60 hover:text-blue-300 hover:underline transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
 
           <p className="text-[10px] text-center text-blue-200/40">
             Acceso de demostración: <strong className="text-blue-200/70">admin / admin</strong>

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2, Target, PenLine, Eraser } from 'lucide-react';
+import { Building2, User, CalendarDays, DollarSign, FileText, StickyNote, CheckCircle2, Target, PenLine, Eraser, Gem, Crown, Award, Sparkles } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { usePortalContext } from '../Portal/PortalContext';
 import { CONTENT_TYPE_LABELS } from '../../constants';
@@ -26,6 +26,7 @@ const PLAN_LABELS: Record<PlanContratado, string> = {
   estandar:   'Estándar',
   premium:    'Premium',
   enterprise: 'Enterprise',
+  personalizado: 'Plan Personalizado',
 };
 
 const PLAN_FEATURES: Record<PlanContratado, string[]> = {
@@ -36,6 +37,7 @@ const PLAN_FEATURES: Record<PlanContratado, string[]> = {
   estandar:   ['Hasta 16 piezas/mes', 'Instagram + Facebook', '2 redes sociales', 'Cronopost + Calendario', 'Portal cliente', 'Reportes básicos'],
   premium:    ['Hasta 30 piezas/mes', 'Todas las redes', 'Campañas', 'Cronopost + Calendario + Multimedia', 'Portal cliente premium', 'Reportes avanzados', 'Pauta publicitaria'],
   enterprise: ['Piezas ilimitadas', 'Todas las redes', 'Múltiples marcas', 'Acceso completo', 'AM dedicado', 'SLA garantizado'],
+  personalizado: ['Servicios dinámicos bajo demanda', 'Branding, Landing Pages, SEO y Ads', 'Consultoría IA y Automatizaciones', 'Mantenimiento técnico continuo'],
 };
 
 const PAUTA_LABELS: Record<PautaPublicitaria, string> = {
@@ -64,6 +66,7 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string; ic
 // El PDF del contrato firmado se generará automáticamente en una fase posterior.
 function SignaturePad({ onSave }: { onSave: (dataUrl: string, firmante: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const drawing = useRef(false);
   const [dirty, setDirty] = useState(false);
   const [firmante, setFirmante] = useState('');
@@ -99,11 +102,29 @@ function SignaturePad({ onSave }: { onSave: (dataUrl: string, firmante: string) 
     setDirty(false);
   };
 
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const resizeCanvas = () => {
+      const rect = container.getBoundingClientRect();
+      const newWidth = rect.width || 520;
+      if (canvas.width !== newWidth) {
+        canvas.width = newWidth;
+        canvas.height = 140;
+      }
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, []);
+
   return (
-    <div className="space-y-2">
+    <div ref={containerRef} className="space-y-2 w-full">
       <canvas
         ref={canvasRef}
-        width={520}
         height={140}
         onPointerDown={start}
         onPointerMove={move}
@@ -179,8 +200,13 @@ export default function ClientContract() {
               <p className="text-[10px] font-semibold text-white/60 uppercase tracking-wide">Plan Contratado</p>
               <p className="text-xl font-bold text-white mt-0.5">{PLAN_LABELS[plan]}</p>
             </div>
-            <div className="text-3xl">
-              {plan === 'platinum' ? '💎' : plan === 'oro' ? '🥇' : plan === 'plata' ? '🥈' : plan === 'premium' ? '⭐' : plan === 'enterprise' ? '🏢' : '✦'}
+            <div className="text-white opacity-90">
+              {plan === 'platinum' ? <Gem className="w-7 h-7" /> :
+               plan === 'oro' ? <Crown className="w-7 h-7" /> :
+               plan === 'plata' ? <Award className="w-7 h-7" /> :
+               plan === 'premium' ? <Sparkles className="w-7 h-7" /> :
+               plan === 'enterprise' ? <Building2 className="w-7 h-7" /> :
+               <FileText className="w-7 h-7" />}
             </div>
           </div>
           <div className="px-5 py-4">
@@ -242,12 +268,82 @@ export default function ClientContract() {
           )}
         </div>
       )}
+      {/* Servicios Personalizados Contratados */}
+      {client.plan_contratado === 'personalizado' && client.servicios_contratados && client.servicios_contratados.length > 0 && (
+        <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 space-y-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Servicios Adicionales / Especiales Contratados</p>
+          <div className="space-y-3">
+            {client.servicios_contratados.map(s => {
+              const statusColors = {
+                activo: 'bg-blue-50 text-blue-700 border-blue-100',
+                en_progreso: 'bg-amber-50 text-amber-700 border-amber-200',
+                entregado: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                suspendido: 'bg-red-50 text-red-700 border-red-100',
+              };
+              const prioColors = {
+                baja: 'bg-slate-50 text-slate-500',
+                media: 'bg-blue-50 text-blue-600',
+                alta: 'bg-orange-50 text-orange-600',
+                critica: 'bg-red-50 text-red-600 font-bold',
+              };
+              return (
+                <div key={s.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800">{s.nombre}</h4>
+                      <p className="text-[10px] text-slate-400 font-medium capitalize mt-0.5">{s.categoria || 'General'}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-semibold ${statusColors[s.estado]}`}>
+                        {s.estado === 'activo' ? 'Activo' : s.estado === 'en_progreso' ? 'En Progreso' : s.estado === 'entregado' ? 'Entregado' : 'Suspendido'}
+                      </span>
+                      {s.prioridad && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${prioColors[s.prioridad]}`}>
+                          {s.prioridad}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>Progreso de entrega</span>
+                      <span className="font-semibold">{s.progreso}%</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-600 rounded-full transition-all duration-300" style={{ width: `${s.progreso}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 border-t border-slate-100 pt-2">
+                    <div>
+                      <span className="font-semibold text-slate-400 uppercase tracking-wide">Entrega:</span>{' '}
+                      {s.fecha_entrega ? new Date(s.fecha_entrega).toLocaleDateString('es', { day: 'numeric', month: 'short' }) : 'Sin fecha'}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-400 uppercase tracking-wide">Responsable:</span>{' '}
+                      {s.responsable || 'No asignado'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Datos generales */}
       <div className="bg-white border border-slate-100 rounded-2xl px-5 py-2">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide pt-3 pb-1">Datos del cliente</p>
         <Field label="Empresa" value={client.empresa} icon={Building2} />
+        <Field label="Identificación" value={client.tipo_documento && client.numero_documento ? `${client.tipo_documento.toUpperCase()}: ${client.numero_documento}` : undefined} icon={FileText} />
         <Field label="Responsable cliente" value={client.responsable_cliente} icon={User} />
+        <Field label="Teléfono" value={client.telefono} icon={User} />
+        <Field label="Correo" value={client.email} icon={User} />
+        <Field label="Correo Facturación" value={client.email_facturacion} icon={FileText} />
+        <Field label="Sitio Web" value={client.sitio_web} icon={Building2} />
+        <Field label="Ubicación" value={[client.direccion, client.ciudad, client.provincia, client.pais].filter(Boolean).join(', ')} icon={Building2} />
         <Field label="Account Manager" value={client.account_manager_name} icon={User} />
         <Field label="Industria" value={client.industria} icon={Building2} />
       </div>
@@ -334,9 +430,9 @@ export default function ClientContract() {
       <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3.5">
         <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wide mb-1.5">Inversión Publicitaria</p>
         <p className="text-xs text-blue-800 leading-relaxed">
-          Los <strong>servicios de la agencia</strong> son facturados por Primero Digital.
+          Los <strong>servicios de la agencia</strong> son facturados por {client?.agency_name || 'la Agencia'}.
           La <strong>inversión publicitaria (pauta)</strong> pertenece siempre al cliente y se paga
-          directamente a Meta, Google, TikTok o LinkedIn — nunca forma parte del presupuesto de Primero Digital.
+          directamente a Meta, Google, TikTok o LinkedIn — nunca forma parte del presupuesto de {client?.agency_name || 'la Agencia'}.
         </p>
       </div>
 

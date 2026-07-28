@@ -9,6 +9,7 @@ import PortalCalendar from './PortalCalendar';
 import PortalMultimedia from './PortalMultimedia';
 import PortalBrand from './PortalBrand';
 import PortalPauta from './PortalPauta';
+import PortalMetrics from './PortalMetrics';
 import Placeholder from '../Placeholder';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ export function PortalRouteWrapper() {
   const { clientId = '1' } = useParams<{ clientId: string }>();
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
 
+
   if (!client) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -52,7 +54,7 @@ export function PortalRouteWrapper() {
     );
   }
 
-  const isPremium = false; // future: client.plan === 'premium'
+  const isPremium = ['premium', 'enterprise', 'oro', 'platinum', 'personalizado'].includes(client.plan_contratado ?? '');
 
   return (
     <PortalContext.Provider value={{ clientId, clientNombre: client.nombre, isPremium }}>
@@ -66,12 +68,12 @@ export function PortalRouteWrapper() {
           <Route index element={<PortalDashboard />} />
           <Route path="cronopost" element={<Cronopost />} />
           <Route path="approvals" element={<PortalApprovalsList />} />
-          <Route path="approvals/:id" element={<PortalApprovalDetail />} />
+          <Route path="approvals/:approvalId" element={<PortalApprovalDetail />} />
           <Route path="calendar" element={<PortalCalendar />} />
           <Route path="multimedia" element={<PortalMultimedia />} />
           <Route path="brand" element={<PortalBrand />} />
           <Route path="pauta" element={<PortalPauta />} />
-          <Route path="metrics" element={<Placeholder />} />
+          <Route path="metrics" element={<PortalMetrics />} />
           <Route path="profile" element={<Placeholder />} />
           <Route path="*" element={<Navigate to="" replace />} />
         </Routes>

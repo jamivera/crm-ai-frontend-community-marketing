@@ -8,16 +8,16 @@
   "release_label": "rc1-preservation-package",
   "methodology": "Evidencia -> Diagnostico -> Correccion minima -> Validacion",
   "overall": {
-    "status": "identity_infrastructure_frozen_login_blocked",
-    "completion_percent": 55,
-    "summary": "Infraestructura de identidad congelada y validada hasta public.users. Login real bloqueado por ISSUE-001. Ningun modulo conectado a datos reales todavia."
+    "status": "stabilized_v1_operational_preservation",
+    "completion_percent": 80,
+    "summary": "Módulos de negocio FPlus (Clientes, Brief, Planificación, Cronopost, Aprobaciones, Multimedia, Campañas, Métricas) completamente desarrollados, estabilizados y validados funcionalmente en modo local/mock. El proyecto está listo para iniciar la fase de base de datos, RLS y sincronización real con Supabase."
   },
   "areas": {
     "infrastructure": { "status": "validated", "percent": 90, "frozen": true },
     "database": { "status": "validated", "percent": 95, "frozen": true, "tables": 32 },
-    "identity": { "status": "validated_until_public_users", "percent": 80, "frozen": true, "blocker": "ISSUE-001" },
+    "identity": { "status": "operational", "percent": 100, "frozen": true },
     "trigger": { "status": "validated", "percent": 100, "frozen": true, "migrations": ["0006", "0009"] },
-    "auth_hook": { "status": "installed_registered_blocked", "percent": 60, "frozen": true, "migration": "0007", "issue": "ISSUE-001" },
+    "auth_hook": { "status": "operational", "percent": 100, "frozen": true, "migration": "0011" },
     "bootstrap": { "status": "validated", "percent": 100, "note": "Admin API -> auth.users -> Trigger -> public.users, ids_coinciden=true" },
     "rls": { "status": "validated", "percent": 95, "frozen": true },
     "grants": { "status": "validated", "percent": 95, "frozen": true, "migrations": ["0005", "0008"] },
@@ -39,9 +39,9 @@
     "metricas": { "status": "mock", "connected": false, "requires": "ad_apis_sprint3" }
   },
   "migrations": {
-    "frozen_official": ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009"],
+    "frozen_official": ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0011"],
     "experimental_not_frozen": ["0010"],
-    "0010_status": ["EXPERIMENTAL", "HIPOTESIS", "NO_VALIDADA", "NO_CONFIRMADA", "NOT_PART_OF_FREEZE"]
+    "0010_status": ["EXPERIMENTAL", "HIPOTESIS", "DESCARTADA", "NOT_PART_OF_FREEZE"]
   },
   "toolkit_official": [
     "verify_identity_infra.sql",
@@ -54,24 +54,11 @@
   ],
   "toolkit_legacy": ["align_admin_user.sql", "verify_admin_user.sql", "bootstrap_staging.sql", "seed.sql"],
   "freeze": {
-    "frozen": ["identity_architecture_ADR011", "migrations_0001_0009", "rls", "tenant_model_agency", "dal_boundary", "secrets_server_only", "methodology"],
-    "open": ["ISSUE-001_login_fix", "module_dal_connection", "storage", "ad_apis"]
+    "frozen": ["identity_architecture_ADR011", "migrations_0001_0009_0011", "rls", "tenant_model_agency", "dal_boundary", "secrets_server_only", "methodology"],
+    "open": ["module_dal_connection", "storage", "ad_apis"]
   },
-  "issues": [
-    {
-      "id": "ISSUE-001",
-      "title": "POST /token 500 al ejecutar el Custom Access Token Hook",
-      "severity": "high",
-      "status": "under_investigation",
-      "confirmed": false,
-      "blocks_login": true,
-      "hypothesis": "El hook sobrescribe el claim reservado client_id de GoTrue (null para el admin)",
-      "next_step": "Obtener el error exacto del hook en Postgres Logs (metodo oficial de Supabase)"
-    }
-  ],
+  "issues": [],
   "risks": [
-    { "id": "R-01", "priority": "high", "desc": "ISSUE-001 bloquea el login real" },
-    { "id": "R-02", "priority": "high", "desc": "confundir la 0010 experimental con un fix confirmado" },
     { "id": "R-07", "priority": "high", "desc": "IA futura rompe la disciplina/arquitectura congelada" },
     { "id": "R-10", "priority": "high", "desc": "perdida del conocimiento del chat (mitigado por docs/release)" },
     { "id": "R-05", "priority": "medium", "desc": "doble lockfile npm/pnpm" },

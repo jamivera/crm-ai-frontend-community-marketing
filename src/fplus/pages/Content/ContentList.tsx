@@ -319,7 +319,7 @@ function KanbanCard({
 
 function ListView({ pieces, onNavigate }: { pieces: ContentPiece[]; onNavigate: (id: string) => void }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-100 bg-slate-50">

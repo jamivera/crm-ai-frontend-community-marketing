@@ -3,15 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import type { FplusRole } from '../../types';
 import { getMenuForRole, getMenuSections } from './FplusMenuItems';
+import { useFplusRole } from '../../hooks/useFplusRole';
 
 interface FplusSidebarProps {
   role: FplusRole;
   agencyName?: string;
+  onCloseMobile?: () => void;
 }
 
 const CRM_ROLES: FplusRole[] = ['agency_admin', 'account_manager', 'super_admin'];
 
-export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) {
+export function FplusSidebar({ role, agencyName = 'FPLUS', onCloseMobile }: FplusSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -28,19 +30,34 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
     });
   };
 
+  const { clientId, isClient } = useFplusRole();
   const items = getMenuForRole(role);
   const sections = getMenuSections(items);
   const canAccessCRM = CRM_ROLES.includes(role);
 
-  const isActive = (href: string) =>
-    location.pathname === href || location.pathname.startsWith(href + '/');
+  const resolvePortalHref = (href: string) => {
+    return isClient && clientId && href.startsWith('/fplus/portal/')
+      ? href.replace('/fplus/portal/', `/fplus/portal/${clientId}/`)
+      : href;
+  };
+
+  const isActive = (href: string) => {
+    const resolved = resolvePortalHref(href);
+    return location.pathname === resolved || location.pathname.startsWith(resolved + '/');
+  };
+
+  const handleNavigate = (href: string) => {
+    navigate(resolvePortalHref(href));
+    onCloseMobile?.();
+  };
 
   return (
     <aside
       className={`
         flex flex-col flex-shrink-0 border-r border-slate-200 bg-white
-        transition-all duration-200 ease-in-out
-        ${collapsed ? 'w-16' : 'w-60'}
+        transition-all duration-200 ease-in-out h-full
+        ${onCloseMobile ? 'w-full' : 'hidden md:flex'}
+        ${!onCloseMobile && collapsed ? 'w-16' : !onCloseMobile ? 'w-60' : ''}
       `}
     >
       {/* Logo / agency name */}
@@ -48,34 +65,34 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
         <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
           <span className="text-white text-xs font-bold">F+</span>
         </div>
-        {!collapsed && (
+        {(!collapsed || onCloseMobile) && (
           <span className="text-sm font-semibold text-slate-800 truncate">{agencyName}</span>
         )}
       </div>
 
       {/* Workspace switcher — only for roles with CRM access */}
-      {canAccessCRM && !collapsed && (
+      {canAccessCRM && (!collapsed || onCloseMobile) && (
         <div className="px-3 pt-3 pb-1 flex-shrink-0">
           <div className="grid grid-cols-2 bg-slate-100 rounded-lg p-0.5 gap-0.5">
             <button
-              className="py-1.5 rounded-md text-[11px] font-semibold bg-white text-green-700 shadow-sm"
+              className="py-1.5 rounded-md text-[11px] font-semibold bg-white text-green-700 shadow-sm animate-fade-in"
               disabled
             >
               ✦ Content
             </button>
             <button
-              onClick={() => navigate('/conversations')}
-              className="py-1.5 rounded-md text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+              onClick={() => { navigate('/conversations'); onCloseMobile?.(); }}
+              className="py-1.5 rounded-md text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               🗂 CRM
             </button>
           </div>
         </div>
       )}
-      {canAccessCRM && collapsed && (
+      {canAccessCRM && collapsed && !onCloseMobile && (
         <div className="px-2 pt-2 pb-1 flex-shrink-0">
           <button
-            onClick={() => navigate('/conversations')}
+            onClick={() => { navigate('/conversations'); }}
             title="Ir al CRM"
             className="w-full flex items-center justify-center py-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
           >
@@ -90,7 +107,7 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
           const sectionItems = items.filter(i => i.section === section);
           return (
             <div key={section}>
-              {!collapsed && (
+              {(!collapsed || onCloseMobile) && (
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2 mb-1">
                   {section}
                 </p>
@@ -102,8 +119,8 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
                   return (
                     <li key={item.id}>
                       <button
-                        onClick={() => navigate(item.href)}
-                        title={collapsed ? item.label : undefined}
+                        onClick={() => handleNavigate(item.href)}
+                        title={collapsed && !onCloseMobile ? item.label : undefined}
                         className={`
                           w-full flex items-center gap-3 rounded-lg px-2 py-2 text-sm
                           transition-colors duration-100 cursor-pointer
@@ -111,14 +128,14 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
                             ? 'bg-blue-50 text-blue-700 font-semibold'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }
-                          ${collapsed ? 'justify-center' : ''}
+                          ${collapsed && !onCloseMobile ? 'justify-center' : ''}
                         `}
                       >
                         <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
-                        {!collapsed && (
+                        {(!collapsed || onCloseMobile) && (
                           <span className="truncate">{item.label}</span>
                         )}
-                        {!collapsed && item.badge !== undefined && item.badge > 0 && (
+                        {(!collapsed || onCloseMobile) && item.badge !== undefined && item.badge > 0 && (
                           <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5 leading-none">
                             {item.badge}
                           </span>
@@ -133,20 +150,22 @@ export function FplusSidebar({ role, agencyName = 'FPLUS' }: FplusSidebarProps) 
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="border-t border-slate-100 p-2 flex-shrink-0">
-        <button
-          onClick={toggle}
-          className="w-full flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors text-xs"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : (
-            <>
-              <ChevronLeft className="w-4 h-4" />
-              <span>Colapsar</span>
-            </>
-          )}
-        </button>
-      </div>
+      {/* Collapse toggle (only show on desktop) */}
+      {!onCloseMobile && (
+        <div className="border-t border-slate-100 p-2 flex-shrink-0">
+          <button
+            onClick={toggle}
+            className="w-full flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors text-xs"
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : (
+              <>
+                <ChevronLeft className="w-4 h-4" />
+                <span>Colapsar</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

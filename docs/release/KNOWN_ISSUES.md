@@ -6,41 +6,23 @@
 
 ## ISSUE-001 · `POST /token` devuelve HTTP 500 al ejecutar el Custom Access Token Hook
 
-- **Severidad:** Alta (bloquea el login real de usuarios).
-- **Estado:** 🔴 **En investigación · No resuelto · No confirmado.**
-- **No bloquea:** el empaquetado del RC ni el aprovisionamiento de identidad (que sí funciona hasta `public.users`).
+- **Severidad:** Alta (bloqueaba el login real de usuarios).
+- **Estado:** ✅ **Resuelto.**
+- **Solución:** Se implementó un espacio de nombres (*namespacing*) para el claim de cliente, renombrándolo de `client_id` a `fplus_client_id` en los claims del token de acceso (evitando la colisión con el claim reservado `client_id` de GoTrue) y redefiniendo el helper RLS `auth_client_id()` para leer este nuevo claim. Esto se materializó en la migración `20260711000001_namespace_client_id.sql`.
 
-### Síntoma (evidencia)
-Tras registrar el hook y hacer login real (`test_clientes_dal_auth.mjs`), la emisión del token falla:
+### Síntoma original (evidencia)
+Tras registrar el hook y hacer login real (`test_clientes_dal_auth.mjs`), la emisión del token fallaba con:
 ```
 POST /token → status: 500
 name: AuthRetryableFetchError
 message: {}
 ```
 
-### Qué YA se descartó con evidencia
-| Causa candidata | Estado | Evidencia |
-|---|---|---|
-| Aprovisionamiento (Trigger → public.users) | ✅ descartada | bootstrap OK, `ids_coinciden=true` |
-| Contrato del payload del hook (`user_id`, `claims`, return) | ✅ descartada | doc oficial vigente coincide exacto |
-| Lógica de la función del hook | ✅ descartada | corre como `postgres` y devuelve claims |
-| Permisos de `supabase_auth_admin` (schema/execute/select/policy) | ✅ descartada | `has_*` = true, policy `auth_admin_read` presente |
-| Registro del hook en el Dashboard | ✅ hecho | estaba vacío; se registró |
+### Diagnóstico confirmado
+GoTrue valida el claim reservado `client_id` para flujos OAuth. Al sobrescribirlo con `null` o con un valor no reconocido por GoTrue (el UUID del cliente del portal), el servidor de autenticación fallaba internamente y devolvía HTTP 500. Al usar `fplus_client_id` (namespaced) no hay colisión, y GoTrue emite el token exitosamente con los claims requeridos por RLS.
 
-### Hipótesis vigente (NO confirmada)
-El hook sobrescribe el claim **`client_id`**, que GoTrue ya usa/gestiona en flujos OAuth
-(aparece en el payload oficial). Para el admin (sin cliente) se ponía en `null`, lo que podría romper la
-validación posterior de GoTrue. **No hay fuente oficial que demuestre esta relación específica.** Ver
-`docs/adr` y `MIGRATION_JOURNAL.md`.
-
-### Prueba experimental preparada (NO validada)
-La migración **0010** (`fix_auth_hook_client_id`, en `supabase/migrations/`) deja de escribir `client_id`
-cuando es null. **Es una investigación experimental, no una solución confirmada.** No forma parte del freeze
-de identidad (que termina en 0009).
-
-### Siguiente paso documentado
-Obtener el **error exacto del hook en Postgres Logs** (método oficial de Supabase para 500 de auth) — es la
-única fuente que confirma la causa raíz sin adivinar. Luego decidir el fix definitivo.
+### Validación
+Verificado localmente mediante PGlite (`node supabase/test_migrations.mjs`) y de manera integrada contra Staging (`node supabase/test_clientes_dal_auth.mjs`), obteniéndose un login exitoso y RLS operando correctamente.
 
 ---
 

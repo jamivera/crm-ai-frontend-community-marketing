@@ -8,6 +8,7 @@ interface Props { onClose: () => void; }
 export function NewCampaignModal({ onClose }: Props) {
   const clients = useFplusStore(s => s.clients);
   const createCampaign = useFplusStore(s => s.createCampaign);
+  const addProjectHistoryEvent = useFplusStore(s => s.addProjectHistoryEvent);
   const navigate = useNavigate();
   const [nombre, setNombre] = useState('');
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
@@ -41,6 +42,12 @@ export function NewCampaignModal({ onClose }: Props) {
       leads: 0,
       created_at: new Date().toISOString(),
     });
+    addProjectHistoryEvent(
+      clientId,
+      'Andrea Solís (Agencia)',
+      'campana',
+      `Campaña "${nombre.trim()}" creada de forma ${tipo} con objetivo de ${objetivo}.`
+    );
     setCreatedId(id);
     setSaving(false);
   }

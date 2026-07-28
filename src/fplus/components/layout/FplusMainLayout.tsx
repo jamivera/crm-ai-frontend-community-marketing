@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Bell, Search, ChevronDown, LogOut, Settings, User, FlaskConical, X } from 'lucide-react';
+import { Bell, Search, ChevronDown, LogOut, Settings, User, FlaskConical, X, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FplusSidebar } from './FplusSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFplusRole } from '../../hooks/useFplusRole';
 import type { FplusRole } from '../../types';
+import { useFplusStore } from '../../store';
 
 interface FplusMainLayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,16 @@ export function FplusMainLayout({ children }: FplusMainLayoutProps) {
   const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const notifications = useFplusStore(s => s.notifications) || [];
+  const markNotificationRead = useFplusStore(s => s.markNotificationRead);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Filtrar notificaciones para esta agencia
+  const currentAgencyId = (evoUser?.custom_attributes?.fplus_agency_id as string) || 'agency-pd';
+  const agencyNotifications = notifications.filter(n => n.agency_id === currentAgencyId);
+  const unreadCount = agencyNotifications.filter(n => !n.leido).length;
 
   const user = {
     name: evoUser?.name ?? evoUser?.display_name ?? 'Usuario',
@@ -27,31 +38,107 @@ export function FplusMainLayout({ children }: FplusMainLayoutProps) {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Sidebar */}
+      {/* Mobile drawer backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm md:hidden animate-fade-in"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer panel */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-250 ease-in-out md:hidden
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="absolute top-4 right-4 z-50">
+          <button onClick={() => setMobileMenuOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+        <FplusSidebar role={user.role} agencyName="Mi Agencia" onCloseMobile={() => setMobileMenuOpen(false)} />
+      </div>
+
+      {/* Sidebar (Desktop) */}
       <FplusSidebar role={user.role} agencyName="Mi Agencia" />
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Top header */}
         <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 gap-4 flex-shrink-0">
+          {/* Hamburger button for mobile */}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors md:hidden"
+            title="Abrir menú"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {/* Search */}
           <div className="flex-1 max-w-sm">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar..."
-                className="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400"
+                placeholder="Buscar campañas, tareas, archivos... (Próximamente)"
+                disabled
+                className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-not-allowed placeholder:text-slate-400 opacity-75"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
             {/* Notifications */}
-            <button className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setNotificationsOpen(p => !p)}
+                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                title="Notificaciones"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50 max-h-96 overflow-y-auto">
+                  <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Notificaciones</span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">
+                        {unreadCount} nuevas
+                      </span>
+                    )}
+                  </div>
+                  {agencyNotifications.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-slate-400 text-xs">
+                      No tienes notificaciones
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {agencyNotifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => { markNotificationRead(n.id); setNotificationsOpen(false); }}
+                          className={`px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors text-left ${
+                            !n.leido ? 'bg-blue-50/30' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-1">
+                            <span className="text-xs font-bold text-slate-800">{n.titulo}</span>
+                            <span className="text-[9px] text-slate-400">
+                              {new Date(n.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 mt-1 leading-snug">{n.mensaje}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Profile */}
             <div className="relative">
@@ -118,9 +205,9 @@ export function FplusMainLayout({ children }: FplusMainLayoutProps) {
         </main>
       </div>
 
-      {/* Click-away for profile dropdown */}
-      {profileOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+      {/* Click-away for profile/notification dropdowns */}
+      {(profileOpen || notificationsOpen) && (
+        <div className="fixed inset-0 z-40" onClick={() => { setProfileOpen(false); setNotificationsOpen(false); }} />
       )}
     </div>
   );

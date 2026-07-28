@@ -13,7 +13,8 @@ import { useFplusStore } from '../../store';
 type Tab = 'resumen' | 'contenido' | 'campanas' | 'leads' | 'brief';
 
 export default function ClientDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { clientId } = useParams<{ clientId: string }>();
+  const id = clientId;
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
   const [, setShowNewContent] = useState(false);
@@ -136,7 +137,7 @@ export default function ClientDetail() {
       {/* Tab content */}
       <div className="p-6">
         {tab === 'resumen' && <ResumenTab client={client} content={clientContent} campaigns={clientCampaigns} leads={clientLeads} clientId={id!} onNewContent={() => setShowNewContent(true)} />}
-        {tab === 'contenido' && <ContenidoTab pieces={clientContent} onNavigate={navigate} />}
+        {tab === 'contenido' && <ContenidoTab pieces={clientContent} onNavigate={navigate} onNewContent={() => navigate(`/fplus/content/new?client=${id}`)} />}
         {tab === 'campanas' && <CampanasTab campaigns={clientCampaigns} onNavigate={navigate} />}
         {tab === 'leads' && <LeadsTab leads={clientLeads} />}
         {tab === 'brief' && <BriefTab clientId={id!} hasBrief={!!brief} onNavigate={navigate} />}
@@ -208,10 +209,10 @@ function ResumenTab({ client, content, clientId }: any) {
   );
 }
 
-function ContenidoTab({ pieces, onNavigate }: any) {
+function ContenidoTab({ pieces, onNavigate, onNewContent }: any) {
   if (pieces.length === 0) {
     return <EmptyState title="Sin piezas de contenido" description="Aún no hay piezas creadas para este cliente." icon={<FileImage />} action={
-      <button className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">+ Nueva pieza</button>
+      <button onClick={onNewContent} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">+ Nueva pieza</button>
     } />;
   }
   return (

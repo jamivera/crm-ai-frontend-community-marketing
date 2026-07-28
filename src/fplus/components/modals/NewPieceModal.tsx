@@ -173,6 +173,12 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
     if (!tipo)           e.tipo = 'Falta el formato.';
     if (!plataforma)     e.plataforma = 'Falta la plataforma.';
     if (!fecha)          e.fecha = 'Falta la fecha de publicación.';
+    else {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (fecha < todayStr) {
+        e.fecha = 'No se permiten publicaciones en fechas pasadas.';
+      }
+    }
     if (!nombre.trim())  e.nombre = 'Falta el nombre de la pieza.';
     if (!copy.trim())    e.copy = 'Falta el copy.';
     setErrors(e);

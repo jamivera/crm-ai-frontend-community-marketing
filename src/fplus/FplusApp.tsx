@@ -66,17 +66,17 @@ export default function FplusApp() {
               {/* Clients */}
               <Route path="clients" element={<ClientList />} />
               <Route path="clients/new" element={<Placeholder />} />
-              <Route path="clients/:id/*" element={<ClientWorkspace />} />
+              <Route path="clients/:clientId/*" element={<ClientWorkspace />} />
 
               {/* Campaigns */}
               <Route path="campaigns" element={<CampaignList />} />
               <Route path="campaigns/new" element={<NewCampaignPage />} />
-              <Route path="campaigns/:id" element={<CampaignDetail />} />
+              <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
 
               {/* Content */}
               <Route path="content" element={<ContentList />} />
               <Route path="content/new" element={<NewContentPage />} />
-              <Route path="content/:id" element={<ContentDetail />} />
+              <Route path="content/:contentId" element={<ContentDetail />} />
 
               {/* Calendar */}
               <Route path="calendar" element={<CalendarView />} />
@@ -89,7 +89,7 @@ export default function FplusApp() {
 
               {/* Publications */}
               <Route path="publications" element={<PublicationList />} />
-              <Route path="publications/:id" element={<PublicationDetail />} />
+              <Route path="publications/:publicationId" element={<PublicationDetail />} />
 
               {/* Leads */}
               <Route path="leads" element={<LeadsPipeline />} />

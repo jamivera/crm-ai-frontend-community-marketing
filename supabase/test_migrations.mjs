@@ -20,6 +20,7 @@ const MIGRATIONS = [
   '20260705000008_service_role_grants.sql',
   '20260705000009_fix_trigger_gotrue_timing.sql',
   '20260705000010_fix_auth_hook_client_id.sql',
+  '20260711000001_namespace_client_id.sql',
 ];
 const SEED = [
   'seed_agencies','seed_users','seed_clients','seed_contracts','seed_briefs',
@@ -125,8 +126,19 @@ if (!failed) {
       ) as out
     `))[0].out;
     const c = hook.claims || {};
-    const clientKey = ('client_id' in c);   // 0010: debe OMITIRSE cuando es null (Andrea no tiene client_id)
-    identity.push(`Auth Hook claims ${c.agency_id ? '✅' : '❌'} · agency_id=${c.agency_id ?? '(ausente)'} rol=${c.rol ?? '(ausente)'} · client_id ${clientKey ? 'presente=' + c.client_id : 'omitido ✅ (0010)'}`);
+    const clientKey = ('fplus_client_id' in c);   // 0011: debe OMITIRSE cuando es null (Andrea no tiene client_id)
+    identity.push(`Auth Hook claims ${c.agency_id ? '✅' : '❌'} · agency_id=${c.agency_id ?? '(ausente)'} rol=${c.rol ?? '(ausente)'} · fplus_client_id ${clientKey ? 'presente=' + c.fplus_client_id : 'omitido ✅ (namespaced)'}`);
+
+    // (c2) AUTH HOOK CLIENT: para un usuario del portal cliente (Marco)
+    const MARCO = '22222222-0000-0000-0000-0000000000c1';
+    const hookMarco = (await q(`
+      select public.custom_access_token_hook(
+        jsonb_build_object('user_id','${MARCO}','claims','{}'::jsonb)
+      ) as out
+    `))[0].out;
+    const cMarco = hookMarco.claims || {};
+    const clientKeyMarco = ('fplus_client_id' in cMarco);
+    identity.push(`Auth Hook claims (Cliente) ${cMarco.fplus_client_id ? '✅' : '❌'} · agency_id=${cMarco.agency_id ?? '(ausente)'} rol=${cMarco.rol ?? '(ausente)'} · fplus_client_id=${cMarco.fplus_client_id ?? '(ausente)'}`);
 
     // (d) Simula el flujo REAL de GoTrue (0009): INSERT sin app_metadata NO debe
     //     provisionar ni romper; el UPDATE posterior de app_metadata SÍ provisiona.

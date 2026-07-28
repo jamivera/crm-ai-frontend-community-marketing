@@ -37,7 +37,7 @@ export default function PortalPauta() {
         </p>
         <p className="text-xs mt-1.5">
           {incluyePauta
-            ? 'Tu equipo de Primero Digital está seleccionando el mejor contenido para tu inversión. Pronto verás aquí la estrategia.'
+            ? `Tu equipo de ${client?.agency_name || 'la Agencia'} está seleccionando el mejor contenido para tu inversión. Pronto verás aquí la estrategia.`
             : 'Consulta con tu Account Manager para agregar publicidad digital a tu plan.'}
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function PortalPauta() {
           </div>
         </div>
         <p className="text-[10px] text-blue-300/70 mt-2">
-          La inversión se paga directamente a las plataformas publicitarias. Primero Digital gestiona la estrategia.
+          La inversión se paga directamente a las plataformas publicitarias. ${client?.agency_name || 'La Agencia'} gestiona la estrategia.
         </p>
       </div>
 

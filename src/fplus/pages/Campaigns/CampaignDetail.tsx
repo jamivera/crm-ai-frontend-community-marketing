@@ -23,7 +23,8 @@ const CAMPAIGN_STATE_LABELS: Record<string, string> = {
 type Tab = 'resumen' | 'contenido' | 'publicaciones' | 'metricas';
 
 export default function CampaignDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { campaignId } = useParams<{ campaignId: string }>();
+  const id = campaignId;
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('resumen');
 

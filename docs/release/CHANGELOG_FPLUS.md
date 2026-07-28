@@ -18,12 +18,13 @@
 | `20260705000007` | auth_hook_custom_claims | `custom_access_token_hook` lee `public.users` e inyecta `agency_id/rol/client_id`; grants + policy `auth_admin_read` para `supabase_auth_admin` | Claims de tenant en el JWT para RLS |
 | `20260705000008` | service_role_grants | SELECT a `service_role` en `agencies` y `users` | Evidencia: bootstrap dio `42501` (service_role sin GRANT) |
 | `20260705000009` | fix_trigger_gotrue_timing | Trigger pasa a `AFTER INSERT OR UPDATE OF raw_app_meta_data`; sin tenant → `return new` (no raise) | Evidencia: GoTrue escribe `app_metadata` en un UPDATE tras el INSERT → el trigger hacía rollback (500 en createUser) |
+| `20260711000001` | namespace_client_id | Se renombra el claim de cliente a `fplus_client_id` en JWT y se actualiza el helper `auth_client_id()` de RLS | Resolución definitiva de ISSUE-001 (evita colisiones con claim reservado de GoTrue) |
 
-### Experimental (NO parte del freeze)
+### Experimental / Descartados
 
 | Versión | Nombre | Qué cambió | Estado |
 |---|---|---|---|
-| `20260705000010` | fix_auth_hook_client_id | El hook no escribe `client_id` cuando es null | 🧪 **Hipótesis no validada** del ISSUE-001 |
+| `20260705000010` | fix_auth_hook_client_id | El hook no escribe `client_id` cuando es null | ❌ **Descartada** en favor de namespacing definitivo en `0011` |
 
 ### Tooling / hygiene
 

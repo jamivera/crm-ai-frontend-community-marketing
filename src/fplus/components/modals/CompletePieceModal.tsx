@@ -3,6 +3,7 @@ import { X, Upload, Sparkles, Send } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { CONTENT_TYPE_LABELS } from '../../constants';
 import { generateCopy } from '../../utils/copyGenerator';
+import { saveMediaFile } from '../../utils/db';
 import type { ContentPiece } from '../../types';
 
 // Completar contenido de una pieza planificada por IA:
@@ -17,14 +18,15 @@ interface Props {
 export function CompletePieceModal({ piece, onClose }: Props) {
   const updateContent = useFplusStore(s => s.updateContent);
   const updateContentState = useFplusStore(s => s.updateContentState);
+  const uploadFileAndProcess = useFplusStore(s => s.uploadFileAndProcess);
   const client = useFplusStore(s => s.clients.find(c => c.id === piece.client_id));
 
   const [copy, setCopy] = useState(piece.copy_activo ?? '');
   const [hashtags, setHashtags] = useState<string[]>(piece.hashtags ?? []);
-  const [filePreview, setFilePreview] = useState<string | null>(piece.archivos[0]?.url ?? null);
-  const [fileName, setFileName] = useState<string | null>(piece.archivos[0]?.nombre ?? null);
+  const [filePreview, setFilePreview] = useState<string | null>(piece.archivos?.[0]?.url ?? null);
+  const [fileName, setFileName] = useState<string | null>(piece.archivos?.[0]?.nombre ?? null);
   const [fileType, setFileType] = useState<'imagen' | 'video' | null>(
-    (piece.archivos[0]?.tipo as 'imagen' | 'video') ?? null,
+    (piece.archivos?.[0]?.tipo as 'imagen' | 'video') ?? null,
   );
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -60,29 +62,44 @@ export function CompletePieceModal({ piece, onClose }: Props) {
     }
   };
 
-  const save = (enviar: boolean) => {
+  const save = async (enviar: boolean) => {
     if (enviar && (!filePreview || !copy.trim())) {
       setError(!filePreview ? 'Falta subir imagen o video.' : 'Falta el copy.');
       return;
     }
     const now = new Date().toISOString();
+    const fileId = piece.archivos?.[0]?.id ?? `cf_${Date.now()}`;
+    let fileUrl = piece.archivos?.[0]?.url ?? '';
+    const isNewFile = filePreview && filePreview.startsWith('data:');
+
+    if (isNewFile) {
+      try {
+        await saveMediaFile(fileId, filePreview);
+        fileUrl = `indexeddb:${fileId}`;
+      } catch (e) {
+        setError('Error al guardar el archivo multimedia.');
+        return;
+      }
+    }
+
+    // 1. Guardar copy y hashtags
     updateContent(piece.id, {
       copy_activo: copy.trim() || undefined,
       hashtags,
-      archivos: filePreview && fileName && fileType ? [{
-        id: piece.archivos[0]?.id ?? `cf_${Date.now()}`,
-        nombre: fileName,
-        tipo: fileType,
-        url: filePreview,
-        thumbnail_url: fileType === 'imagen' ? filePreview : undefined,
-        tamanio_bytes: 0,
-        version: (piece.archivos[0]?.version ?? 0) + 1,
-        es_version_activa: true,
-        subido_por_nombre: 'Agencia',
-        created_at: now,
-      }] : piece.archivos,
       updated_at: now,
     });
+
+    // 2. Si es un archivo nuevo, disparar el procesamiento asíncrono basado en eventos
+    if (isNewFile) {
+      uploadFileAndProcess(piece.id, {
+        id: fileId,
+        nombre: fileName || 'archivo.png',
+        tipo: fileType || 'imagen',
+        url: fileUrl,
+        size: 3.4 * 1024 * 1024, // 3.4 MB peso simulado
+      });
+    }
+
     if (enviar) updateContentState(piece.id, 'enviado_cliente', 'Agencia');
     onClose();
   };

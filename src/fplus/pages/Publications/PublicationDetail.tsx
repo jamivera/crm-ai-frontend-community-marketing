@@ -20,7 +20,8 @@ const PUB_STATE = {
 };
 
 export default function PublicationDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { publicationId } = useParams<{ publicationId: string }>();
+  const id = publicationId;
   const navigate = useNavigate();
 
   const publications = useFplusStore(s => s.publications);

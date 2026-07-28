@@ -156,7 +156,8 @@ const INDUSTRY_PROFILES: IndustryProfile[] = [
   },
 ];
 
-export function getIndustryProfile(industria: string): IndustryProfile {
+export function getIndustryProfile(industria?: string): IndustryProfile {
+  if (!industria) return GENERIC_PROFILE;
   const key = industria.toLowerCase();
   return INDUSTRY_PROFILES.find(p => p.match.some(m => key.includes(m))) ?? GENERIC_PROFILE;
 }
@@ -188,10 +189,10 @@ export const SMART_EVENTS: SmartEvent[] = [
 // Eventos del mes relevantes para un cliente (feriados/comerciales para todos;
 // sectoriales solo si coincide la industria; 'cliente' solo si coincide el id).
 export function getMonthEvents(
-  year: number, month: number, industria: string, clientId?: string,
+  year: number, month: number, industria?: string, clientId?: string,
   extraEvents: SmartEvent[] = [],
 ): SmartEvent[] {
-  const key = industria.toLowerCase();
+  const key = (industria ?? '').toLowerCase();
   return [...SMART_EVENTS, ...extraEvents].filter(ev => {
     const d = new Date(ev.fecha + 'T12:00:00');
     if (d.getFullYear() !== year || d.getMonth() !== month) return false;
@@ -213,6 +214,14 @@ export interface ProposedPiece {
   plataforma: Platform;
   razon_estrategica: string;
   evento?: SmartEvent; // si la pieza coincide con un evento del calendario
+  // Campos estratégicos (Andrómeda AI)
+  objetivo_marketing?: string;
+  etapa_embudo?: 'reconocimiento' | 'consideracion' | 'conversion' | 'remarketing';
+  cta_propuesto?: string;
+  tono_sugerido?: string;
+  explicacion_estrategica?: string;
+  copy_sugerido?: string;
+  hashtags_sugeridos?: string[];
 }
 
 export interface PlanInput {
@@ -233,8 +242,131 @@ export interface PlanResult {
 
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
+function getIndustrySuggestions(industria: string, tipo: ContentType, objetivo: MarketingObjective): { copy: string; hashtags: string[] } {
+  const ind = (industria || '').toLowerCase();
+  const isGastro = ind.includes('gastro') || ind.includes('restaur') || ind.includes('comida') || ind.includes('food');
+  const isBelleza = ind.includes('belleza') || ind.includes('beauty') || ind.includes('bienestar') || ind.includes('spa') || ind.includes('estetic');
+  const isProfessional = ind.includes('legal') || ind.includes('abogad') || ind.includes('b2b') || ind.includes('consult') || ind.includes('tecnolog') || ind.includes('saas') || ind.includes('seguros');
+  const isRetail = ind.includes('retail') || ind.includes('tienda') || ind.includes('moda') || ind.includes('ecommerce');
+  const isInmob = ind.includes('inmobiliar') || ind.includes('real estate') || ind.includes('construc');
+
+  let copy = '';
+  let hashtags: string[] = [];
+
+  if (isGastro) {
+    hashtags = ['#Gastronomia', '#Foodies', '#Restaurante', '#SaborUnico'];
+    if (tipo === 'reel' || tipo === 'tiktok') {
+      copy = `🎬 [REEL/TIKTOK] GANCHO (3s): ¿El plato que cura cualquier mal día? Te lo mostramos en cámara lenta. 🤤\n\nCONTENIDO: Detrás de cámaras en la cocina de Primero Digital. La textura crujiente de nuestro plato estrella.\n\nCTA: Comenta tu ingrediente favorito y te enviamos un descuento especial por DM.`;
+    } else if (tipo === 'carrusel') {
+      copy = `📸 [CARRUSEL] Desliza para conocer el proceso de 5 pasos para lograr la cocción perfecta en casa. 🍽️\n\nSlide 1: El secreto de nuestro chef\nSlide 2: Selección del ingrediente premium\nSlide 3: Temperatura exacta\nSlide 4: El emplatado final\nSlide 5: ¡Disfrútalo hoy!\n\nCTA: Guarda este carrusel para tu próxima cena.`;
+    } else if (tipo === 'historia') {
+      copy = `📱 [HISTORIA INTERACTIVA] ¿Almuerzo ligero o banquete completo? 🥗vs🍔\n\nIdea: Inserta sticker de encuesta.\n\nCopy: Recuerda que puedes pedir tu favorito a domicilio haciendo clic en el enlace.`;
+    } else {
+      copy = `🖼️ [POST] El ingrediente secreto del sabor único de Primero Digital. Cuidamos cada detalle desde el huerto hasta tu mesa. 🍽️\n\nCTA: Cuéntanos, ¿con quién compartirías este plato hoy?`;
+    }
+  } else if (isBelleza) {
+    hashtags = ['#BeautyTips', '#SkincareEcuador', '#SpaDay', '#CuidadoPersonal'];
+    if (tipo === 'reel' || tipo === 'tiktok') {
+      copy = `🎬 [REEL/TIKTOK] GANCHO (3s): 3 errores en tu rutina de skincare que están resecando tu piel. 🧴\n\nCONTENIDO: Tutorial rápido aplicando el serum nutritivo de Primero Digital.\n\nCTA: Comparte esto con una amiga que necesite cuidar su piel hoy.`;
+    } else if (tipo === 'carrusel') {
+      copy = `📸 [CARRUSEL] Rutina nocturna paso a paso para un cutis radiante. ✨\n\nSlide 1: Limpieza profunda\nSlide 2: Tónico equilibrante\nSlide 3: Serum de ácido hialurónico\nSlide 4: Crema hidratante selladora\n\nCTA: Toca dos veces si te sirvió esta rutina.`;
+    } else if (tipo === 'historia') {
+      copy = `📱 [HISTORIA] ¡Últimos turnos disponibles para este fin de semana en spa! 💆‍♀️\n\nIdea: Sticker de enlace "Agendar Cita".\n\nCopy: Consiéntete como te lo mereces.`;
+    } else {
+      copy = `🖼️ [POST] Regálate un momento de bienestar absoluto. En Primero Digital cuidamos tu belleza natural con tratamientos personalizados. ✨\n\nCTA: Escríbenos por mensaje directo para una evaluación gratuita de tu tipo de piel.`;
+    }
+  } else if (isProfessional) {
+    hashtags = ['#ConsultoriaB2B', '#EstrategiaLegal', '#ServiciosProfesionales', '#LiderazgoEmpresarial'];
+    if (tipo === 'reel' || tipo === 'tiktok') {
+      copy = `🎬 [REEL/TIKTOK] GANCHO (3s): La cláusula oculta que podría anular tu contrato de servicios profesionales. 📝\n\nCONTENIDO: Explicación de experto sobre validez contractual y protección de propiedad intelectual.\n\nCTA: Envíanos un DM para asesorarte en la redacción de contratos.`;
+    } else if (tipo === 'carrusel') {
+      copy = `📸 [CARRUSEL] Guía práctica: 3 indicadores clave de rendimiento (KPIs) en tu negocio. 📊\n\nSlide 1: Margen bruto por cliente\nSlide 2: Costo de Adquisición de Clientes (CAC)\nSlide 3: Tasa de Retención de Clientes\n\nCTA: Desliza y guarda esta información clave para tu junta directiva.`;
+    } else if (tipo === 'historia') {
+      copy = `📱 [HISTORIA] ¿Conoces el porcentaje de riesgo fiscal de tu empresa este año? 💼\n\nIdea: Sticker de barra interactiva.\n\nCopy: Conversa con uno de nuestros consultores haciendo clic aquí.`;
+    } else {
+      copy = `🖼️ [POST] Evita contingencias y multas innecesarias en tu operación. Nuestro equipo legal y corporativo audita y protege tu negocio paso a paso. 💼\n\nCTA: Agenda una llamada de diagnóstico sin costo tocando el enlace del perfil.`;
+    }
+  } else if (isRetail) {
+    hashtags = ['#EcommerceEcuador', '#ModaTendencia', '#TiendaOnline', '#EstiloUnico'];
+    if (tipo === 'reel' || tipo === 'tiktok') {
+      copy = `🎬 [REEL/TIKTOK] GANCHO (3s): ¿Cómo combinar nuestro abrigo estrella para 3 ocasiones distintas? 🧥\n\nCONTENIDO: Oufits de oficina, casual y noche.\n\nCTA: Comenta tu favorito (1, 2 o 3) y te enviamos la guía de precios.`;
+    } else if (tipo === 'carrusel') {
+      copy = `📸 [CARRUSEL] Desliza para ver la nueva colección de temporada de Primero Digital. 🛍️\n\nSlide 1: Paleta de colores cálidos\nSlide 2: Prendas esenciales de algodón\nSlide 3: Accesorios sugeridos\n\nCTA: Compra en línea con envío gratuito por esta semana.`;
+    } else if (tipo === 'historia') {
+      copy = `📱 [HISTORIA] ¡Últimos turnos disponibles de nuestra mochila impermeable! 🎒\n\nIdea: Sticker de cuenta regresiva.\n\nCopy: Toca el enlace para ordenar antes de que se agoten.`;
+    } else {
+      copy = `🖼️ [POST] Diseños exclusivos pensados para durar. Fabricamos cada prenda con materiales sustentables y acabados premium. 🛍️\n\nCTA: Haz clic en nuestra biografía para explorar toda la tienda.`;
+    }
+  } else if (isInmob) {
+    hashtags = ['#BienesRaices', '#InversionesInmobiliarias', '#CasaPropia', '#HogarDigital'];
+    if (tipo === 'reel' || tipo === 'tiktok') {
+      copy = `🎬 [REEL/TIKTOK] GANCHO (3s): ¿Buscas un departamento con esta espectacular terraza en la ciudad? 🏢\n\nCONTENIDO: Tour rápido mostrando las amenidades y acabados de lujo.\n\nCTA: Envíanos un mensaje directo para cotizar y ver planes de financiamiento.`;
+    } else if (tipo === 'carrusel') {
+      copy = `📸 [CARRUSEL] 3 factores clave para calcular la plusvalía de tu próxima inversión. 🏠\n\nSlide 1: Ubicación y vías de acceso\nSlide 2: Proyectos comerciales cercanos\nSlide 3: Tasa de arriendo promedio de la zona\n\nCTA: Guarda este carrusel estratégico antes de comprar.`;
+    } else if (tipo === 'historia') {
+      copy = `📱 [HISTORIA] ¿Prefieres vivir en el norte o en los valles? 🌳vs🏢\n\nIdea: Encuesta interactiva.\n\nCopy: Conoce nuestros proyectos activos haciendo clic en el enlace.`;
+    } else {
+      copy = `🖼️ [POST] Tu próximo hogar te está esperando. Primero Digital presenta el nuevo complejo residencial con facilidades de entrega. 🏠\n\nCTA: Agenda una visita presencial este fin de semana escribiéndonos por DM.`;
+    }
+  } else {
+    hashtags = ['#EstrategiaDigital', '#PrimeroDigital', '#ContenidoDeValor', '#MarketingDigital'];
+    if (tipo === 'reel' || tipo === 'tiktok') {
+      copy = `🎬 [REEL/TIKTOK] GANCHO (3s): El gran error de marketing que te cuesta clientes todos los días. 📉\n\nCONTENIDO: Análisis estratégico de embudo de ventas y CTA confuso.\n\nCTA: Comparte esto para que otros emprendedores eviten este error.`;
+    } else if (tipo === 'carrusel') {
+      copy = `📸 [CARRUSEL] Desliza para aprender cómo estructurar una oferta de alto valor. 🚀\n\nSlide 1: Identificación del problema real\nSlide 2: Transformación del cliente\nSlide 3: Entrega y bonos estratégicos\n\nCTA: Guarda este post y empieza a vender más hoy.`;
+    } else if (tipo === 'historia') {
+      copy = `📱 [HISTORIA] ¿Tienes clara tu meta de ventas para este mes? 📈\n\nIdea: Encuesta de barra.\n\nCopy: Descubre cómo te ayudamos a lograrla tocando aquí.`;
+    } else {
+      copy = `🖼️ [POST] Creamos y optimizamos el ecosistema digital de tu marca. Primero Digital te ayuda a automatizar procesos y escalar tu visibilidad. 🚀\n\nCTA: Escríbenos para conversar sobre tu estrategia digital.`;
+    }
+  }
+
+  if (objetivo === 'conversion') {
+    copy += `\n\n🎯 OFERTA POR TIEMPO LIMITADO: Obtén un diagnóstico gratis haciendo clic en el link de la biografía.`;
+  }
+
+  return { copy, hashtags };
+}
+
+function getFunnelStage(tipo: ContentType, objetivo: MarketingObjective | undefined, idx: number): 'reconocimiento' | 'consideracion' | 'conversion' | 'remarketing' {
+  if (objetivo === 'alcance' || objetivo === 'lanzamiento') {
+    if (tipo === 'reel' || tipo === 'tiktok') return 'reconocimiento';
+    if (tipo === 'carrusel') return 'consideracion';
+    if (tipo === 'historia') return 'consideracion';
+    return idx % 3 === 0 ? 'conversion' : 'reconocimiento';
+  }
+  if (objetivo === 'conversion') {
+    if (tipo === 'carrusel' || tipo === 'post_imagen') {
+      return idx % 2 === 0 ? 'conversion' : 'remarketing';
+    }
+    if (tipo === 'reel' || tipo === 'tiktok') return 'consideracion';
+    return 'conversion';
+  }
+  if (objetivo === 'comunidad') {
+    if (tipo === 'historia') return 'consideracion';
+    if (tipo === 'carrusel') return 'consideracion';
+    if (tipo === 'reel' || tipo === 'tiktok') return 'reconocimiento';
+    return 'consideracion';
+  }
+  // Fallback
+  if (tipo === 'reel' || tipo === 'tiktok') return 'reconocimiento';
+  if (tipo === 'carrusel') return 'consideracion';
+  return idx % 2 === 0 ? 'conversion' : 'consideracion';
+}
+
+function getCTA(stage: string): string {
+  switch (stage) {
+    case 'reconocimiento': return 'Guarda este post o compártelo con alguien que lo necesite';
+    case 'consideracion': return 'Cuéntanos en los comentarios: ¿cuál ha sido tu experiencia con este tema?';
+    case 'conversion': return 'Haz clic en el enlace de nuestro perfil para agendar tu asesoría o cotizar';
+    case 'remarketing': return 'Envíanos un mensaje directo ahora para asegurar tu cupo especial';
+    default: return 'Síguenos para no perderte las próximas actualizaciones';
+  }
+}
+
 // Ajuste de puntaje por objetivo de marketing
-function objectiveBoost(objetivo: MarketingObjective, tipo: ContentType, dow: number): number {
+function objectiveBoost(objetivo?: MarketingObjective, tipo?: ContentType, dow?: number): number {
+  if (!objetivo || !tipo || dow === undefined) return 0;
   switch (objetivo) {
     case 'alcance':
       return tipo === 'reel' || tipo === 'tiktok' ? 2 : 0;
@@ -262,24 +394,116 @@ function pickPlatform(tipo: ContentType, redes: Platform[]): Platform {
   return redes[0] ?? 'instagram';
 }
 
+function generateStrategicExplanation(
+  tipo: ContentType,
+  stage: string,
+  objetivo: MarketingObjective,
+  dow: number,
+  hora: string,
+  plataforma: Platform,
+  industria: string
+): string {
+  const dowName = DAY_NAMES[dow];
+  const ind = (industria || '').toLowerCase();
+  
+  let targetAudience = 'los usuarios';
+  let platformReason = '';
+  
+  if (ind.includes('gastro') || ind.includes('food') || ind.includes('restaur')) {
+    targetAudience = 'comensales hambrientos buscando opciones locales';
+    if (plataforma === 'instagram') {
+      platformReason = 'El algoritmo de Instagram favorece el antojo gastronómico visual en formato vertical.';
+    } else if (plataforma === 'tiktok') {
+      platformReason = 'La sección "Para ti" de TikTok impulsa la virilidad de platos preparados y recetas rápidas.';
+    }
+  } else if (ind.includes('b2b') || ind.includes('saas') || ind.includes('legal') || ind.includes('consult') || ind.includes('servicios')) {
+    targetAudience = 'tomadores de decisión y profesionales corporativos';
+    if (plataforma === 'linkedin') {
+      platformReason = 'LinkedIn premia carruseles nativos en formato PDF por su alto tiempo de permanencia (dwell time).';
+    } else if (plataforma === 'instagram') {
+      platformReason = 'Instagram humaniza la marca corporativa mostrando el equipo y los procesos operativos.';
+    }
+  } else if (ind.includes('retail') || ind.includes('moda') || ind.includes('ecommerce') || ind.includes('tienda')) {
+    targetAudience = 'compradores buscando inspiración y tendencias';
+    platformReason = 'Las plataformas premian los carruseles de productos porque permiten la doble visualización en el feed principal.';
+  }
+
+  let stageGoal = '';
+  if (stage === 'reconocimiento') {
+    stageGoal = 'captar la atención de audiencias frías y expandir el alcance de la marca';
+  } else if (stage === 'consideracion') {
+    stageGoal = 'generar confianza, educar sobre tus diferenciales y retener al prospecto';
+  } else if (stage === 'conversion') {
+    stageGoal = 'incentivar el contacto directo o la compra inmediata con un CTA explícito';
+  } else {
+    stageGoal = 'reactivar y recordar el valor de tu oferta a usuarios templados que ya mostraron interés';
+  }
+
+  const timeReason = dow >= 5 
+    ? 'aprovechando el mayor ocio y desconexión del fin de semana' 
+    : 'capturando el tráfico de alta atención durante la semana laboral';
+
+  return `Programado el ${dowName} a las ${hora} vía ${plataforma} alineado al objetivo de ${objetivo}. Este formato de ${tipo} se enfoca en la etapa de ${stage} para dirigir la comunicación a ${targetAudience} y ${stageGoal}. ${platformReason} Publicación oportuna ${timeReason}.`;
+}
+
 export function generatePlan(input: PlanInput): PlanResult {
   const { client, year, month, objetivo, extraEvents = [] } = input;
-  // tipo_mercado (asistente de creación) tiene prioridad sobre industria libre
   const profile = getIndustryProfile(client.tipo_mercado ?? client.industria);
   const redes = client.redes_contratadas ?? ['instagram'];
   const distribucion = client.distribucion_piezas ?? {};
-  const events = getMonthEvents(year, month, client.industria, client.id, extraEvents);
+  
+  const todayVal = new Date();
+  const isCurrentMonth = todayVal.getFullYear() === year && todayVal.getMonth() === month;
+
+  // Cargar eventos del mes y el siguiente si es móvil
+  let events = getMonthEvents(year, month, client.industria ?? 'General', client.id, extraEvents);
+  if (isCurrentMonth) {
+    const nextMonthVal = month === 11 ? 0 : month + 1;
+    const nextYearVal = month === 11 ? year + 1 : year;
+    const nextEvents = getMonthEvents(nextYearVal, nextMonthVal, client.industria ?? 'General', client.id, extraEvents);
+    events = [...events, ...nextEvents];
+  }
+  const eventByDateStr = new Map<string, SmartEvent>();
+  events.forEach(ev => eventByDateStr.set(ev.fecha, ev));
+
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const eventByDay = new Map<number, SmartEvent>();
-  events.forEach(ev => eventByDay.set(new Date(ev.fecha + 'T12:00:00').getDate(), ev));
+  // Generar rango de fechas a planificar
+  const rawDates: { year: number; month: number; day: number; dateStr: string }[] = [];
+  if (isCurrentMonth) {
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(year, month, todayVal.getDate() + i);
+      rawDates.push({
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        day: d.getDate(),
+        dateStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      });
+    }
+  } else {
+    for (let d = 1; d <= daysInMonth; d++) {
+      rawDates.push({
+        year,
+        month,
+        day: d,
+        dateStr: `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      });
+    }
+  }
 
-  // Cola de piezas a colocar: formatos "fuertes" primero para que tomen los mejores días.
+  // Filtrar para planificar estrictamente desde hoy en adelante (sin generar hacia el pasado)
+  const todayZero = new Date();
+  todayZero.setHours(0, 0, 0, 0);
+  const datesToPlan = rawDates.filter(d => {
+    const target = new Date(d.year, d.month, d.day);
+    return target >= todayZero;
+  });
+
   const queue: ContentType[] = [];
   const strongOrder: ContentType[] = ['reel', 'post_video', 'tiktok', 'carrusel', 'post_imagen', 'historia', 'historia_video'];
   const sortedTypes = (Object.entries(distribucion) as [ContentType, number][])
     .sort((a, b) => strongOrder.indexOf(a[0]) - strongOrder.indexOf(b[0]));
-  // Intercalado round-robin para favorecer la alternancia natural
+  
   const counters = sortedTypes.map(([, qty]) => qty);
   let remaining = counters.reduce((a, b) => a + b, 0);
   while (remaining > 0) {
@@ -292,69 +516,132 @@ export function generatePlan(input: PlanInput): PlanResult {
     }
   }
 
-  const piecesPerDay = new Map<number, ContentType[]>();
+  const piecesPerDateStr = new Map<string, ContentType[]>();
   const proposed: ProposedPiece[] = [];
 
-  // Máximo de piezas por día: mantener respiración en el mes.
-  const maxPerDay = queue.length > daysInMonth ? 2 : 1;
-
-  const scoreDay = (day: number, tipo: ContentType): number => {
-    const dow = new Date(year, month, day).getDay();
+  const scoreDay = (targetDate: typeof datesToPlan[number], tipo: ContentType, pieceIndex: number): number => {
+    const dateObj = new Date(targetDate.year, targetDate.month, targetDate.day);
+    const dow = dateObj.getDay();
     const base = (profile.dayScores[tipo] ?? GENERIC_PROFILE.dayScores[tipo] ?? [3,3,3,3,3,3,3])[dow];
     let score = base + objectiveBoost(objetivo, tipo, dow);
-    // Bonificar días con eventos relevantes
-    if (eventByDay.has(day)) score += 3;
-    // Penalizar saturación del día
-    const used = piecesPerDay.get(day)?.length ?? 0;
-    score -= used * 4;
-    // Alternancia: penalizar mismo formato en días consecutivos (regla blanda,
-    // las historias son formato ligero y quedan exentas)
-    if (tipo !== 'historia' && tipo !== 'historia_video') {
-      const prev = piecesPerDay.get(day - 1) ?? [];
-      const next = piecesPerDay.get(day + 1) ?? [];
-      if (prev.includes(tipo) || next.includes(tipo)) score -= 3;
+    
+    // Penalización para domingos (relegar a menor prioridad editorial)
+    if (dow === 0) {
+      score -= 4.0;
     }
-    // Distribución temporal: penalizar aglomeración en la misma semana
-    const week = Math.floor((day - 1) / 7);
-    const inWeek = proposed.filter(p => Math.floor((new Date(p.fecha + 'T12:00:00').getDate() - 1) / 7) === week && p.tipo === tipo).length;
-    score -= inWeek * 1.5;
+    
+    const dateStr = targetDate.dateStr;
+    const ev = eventByDateStr.get(dateStr);
+    if (ev) score += 3.5;
+    
+    const used = piecesPerDateStr.get(dateStr)?.length ?? 0;
+    score -= used * 4.5;
+    
+    if (tipo !== 'historia' && tipo !== 'historia_video') {
+      const prevDate = new Date(targetDate.year, targetDate.month, targetDate.day - 1);
+      const prevDateStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
+      const nextDate = new Date(targetDate.year, targetDate.month, targetDate.day + 1);
+      const nextDateStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+      
+      const prev = piecesPerDateStr.get(prevDateStr) ?? [];
+      const next = piecesPerDateStr.get(nextDateStr) ?? [];
+      if (prev.includes(tipo) || next.includes(tipo)) score -= 3.5;
+    }
+    
+    const index = datesToPlan.findIndex(d => d.dateStr === dateStr);
+    const week = Math.floor(index / 7);
+    const inWeek = proposed.filter((p, pIdx) => Math.floor(pIdx / 7) === week && p.tipo === tipo).length;
+    score -= inWeek * 2.0;
+
+    const sameDowPrevWeeks = proposed.some(p => {
+      const pDate = new Date(p.fecha + 'T12:00:00');
+      const pDow = pDate.getDay();
+      const diffMs = Math.abs(dateObj.getTime() - pDate.getTime());
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      return p.tipo === tipo && pDow === dow && diffDays <= 7;
+    });
+    if (sameDowPrevWeeks) score -= 3.0;
+
+    // Distribución Uniforme Slot-Balancing
+    const idealIndex = Math.floor((pieceIndex * datesToPlan.length) / queue.length);
+    const distance = Math.abs(index - idealIndex);
+    score -= distance * 0.25;
+
+    const jitter = Math.sin(targetDate.day * 13 + tipo.charCodeAt(0)) * 1.5;
+    score += jitter;
+
     return score;
   };
 
+  let pieceIndex = 0;
   for (const tipo of queue) {
-    let bestDay = 1;
+    let bestDate = datesToPlan[0];
     let bestScore = -Infinity;
-    for (let day = 1; day <= daysInMonth; day++) {
-      if ((piecesPerDay.get(day)?.length ?? 0) >= maxPerDay) continue;
-      const s = scoreDay(day, tipo);
-      if (s > bestScore) { bestScore = s; bestDay = day; }
+    const maxPerDay = queue.length > datesToPlan.length ? 2 : 1;
+
+    for (const targetDate of datesToPlan) {
+      if ((piecesPerDateStr.get(targetDate.dateStr)?.length ?? 0) >= maxPerDay) continue;
+      const s = scoreDay(targetDate, tipo, pieceIndex);
+      if (s > bestScore) {
+        bestScore = s;
+        bestDate = targetDate;
+      }
     }
-    const date = new Date(year, month, bestDay);
+    
+    const date = new Date(bestDate.year, bestDate.month, bestDate.day);
     const dow = date.getDay();
-    const evento = eventByDay.get(bestDay);
+    const evento = eventByDateStr.get(bestDate.dateStr);
     const notaBase = profile.notas[tipo] ?? GENERIC_PROFILE.notas[tipo] ?? 'distribución estratégica del formato';
+    const stage = getFunnelStage(tipo, objetivo, pieceIndex);
+    const cta = getCTA(stage);
+    const textSuggest = getIndustrySuggestions(client.tipo_mercado ?? client.industria, tipo, objetivo);
+    const toneString = client.color_corporativo ? 'Dinámico y corporativo' : 'Profesional y persuasivo';
+
     const razon = evento
-      ? `${cap(tipoLabel(tipo))} el ${DAY_NAMES[dow]} ${bestDay}: coincide con ${evento.nombre} — oportunidad de contenido temático.`
+      ? `${cap(tipoLabel(tipo))} el ${DAY_NAMES[dow]} ${bestDate.day}: coincide con ${evento.nombre} — oportunidad de contenido temático.`
       : `${cap(tipoLabel(tipo))} el ${DAY_NAMES[dow]}: ${notaBase}.`;
+
+    const explicacion = generateStrategicExplanation(
+      tipo,
+      stage,
+      objetivo,
+      dow,
+      profile.horaSugerida[tipo] ?? '12:00',
+      pickPlatform(tipo, redes),
+      client.tipo_mercado ?? client.industria
+    );
 
     proposed.push({
       tempId: `prop-${proposed.length + 1}`,
       tipo,
-      fecha: `${year}-${String(month + 1).padStart(2, '0')}-${String(bestDay).padStart(2, '0')}`,
+      fecha: bestDate.dateStr,
       hora: profile.horaSugerida[tipo] ?? '12:00',
       plataforma: pickPlatform(tipo, redes),
       razon_estrategica: razon,
       evento,
+      objetivo_marketing: objetivo,
+      etapa_embudo: stage,
+      cta_propuesto: cta,
+      tono_sugerido: toneString,
+      explicacion_estrategica: explicacion,
+      copy_sugerido: textSuggest.copy,
+      hashtags_sugeridos: textSuggest.hashtags
     });
-    const arr = piecesPerDay.get(bestDay) ?? [];
+    
+    const arr = piecesPerDateStr.get(bestDate.dateStr) ?? [];
     arr.push(tipo);
-    piecesPerDay.set(bestDay, arr);
+    piecesPerDateStr.set(bestDate.dateStr, arr);
+    pieceIndex++;
   }
 
   proposed.sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   const emptyDays: number[] = [];
-  for (let d = 1; d <= daysInMonth; d++) if (!piecesPerDay.has(d)) emptyDays.push(d);
+  datesToPlan.forEach(d => {
+    if (!piecesPerDateStr.has(d.dateStr)) {
+      emptyDays.push(d.day);
+    }
+  });
 
   return { pieces: proposed, events, emptyDays };
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle2, MessageSquare, AlertCircle,
@@ -6,9 +6,13 @@ import {
 } from 'lucide-react';
 import { usePortalContext } from './PortalContext';
 import { CompletePieceModal } from '../../components/modals/CompletePieceModal';
+import { LazyMedia } from '../../components/ui/LazyMedia';
+import { SocialPreview } from '../../components/ui/SocialPreview';
 import { useFplusStore, STATE_TRANSITIONS, ACTION_LABELS } from '../../store';
 import { CONTENT_STATE_LABELS, CONTENT_TYPE_LABELS, getPriority } from '../../constants';
 import type { ContentState } from '../../types';
+
+import { validatePieceCompleteness } from '../../utils/clientHelpers';
 
 const PENDING_STATES: ContentState[] = ['enviado_cliente', 'en_revision_cliente'];
 
@@ -21,8 +25,10 @@ export function PortalApprovalsList() {
   const contentPieces = useFplusStore(s => s.contentPieces);
   const portalComments = useFplusStore(s => s.portalComments);
 
+
   const pending = contentPieces
     .filter(cp => cp.client_id === clientId && PENDING_STATES.includes(cp.estado))
+    .filter(cp => validatePieceCompleteness(cp).isComplete)
     .sort((a, b) => getPriority(a.fecha_publicacion).rank - getPriority(b.fecha_publicacion).rank);
 
   if (pending.length === 0) {
@@ -53,20 +59,19 @@ export function PortalApprovalsList() {
 
       <div className="space-y-3">
         {pending.map(cp => {
-          const file = cp.archivos.find(a => a.url);
-          const isImg = file && file.tipo === 'imagen';
+          const file = cp.archivos?.find(a => a.url);
           return (
             <button
               key={cp.id}
-              onClick={() => navigate(`${location.pathname.replace(/\/$/, '')}/${cp.id}`)}
+              onClick={() => {
+                navigate(`${location.pathname.replace(/\/$/, '')}/${cp.id}`);
+              }}
               className="w-full flex gap-3 bg-white border border-slate-200 rounded-2xl p-3 text-left active:scale-[0.98] transition-transform"
             >
               {/* Miniatura del material cargado por la agencia */}
               <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
-                {isImg ? (
-                  <img src={file!.url} alt="" className="w-full h-full object-cover" />
-                ) : file ? (
-                  <video src={file.url} className="w-full h-full object-cover" muted />
+                {file ? (
+                  <LazyMedia src={file.url} typeHint={file.tipo} className="w-full h-full" />
                 ) : (
                   <span className="text-xl">🖼️</span>
                 )}
@@ -107,13 +112,17 @@ export function PortalApprovalsList() {
 // ─── Detail / Review view ─────────────────────────────────────────────────────
 
 export function PortalApprovalDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { approvalId } = useParams<{ approvalId: string }>();
+  const id = approvalId;
   const navigate = useNavigate();
   const location = useLocation();
   const { clientId, clientNombre } = usePortalContext();
-  // Vista agencia (workspace) vs portal del cliente
   const isAgency = location.pathname.startsWith('/fplus/clients/');
   const deleteContent = useFplusStore(s => s.deleteContent);
+  const goBack = () => {
+    const base = location.pathname.replace(/\/(calendar|multimedia|approvals|cronopost|metrics|brand|pauta|campaigns).*$/, '');
+    navigate(`${base}/approvals`);
+  };
 
   const contentPieces = useFplusStore(s => s.contentPieces);
   const briefs = useFplusStore(s => s.briefs);
@@ -125,21 +134,111 @@ export function PortalApprovalDetail() {
 
   const cp = contentPieces.find(c => c.id === id && c.client_id === clientId);
   const brief = briefs[clientId];
+  const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
   const comments = portalComments[id ?? ''] ?? [];
+
+  const activeFile = cp?.archivos?.find(a => a.es_version_activa) ?? cp?.archivos?.[0];
+  const hasMedia = !!activeFile?.url;
+  const hasMediaReady = hasMedia && (activeFile?.estado_procesamiento === 'ready' || !activeFile?.estado_procesamiento);
 
   const [commentText, setCommentText] = useState('');
   const [actionTaken, setActionTaken] = useState<'approved' | 'changes' | null>(null);
+  const [showChangesInput, setShowChangesInput] = useState(false);
+  const [changesText, setChangesText] = useState('');
+  const [expandedHistory, setExpandedHistory] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [editPlan, setEditPlan] = useState(false);
   const updateContent = useFplusStore(s => s.updateContent);
-  const [showChangesInput, setShowChangesInput] = useState(false);
-  const [changesText, setChangesText] = useState('');
+
+  // Edición directa del cliente (V1 Readiness)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCopy, setEditCopy] = useState(cp?.copy_activo || '');
+  const [editHashtags, setEditHashtags] = useState(cp?.hashtags?.join(' ') || '');
+  const [editError, setEditError] = useState('');
+
+  const startEditing = () => {
+    if (!cp) return;
+    setEditCopy(cp.copy_activo || '');
+    setEditHashtags(cp.hashtags?.join(' ') || '');
+    setEditError('');
+    setIsEditing(true);
+  };
+
+  const handleSaveClientEdits = () => {
+    if (!cp) return;
+    
+    // Formatear hashtags
+    const rawHashtags = editHashtags.trim()
+      ? editHashtags.trim().split(/\s+/).filter(Boolean)
+      : [];
+    
+    const nextHashtags = rawHashtags.map(h => h.startsWith('#') ? h : `#${h}`);
+    
+    if (nextHashtags.length > 5) {
+      setEditError('Por seguridad y buenas prácticas, puedes definir un máximo de 5 hashtags.');
+      return;
+    }
+    
+    setEditError('');
+    
+    // Trazabilidad de cambios detallada
+    const previousCopy = cp.copy_activo || '(Vacio)';
+    const previousHashtags = cp.hashtags?.join(' ') || '(Ninguno)';
+    
+    updateContent(cp.id, {
+      copy_activo: editCopy,
+      hashtags: nextHashtags
+    });
+    
+    addPortalComment(cp.id, {
+      id: `edit-${Date.now()}`,
+      autor: clientNombre,
+      esAgencia: false,
+      texto: `📝 Editó el contenido del post:\n\n* **Copy anterior:**\n"${previousCopy}"\n\n* **Nuevo Copy:**\n"${editCopy}"\n\n* **Hashtags anteriores:** ${previousHashtags}\n* **Nuevos Hashtags:** ${nextHashtags.join(' ') || '(Ninguno)'}`,
+      timestamp: new Date().toISOString()
+    });
+
+    setIsEditing(false);
+  };
+
+  // Combinar historial de estados y comentarios en una sola línea de tiempo
+  const historyList = useMemo(() => {
+    if (!cp) return [];
+    const logs: { id: string; type: 'comment' | 'status'; autor: string; esAgencia: boolean; texto: string; timestamp: string; estado_anterior?: string; estado_nuevo?: string }[] = [];
+    
+    comments.forEach(c => {
+      logs.push({
+        id: c.id,
+        type: 'comment',
+        autor: c.autor,
+        esAgencia: c.esAgencia,
+        texto: c.texto,
+        timestamp: c.timestamp
+      });
+    });
+    
+    const stateLogs = useFplusStore.getState().stateHistory.filter(sh => sh.content_piece_id === cp.id);
+    stateLogs.forEach(sh => {
+      logs.push({
+        id: sh.id,
+        type: 'status',
+        autor: sh.actor,
+        esAgencia: sh.actor === 'Agencia',
+        texto: `Cambió el estado a "${CONTENT_STATE_LABELS[sh.estado_nuevo] || sh.estado_nuevo}"`,
+        timestamp: sh.timestamp,
+        estado_anterior: sh.estado_anterior,
+        estado_nuevo: sh.estado_nuevo
+      });
+    });
+    
+    return logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }, [comments, cp]);
 
   if (!cp) {
     return (
       <div className="px-4 pt-10 text-center text-slate-400">
         <p className="text-sm">Pieza no encontrada.</p>
-        <button onClick={() => navigate(isAgency ? location.pathname.replace(/\/approvals\/.*$/, '/approvals') : `/fplus/portal/${clientId}/approvals`)} className="mt-3 text-blue-600 text-sm">
+        <button onClick={goBack} className="mt-3 text-blue-600 text-sm">
           ← Volver
         </button>
       </div>
@@ -197,7 +296,7 @@ export function PortalApprovalDetail() {
             : 'Tus comentarios fueron enviados. El equipo los revisará y te enviará una nueva versión.'}
         </p>
         <button
-          onClick={() => navigate(isAgency ? location.pathname.replace(/\/approvals\/.*$/, '/approvals') : `/fplus/portal/${clientId}/approvals`)}
+          onClick={goBack}
           className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm"
         >
           Ver siguiente pendiente
@@ -211,7 +310,7 @@ export function PortalApprovalDetail() {
       {/* Header */}
       <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 z-10">
         <button
-          onClick={() => navigate(isAgency ? location.pathname.replace(/\/approvals\/.*$/, '/approvals') : `/fplus/portal/${clientId}/approvals`)}
+          onClick={goBack}
           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -240,19 +339,30 @@ export function PortalApprovalDetail() {
         )}
       </div>
 
-      <div className="px-4 py-4 space-y-4">
+      {!isAgency && !hasMedia ? (
+        <div className="p-8 max-w-md mx-auto text-center space-y-4 mt-8">
+          <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm flex flex-col items-center space-y-4">
+            <span className="text-4xl">⏳</span>
+            <h2 className="text-lg font-bold text-slate-800">Contenido pendiente de carga</h2>
+            <p className="text-xs text-slate-500 max-w-sm">
+              La agencia aún no ha subido el material multimedia para esta publicación. Vuelve más tarde para revisarlo.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="px-4 py-4 space-y-4">
         {/* Pieza planificada por IA: separar edición de planificación vs contenido */}
         {isAgency && cp.origen === 'planificada' && (
           <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 space-y-2.5">
-            {(cp.archivos.length === 0 || !cp.copy_activo) && (
+            {((cp.archivos?.length ?? 0) === 0 || !cp.copy_activo) && (
               <div className="flex items-start gap-2">
                 <span className="text-sm">✨</span>
                 <div>
                   <p className="text-xs font-semibold text-violet-700">Esta publicación fue generada por IA.</p>
                   <p className="text-[11px] text-violet-600 mt-0.5">
                     🟡 Pendiente de completar:
-                    {cp.archivos.length === 0 && ' subir imagen o video'}
-                    {cp.archivos.length === 0 && !cp.copy_activo && ' ·'}
+                    {((cp.archivos?.length ?? 0) === 0) && ' subir imagen o video'}
+                    {((cp.archivos?.length ?? 0) === 0) && !cp.copy_activo && ' ·'}
                     {!cp.copy_activo && ' copy y hashtags'}.
                   </p>
                 </div>
@@ -266,7 +376,10 @@ export function PortalApprovalDetail() {
                 ✏️ Editar planificación
               </button>
               <button
-                onClick={() => setShowComplete(true)}
+                onClick={() => {
+                  const base = location.pathname.replace(/\/(calendar|multimedia|approvals|cronopost|metrics|brand|pauta|campaigns).*$/, '');
+                  navigate(`${base}/multimedia?edit=${cp.id}`);
+                }}
                 className="flex-1 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700"
               >
                 📂 Completar contenido
@@ -306,51 +419,149 @@ export function PortalApprovalDetail() {
           </div>
         )}
 
-        {/* Razón estratégica del planificador */}
-        {cp.razon_estrategica && (
-          <div className="flex items-start gap-2 bg-violet-50 border border-violet-100 rounded-2xl p-3">
-            <span className="text-sm">✨</span>
-            <p className="text-xs text-violet-700 leading-relaxed">{cp.razon_estrategica}</p>
-          </div>
-        )}
-
-        {/* Preview placeholder */}
-        {cp.archivos.length > 0 && cp.archivos[0].url ? (
-          <div className="rounded-2xl overflow-hidden bg-slate-900 max-h-80 flex items-center justify-center">
-            {cp.archivos[0].tipo?.startsWith('video') || /\.(mp4|mov)/i.test(cp.archivos[0].nombre ?? '') ? (
-              <video src={cp.archivos[0].url} controls className="max-h-80 w-full object-contain" />
-            ) : (
-              <img src={cp.archivos[0].url} alt={cp.nombre} className="max-h-80 w-full object-contain" />
-            )}
-          </div>
+        {/* Preview block with realistic SocialPreview */}
+        {hasMedia ? (
+          hasMediaReady ? (
+            <div className="py-2">
+              <SocialPreview
+                tipo={cp.tipo}
+                plataforma={cp.plataforma || 'instagram'}
+                mediaUrls={(cp.archivos?.map(a => a.url) ?? []).filter(Boolean)}
+                mediaTipo={cp.archivos?.[0]?.tipo ?? 'imagen'}
+                copy={cp.copy_activo}
+                hashtags={cp.hashtags}
+                clientNombre={clientNombre}
+                clientLogo={client?.logo_url}
+                fechaProgramada={cp.fecha_publicacion ? new Date(cp.fecha_publicacion).toLocaleDateString('es-ES') : undefined}
+                objetivo={cp.objetivo_marketing}
+                etapaEmbudo={cp.etapa_embudo}
+                isClientView={!isAgency}
+              />
+            </div>
+          ) : (
+            /* Procesando / Procesamiento Event-driven */
+            <div className="bg-slate-900 rounded-3xl h-[420px] max-w-[420px] mx-auto flex flex-col items-center justify-center p-6 text-center text-white border border-slate-800 space-y-4 shadow-xl">
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 rounded-full border-4 border-slate-700/60" />
+                <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 animate-spin" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-100 flex items-center justify-center gap-1.5 animate-pulse">
+                  {activeFile?.estado_procesamiento === 'pending'
+                    ? '⏳ Contenido cargado (En cola)'
+                    : '⚙️ Procesando multimedia...'}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-2 max-w-[280px] leading-relaxed mx-auto">
+                  {activeFile?.estado_procesamiento === 'pending'
+                    ? 'Preparando pipeline de almacenamiento Supabase...'
+                    : 'Comprimiendo material visual y generando layouts de red social...'}
+                </p>
+              </div>
+            </div>
+          )
         ) : (
-          <div className="rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 h-52 flex flex-col items-center justify-center">
-            <span className="text-5xl mb-2">{getTypeEmoji(cp.tipo)}</span>
-            <p className="text-xs text-slate-400 capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</p>
-            <p className="text-xs text-slate-300 mt-1">Archivo aún no cargado</p>
+          <div className="space-y-4">
+            <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 h-56 flex flex-col items-center justify-center p-6 text-center">
+              <span className="text-4xl mb-2">⏳</span>
+              <p className="text-sm font-bold text-slate-700">Contenido pendiente de carga</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                La agencia aún no ha subido el material multimedia para esta publicación.
+              </p>
+              {!isAgency && (
+                <button
+                  onClick={() => {
+                    useFplusStore.getState().addProjectHistoryEvent(
+                      cp.client_id,
+                      clientNombre || 'Cliente',
+                      'contenido',
+                      `El cliente solicitó la carga del contenido de la pieza: "${cp.nombre}"`
+                    );
+                    window.alert('✉️ Solicitud enviada a la agencia. Tu Account Manager ha sido notificado.');
+                  }}
+                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95"
+                >
+                  Solicitar contenido a la agencia
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {/* Copy + Hashtags */}
         {(cp.copy_activo || (brief?.hashtags_habituales?.length ?? 0) > 0) && (
           <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
-            {cp.copy_activo && (
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Copy</p>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{cp.copy_activo}</p>
-              </div>
-            )}
-            {((cp.hashtags?.length ?? 0) > 0 || (brief?.hashtags_habituales?.length ?? 0) > 0) && (
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Hashtags</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {((cp.hashtags?.length ?? 0) > 0 ? cp.hashtags! : brief?.hashtags_habituales ?? []).map(tag => (
-                    <span key={tag} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-                      {tag}
-                    </span>
-                  ))}
+            {isEditing ? (
+              <div className="space-y-3">
+                {editError && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-[11px] font-semibold rounded-xl animate-shake">
+                    ⚠️ {editError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Editar Copy</label>
+                  <textarea
+                    value={editCopy}
+                    onChange={e => setEditCopy(e.target.value)}
+                    rows={4}
+                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Editar Hashtags</label>
+                  <input
+                    type="text"
+                    value={editHashtags}
+                    onChange={e => setEditHashtags(e.target.value)}
+                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="#ejemplo #tag"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1 py-1.5 border border-slate-200 text-slate-500 text-[11px] font-semibold rounded-xl hover:bg-slate-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveClientEdits}
+                    className="flex-1 py-1.5 bg-blue-600 text-white text-[11px] font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    Guardar cambios
+                  </button>
                 </div>
               </div>
+            ) : (
+              <>
+                {cp.copy_activo && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Copy</p>
+                      {!isAgency && isPending && (
+                        <button
+                          onClick={startEditing}
+                          className="text-xs text-blue-600 font-semibold hover:underline"
+                        >
+                          ✏️ Proponer cambios
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{cp.copy_activo}</p>
+                  </div>
+                )}
+                {((cp.hashtags?.length ?? 0) > 0 || (brief?.hashtags_habituales?.length ?? 0) > 0) && (
+                  <div className="pt-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Hashtags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {((cp.hashtags?.length ?? 0) > 0 ? cp.hashtags! : brief?.hashtags_habituales ?? []).map(tag => (
+                        <span key={tag} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -372,48 +583,81 @@ export function PortalApprovalDetail() {
                   🕐 {new Date(cp.fecha_publicacion).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 text-right -mt-1">
-                Mayor probabilidad de alcance según la estrategia aplicada
-              </p>
             </>
           )}
-          {cp.pilar && <MetaRow label="Pilar" value={cp.pilar} />}
-          {cp.tono && cp.tono.length > 0 && <MetaRow label="Tono" value={cp.tono.join(', ')} />}
-          {cp.fecha_limite && (
-            <MetaRow
-              label="Fecha límite"
-              value={new Date(cp.fecha_limite).toLocaleDateString('es', { day: 'numeric', month: 'long' })}
-            />
+          {/* Mostrar detalles estratégicos solo si la multimedia está cargada y lista */}
+          {hasMediaReady && (
+            <>
+              {cp.pilar && <MetaRow label="Pilar" value={cp.pilar} />}
+              {isAgency && cp.tono && cp.tono.length > 0 && <MetaRow label="Tono" value={cp.tono.join(', ')} />}
+              {isAgency && cp.tono_sugerido && <MetaRow label="Tono sugerido" value={cp.tono_sugerido} />}
+              {!isAgency && cp.objetivo_marketing && <MetaRow label="Objetivo" value={cp.objetivo_marketing} />}
+              {isAgency && cp.etapa_embudo && <MetaRow label="Etapa del embudo" value={cp.etapa_embudo} />}
+              {isAgency && cp.fecha_limite && (
+                <MetaRow
+                  label="Fecha límite"
+                  value={new Date(cp.fecha_limite).toLocaleDateString('es', { day: 'numeric', month: 'long' })}
+                />
+              )}
+              {isAgency && <MetaRow label="Iteración" value={`${cp.iteraciones} de ${cp.max_iteraciones}`} />}
+            </>
           )}
-          <MetaRow label="Iteración" value={`${cp.iteraciones} de ${cp.max_iteraciones}`} />
         </div>
 
-        {/* Comments thread */}
-        {comments.length > 0 && (
+        {/* Timeline Histórico y Comentarios */}
+        {historyList.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Comentarios</p>
-            {comments.map(c => (
-              <div
-                key={c.id}
-                className={`flex gap-2 ${c.esAgencia ? '' : 'flex-row-reverse'}`}
-              >
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  c.esAgencia ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                }`}>
-                  {c.autor.charAt(0)}
-                </div>
-                <div className={`max-w-[78%] ${c.esAgencia ? '' : 'items-end'} flex flex-col gap-0.5`}>
-                  <p className={`text-[10px] text-slate-400 ${c.esAgencia ? '' : 'text-right'}`}>{c.autor}</p>
-                  <div className={`px-3 py-2 rounded-2xl text-sm ${
-                    c.esAgencia
-                      ? 'bg-slate-100 text-slate-700 rounded-tl-none'
-                      : 'bg-blue-600 text-white rounded-tr-none'
-                  }`}>
-                    {c.texto}
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Historial y Conversación</p>
+            <div className="relative pl-4 border-l border-slate-200 space-y-4">
+              {(expandedHistory ? historyList : historyList.slice(0, 3)).map(log => {
+                const isComment = log.type === 'comment';
+                const date = new Date(log.timestamp);
+                const timeString = date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+                const dateString = date.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+                
+                return (
+                  <div key={log.id} className="relative">
+                    {/* Circle dot on left timeline border */}
+                    <div className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full border bg-white ${
+                      log.type === 'status'
+                        ? log.estado_nuevo === 'aprobado_final'
+                          ? 'border-emerald-500 bg-emerald-100'
+                          : log.estado_nuevo === 'cambios_solicitados'
+                            ? 'border-orange-500 bg-orange-100'
+                            : 'border-blue-500 bg-blue-100'
+                        : 'border-slate-300 bg-slate-100'
+                    }`} />
+                    
+                    <div className="flex justify-between items-center text-[10px] text-slate-400 mb-0.5">
+                      <span className="font-semibold text-slate-600">{log.autor}</span>
+                      <span>{dateString} · {timeString}</span>
+                    </div>
+                    
+                    {isComment ? (
+                      <div className={`px-3 py-2 rounded-2xl text-xs inline-block max-w-[90%] leading-relaxed ${
+                        log.esAgencia
+                          ? 'bg-slate-100 text-slate-700 rounded-tl-none'
+                          : 'bg-blue-600 text-white rounded-tr-none'
+                      }`}>
+                        {log.texto}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">
+                        {log.texto}
+                      </p>
+                    )}
                   </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
+            {historyList.length > 3 && (
+              <button
+                onClick={() => setExpandedHistory(!expandedHistory)}
+                className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 mt-1"
+              >
+                {expandedHistory ? 'Ver menos' : `Ver más (${historyList.length - 3} eventos anteriores)`}
+              </button>
+            )}
           </div>
         )}
 
@@ -438,43 +682,67 @@ export function PortalApprovalDetail() {
         </div>
 
         {/* Acciones de la agencia — flujo de estados (Enviar a revisión, Aprobar, etc.) */}
-        {isAgency && (STATE_TRANSITIONS[cp.estado]?.length ?? 0) > 0 && (
-          <div className="bg-white border border-slate-100 rounded-2xl p-4">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Acciones del equipo</p>
-            <div className="flex flex-wrap gap-2">
-              {STATE_TRANSITIONS[cp.estado]!.map(next => {
-                const label = ACTION_LABELS[cp.estado]?.[next] ?? next;
-                const isSend = next === 'enviado_cliente';
-                const isApprove = next === 'aprobado_cliente' || next === 'aprobado_final' || next === 'publicado';
-                return (
-                  <button
-                    key={next}
-                    onClick={() => updateContentState(cp.id, next, 'Agencia')}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                      isSend ? 'bg-blue-600 text-white hover:bg-blue-700' :
-                      isApprove ? 'bg-emerald-600 text-white hover:bg-emerald-700' :
-                      'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+        {isAgency && (STATE_TRANSITIONS[cp.estado]?.length ?? 0) > 0 && (() => {
+          const { isComplete, missing } = validatePieceCompleteness(cp);
+          return (
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Acciones del equipo</p>
+              
+              {!isComplete && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2 text-red-800 text-[11px]">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Contenido Incompleto</p>
+                    <p className="mt-0.5">Para enviar a revisión al cliente, debes completar:</p>
+                    <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                      {missing.map((m, idx) => <li key={idx}>{m}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {STATE_TRANSITIONS[cp.estado]!
+                  .filter(next => !(next === 'aprobado_cliente' || next === 'cambios_solicitados'))
+                  .map(next => {
+                    const label = ACTION_LABELS[cp.estado]?.[next] ?? next;
+                    const isSend = next === 'enviado_cliente' || next === 'en_revision_cliente';
+                    const isApprove = next === 'aprobado_final' || next === 'publicado';
+                    const disabled = isSend && !isComplete;
+                    return (
+                      <button
+                        key={next}
+                        onClick={() => updateContentState(cp.id, next, 'Agencia')}
+                        disabled={disabled}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                          disabled ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed' :
+                          isSend ? 'bg-blue-600 text-white hover:bg-blue-700' :
+                          isApprove ? 'bg-emerald-600 text-white hover:bg-emerald-700' :
+                          'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Al enviar a revisión, el cliente lo verá en su portal, se habilitan los comentarios y el Dashboard marcará el pendiente.
+              </p>
             </div>
-            <p className="text-[10px] text-slate-400 mt-2">
-              Al enviar a revisión, el cliente lo verá en su portal, se habilitan los comentarios y el Dashboard marcará el pendiente.
-            </p>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Action buttons */}
-        {isPending && (
+        {!isAgency && isPending && (
           <div className="space-y-2 pt-2 pb-4">
             {showChangesInput && (
               <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-orange-800">¿Qué cambios necesitas?</p>
-                  <button onClick={() => setShowChangesInput(false)}>
+                  <p className="text-sm font-semibold text-orange-800">
+                    ¿Qué cambios necesitas? <span className="text-red-500 font-bold">*</span>
+                  </p>
+                  <button onClick={() => { setShowChangesInput(false); setChangesText(''); }}>
                     <X className="w-4 h-4 text-orange-400" />
                   </button>
                 </div>
@@ -491,25 +759,30 @@ export function PortalApprovalDetail() {
 
             <button
               onClick={handleApprove}
-              className="w-full py-3.5 bg-emerald-600 text-white rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+              disabled={!hasMediaReady}
+              className={`w-full py-3.5 text-white rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform ${
+                hasMediaReady ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-300 cursor-not-allowed opacity-50'
+              }`}
             >
               <CheckCircle2 className="w-5 h-5" />
-              Aprobar esta pieza
+              {hasMediaReady ? 'Aprobar' : 'Aprobar (Espera procesamiento)'}
             </button>
             <button
               onClick={handleRequestChanges}
+              disabled={(showChangesInput && !changesText.trim()) || !hasMediaReady}
               className={`w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all border ${
                 showChangesInput
-                  ? 'bg-orange-500 text-white border-orange-500'
-                  : 'bg-white text-orange-600 border-orange-200'
+                  ? 'bg-orange-500 text-white border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                  : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed'
               }`}
             >
               <AlertCircle className="w-5 h-5" />
-              {showChangesInput ? 'Enviar cambios' : 'Solicitar cambios'}
+              {showChangesInput ? 'Enviar comentarios de revisión' : 'Solicitar revisión'}
             </button>
           </div>
         )}
       </div>
+      )}
 
       {showComplete && (
         <CompletePieceModal piece={cp} onClose={() => setShowComplete(false)} />
@@ -527,11 +800,3 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getTypeEmoji(tipo: string): string {
-  const map: Record<string, string> = {
-    reel: '🎬', carrusel: '🖼️', historia: '📱', historia_video: '📱',
-    post_imagen: '🖼️', post_video: '🎥', tiktok: '🎵', video_youtube: '▶️',
-    banner: '🎨', infografia: '📊', blog: '📝',
-  };
-  return map[tipo] ?? '📄';
-}

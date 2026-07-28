@@ -62,9 +62,38 @@ export type HealthStatus = 'verde' | 'amarillo' | 'rojo';
 // conservan por compatibilidad. La arquitectura admite planes personalizados
 // vía PLAN_TEMPLATES + distribución editable.
 export type PlanContratado =
-  | 'plata' | 'oro' | 'platinum'
+  | 'plata' | 'oro' | 'platinum' | 'personalizado'
   | 'basico' | 'estandar' | 'premium' | 'enterprise';
 export type PautaPublicitaria = 'no_incluye' | 'incluida_agencia' | 'cliente_paga' | 'presupuesto_compartido';
+
+export interface ServiceMilestone {
+  id: string;
+  nombre: string;
+  completado: boolean;
+  fecha_estimada?: string;
+}
+
+export interface ContractedServiceFile {
+  nombre: string;
+  url: string;
+}
+
+export interface ContractedService {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  categoria?: string;
+  precio: number;
+  estado: 'activo' | 'en_progreso' | 'entregado' | 'suspendido';
+  fecha_inicio?: string;
+  fecha_entrega?: string;
+  responsable?: string;
+  prioridad?: 'baja' | 'media' | 'alta' | 'critica';
+  observaciones?: string;
+  archivos?: ContractedServiceFile[];
+  progreso: number; // 0 to 100
+  hitos?: ServiceMilestone[];
+}
 
 // Objetivo de marketing del cliente — modula la planificación inteligente del Cronopost
 export type MarketingObjective = 'alcance' | 'conversion' | 'comunidad' | 'lanzamiento';
@@ -74,14 +103,26 @@ export type DistribucionPiezas = Partial<Record<ContentType, number>>;
 
 export interface Client {
   id: string;
+  agency_id?: string;
+  agency_name?: string;
   nombre: string;
   empresa?: string;
   industria: string;
   instagram_handle?: string;
   logo_url?: string;
+  // Identificación
+  tipo_documento?: 'cedula' | 'ruc' | 'pasaporte' | 'otro';
+  numero_documento?: string;
+  // Ubicación / Dirección
+  direccion?: string;
+  ciudad?: string;
+  provincia?: string;
+  pais?: string;
   // Contacto
   email?: string;
   telefono?: string;
+  email_facturacion?: string;
+  sitio_web?: string;
   color_corporativo?: string;
   // Mercado — usado por el Motor de Planificación Inteligente
   tipo_mercado?: string;
@@ -101,17 +142,23 @@ export interface Client {
   pauta_publicitaria?: PautaPublicitaria;
   pauta_plataformas?: string[]; // Meta Ads, Google Ads, TikTok Ads, LinkedIn Ads
   presupuesto_pauta?: number;
+  distribucion_pauta_overrides?: Record<string, number>;
+  nomenclatura_campana?: string;
+  campaign_rows?: CampaignRow[];
+  campaign_custom_columns?: string[];
   // Invitación al Portal del Cliente (demo local; con backend será
   // user_invitations + Supabase Auth — mismo flujo, mismo modelo)
   portal_invitacion?: {
     email: string;
     token: string;
     enviada_at: string;
+    expira_at?: string;
     aceptada_at?: string;
     password_demo?: string;   // SOLO entorno de pruebas; Auth real lo reemplaza
   };
   // Firma electrónica del contrato (data URL + metadata)
   firma_contrato?: { imagen: string; firmante: string; fecha: string; ip?: string; usuario?: string };
+  servicios_contratados?: ContractedService[];
   // Contrato operativo — base de la planificación del Cronopost
   piezas_mensuales?: number;
   distribucion_piezas?: DistribucionPiezas;
@@ -131,6 +178,7 @@ export interface Client {
   leads_mes: number;
   revenue_mes: number;
   created_at: string;
+  meta_conectado?: boolean;
 }
 
 export interface Campaign {
@@ -165,6 +213,12 @@ export interface ContentFile {
   es_version_activa: boolean;
   subido_por_nombre: string;
   created_at: string;
+  // Metadata técnica para lightbox y procesamiento
+  resolucion?: string;
+  duracion_segundos?: number;
+  peso_formateado?: string;
+  formato?: string;
+  estado_procesamiento?: 'pending' | 'processing' | 'ready' | 'failed';
 }
 
 export interface ContentPiece {
@@ -199,6 +253,12 @@ export interface ContentPiece {
   razon_estrategica?: string;
   // Marcada desde Multimedia para usarse en Campañas (pauta)
   seleccionado_pauta?: boolean;
+  // Parámetros estratégicos extendidos (Andrómeda AI / V1 Readiness)
+  objetivo_marketing?: string;
+  etapa_embudo?: 'reconocimiento' | 'consideracion' | 'conversion' | 'remarketing';
+  cta_propuesto?: string;
+  tono_sugerido?: string;
+  explicacion_estrategica?: string;
   created_at: string;
   updated_at: string;
 }
@@ -235,6 +295,18 @@ export interface StateEvent {
   estado_anterior?: ContentState;
   estado_nuevo: ContentState;
   actor_nombre: string;
+  created_at: string;
+}
+
+export interface FplusNotification {
+  id: string;
+  client_id: string;
+  agency_id: string;
+  titulo: string;
+  mensaje: string;
+  leido: boolean;
+  tipo: 'estado' | 'comentario' | 'sistema';
+  destinatario?: 'agencia' | 'cliente';
   created_at: string;
 }
 
@@ -417,4 +489,53 @@ export interface ActivityEvent {
   objeto: string;
   cliente?: string;
   timestamp: string;
+}
+
+export interface MultichannelReport {
+  id: string;
+  client_id: string;
+  agency_id: string;
+  mes: string; // YYYY-MM
+  meta_ads?: {
+    inversion: number;
+    impresiones: number;
+    clics: number;
+    leads: number;
+    cpr: number;
+  };
+  google_ads?: {
+    inversion: number;
+    impresiones: number;
+    clics: number;
+    leads: number;
+    cpr: number;
+  };
+  tiktok_ads?: {
+    inversion: number;
+    impresiones: number;
+    clics: number;
+    leads: number;
+    cpr: number;
+  };
+  linkedin_ads?: {
+    inversion: number;
+    impresiones: number;
+    clics: number;
+    leads: number;
+    cpr: number;
+  };
+  comentarios_estrategicos?: string;
+  creado_en: string;
+}
+
+export interface CampaignRow {
+  id: string;
+  campaign_name: string;
+  adset_name: string;
+  ad_name: string;
+  segmentation: string;
+  budget: number;
+  creative_id?: string; // ContentPiece.id
+  comments: string;
+  custom_values?: Record<string, string>; // column_name -> value
 }

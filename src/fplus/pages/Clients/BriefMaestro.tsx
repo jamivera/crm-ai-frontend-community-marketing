@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, Building2, Users, Layers, Radio,
-  Save, CheckCircle2, ChevronRight
+  CheckCircle2, ChevronRight
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { getIndustryProfile } from '../../utils/cronoplanner';
@@ -33,9 +33,9 @@ const STEPS: { key: WizardStep; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function BriefMaestro() {
-  const { id: clientId } = useParams<{ id: string }>();
+  const { clientId = '' } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { clients, getBrief, saveBrief } = useFplusStore();
+  const { clients, getBrief, saveBrief, updateClient, addProjectHistoryEvent } = useFplusStore();
 
   const client = clients.find(c => c.id === clientId);
   const existing = clientId ? getBrief(clientId) : undefined;
@@ -102,6 +102,47 @@ export default function BriefMaestro() {
   };
   const [objetivo, setObjetivo] = useState(existing?.objetivo_principal ?? '');
   const [urlLanding, setUrlLanding] = useState(existing?.url_landing ?? '');
+  const [presupuestoPauta, setPresupuestoPauta] = useState<number>(client?.presupuesto_pauta ?? 0);
+  const [pautaPlataformas, setPautaPlataformas] = useState<string[]>(client?.pauta_plataformas ?? ['Meta Ads']);
+
+  useEffect(() => {
+    if (client) {
+      setPresupuestoPauta(client.presupuesto_pauta ?? 0);
+      setPautaPlataformas(client.pauta_plataformas ?? ['Meta Ads']);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    if (existing) {
+      setPropuestaValor(existing.propuesta_valor ?? '');
+      setDiferenciadores(existing.diferenciadores ?? '');
+      setCompetencia(existing.competencia ?? '');
+      setHistoriaMarca(existing.historia_marca ?? '');
+      setObjetivosComerciales(existing.objetivos_comerciales ?? '');
+      setServicios(existing.servicios ?? '');
+      setProductos(existing.productos ?? '');
+      setTicketPromedio(existing.ticket_promedio ?? '');
+      setPresupuestoMarketing(existing.presupuesto_marketing ?? '');
+      setProcesoComercial(existing.proceso_comercial ?? '');
+      setEmbudoActual(existing.embudo_actual ?? '');
+      setPerfilCliente(existing.perfil_cliente ?? '');
+      setRangoEdad(existing.rango_edad ?? '');
+      setUbicacion(existing.ubicacion ?? '');
+      setPainPoints(existing.pain_points ?? '');
+      setMotivaciones(existing.motivaciones ?? '');
+      setObjeciones(existing.objeciones ?? '');
+      setPilares(existing.pilares ?? []);
+      setTono(existing.tono ?? []);
+      setFormatos(existing.formatos_preferidos ?? []);
+      setQueNoHacer(existing.que_no_hacer ?? '');
+      setHashtags((existing.hashtags_habituales ?? []).join(' '));
+      setPlataformas(existing.plataformas_activas ?? []);
+      setFrecuencia(existing.frecuencia_semanal?.toString() ?? '');
+      setHorarios(existing.horarios_preferidos ?? '');
+      setObjetivo(existing.objetivo_principal ?? '');
+      setUrlLanding(existing.url_landing ?? '');
+    }
+  }, [existing]);
 
   if (!client) {
     return (
@@ -118,7 +159,16 @@ export default function BriefMaestro() {
     set(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]);
   }
 
-  function handleSave() {
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  function handleSave(silent = false) {
     if (!clientId) return;
     saveBrief({
       objetivos_comerciales: objetivosComerciales,
@@ -151,8 +201,35 @@ export default function BriefMaestro() {
       url_landing: urlLanding || undefined,
       updated_at: new Date().toISOString(),
     });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3500);
+
+    let mappedObjective = 'alcance';
+    const objLower = (objetivo || '').toLowerCase();
+    if (objLower.includes('leads') || objLower.includes('venta') || objLower.includes('convers')) {
+      mappedObjective = 'conversion';
+    } else if (objLower.includes('comunidad') || objLower.includes('engage')) {
+      mappedObjective = 'comunidad';
+    } else if (objLower.includes('lanzamiento')) {
+      mappedObjective = 'lanzamiento';
+    } else if (objLower.includes('awareness') || objLower.includes('alcance')) {
+      mappedObjective = 'alcance';
+    }
+
+    updateClient(clientId, {
+      presupuesto_pauta: presupuestoPauta,
+      pauta_plataformas: pautaPlataformas,
+      objetivo_marketing: mappedObjective as any,
+    });
+
+    addProjectHistoryEvent(
+      clientId,
+      'Andrea Solís (Agencia)',
+      'brief',
+      'Edición y guardado de secciones del Brief Maestro.'
+    );
+    if (!silent) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3500);
+    }
   }
 
   const currentIdx = STEPS.findIndex(s => s.key === step);
@@ -169,7 +246,7 @@ export default function BriefMaestro() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(`/fplus/clients/${clientId}`)}
+          onClick={() => { handleSave(true); navigate(`/fplus/clients/${clientId}`); }}
           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -181,17 +258,6 @@ export default function BriefMaestro() {
           </h1>
           <p className="text-xs text-slate-400">{client.nombre}</p>
         </div>
-        <button
-          onClick={handleSave}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-            saved
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-        >
-          {saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          {saved ? 'Guardado' : 'Guardar brief'}
-        </button>
       </div>
 
       {/* Step nav */}
@@ -203,7 +269,7 @@ export default function BriefMaestro() {
           return (
             <button
               key={s.key}
-              onClick={() => setStep(s.key)}
+              onClick={() => { handleSave(true); setStep(s.key); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${
                 active ? 'bg-blue-600 text-white shadow-sm' :
                 done ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
@@ -274,8 +340,38 @@ export default function BriefMaestro() {
             <Field label="Ticket promedio">
               <input value={ticketPromedio} onChange={e => setTicketPromedio(e.target.value)} placeholder="Ej: $25 por persona" className={inp} />
             </Field>
-            <Field label="Presupuesto de marketing">
-              <input value={presupuestoMarketing} onChange={e => setPresupuestoMarketing(e.target.value)} placeholder="Ej: $500/mes en pauta" className={inp} />
+            <Field label="Presupuesto de marketing general">
+              <input value={presupuestoMarketing} onChange={e => setPresupuestoMarketing(e.target.value)} placeholder="Ej: $500/mes" className={inp} />
+            </Field>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Presupuesto Mensual de Pauta (USD)" required>
+              <input
+                type="number"
+                value={presupuestoPauta}
+                onChange={e => setPresupuestoPauta(parseFloat(e.target.value) || 0)}
+                placeholder="Ej: 500"
+                className={inp}
+              />
+            </Field>
+            <Field label="Canales de Pauta Contratados">
+              <div className="grid grid-cols-2 gap-2 mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                {['Meta Ads', 'Google Ads', 'TikTok Ads', 'LinkedIn Ads'].map(plat => (
+                  <label key={plat} className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={pautaPlataformas.includes(plat)}
+                      onChange={() => {
+                        setPautaPlataformas(prev =>
+                          prev.includes(plat) ? prev.filter(x => x !== plat) : [...prev, plat]
+                        );
+                      }}
+                      className="rounded border-slate-350 text-blue-600 focus:ring-blue-500"
+                    />
+                    {plat}
+                  </label>
+                ))}
+              </div>
             </Field>
           </div>
           <Field label="Proceso comercial">
@@ -504,29 +600,30 @@ export default function BriefMaestro() {
       <div className="flex justify-between">
         {currentIdx > 0 ? (
           <button
-            onClick={() => setStep(STEPS[currentIdx - 1].key)}
+            onClick={() => { handleSave(true); setStep(STEPS[currentIdx - 1].key); }}
             className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
             ← Atrás
           </button>
         ) : <span />}
         <div className="flex gap-2">
-          <button
-            onClick={handleSave}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              saved ? 'bg-emerald-100 text-emerald-700' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saved ? 'Guardado' : 'Guardar'}
-          </button>
-          {currentIdx < STEPS.length - 1 && (
+          {currentIdx < STEPS.length - 1 ? (
             <button
-              onClick={() => setStep(STEPS[currentIdx + 1].key)}
+              onClick={() => { handleSave(true); setStep(STEPS[currentIdx + 1].key); }}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
             >
               Siguiente
               <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                handleSave(false);
+                navigate(`/fplus/clients/${clientId}/campaigns`);
+              }}
+              className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-sm"
+            >
+              Guardar y Finalizar Brief
             </button>
           )}
         </div>

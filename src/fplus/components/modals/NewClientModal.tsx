@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Building2, FileText, Megaphone, Check } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Building2, FileText, Megaphone, Check, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFplusStore } from '../../store';
 import { PLAN_TEMPLATES, MARKET_TYPES, AD_PLATFORMS, CONTENT_TYPE_LABELS, getTypeVisual } from '../../constants';
-import type { Client, ContentType, PlanContratado, MarketingObjective, Platform } from '../../types';
+import type { Client, ContentType, PlanContratado, MarketingObjective, Platform, ContractedService } from '../../types';
 
 interface Props {
   onClose: () => void;
@@ -46,6 +46,16 @@ export function NewClientModal({ onClose }: Props) {
   const [telefono, setTelefono] = useState('');
   const [color, setColor] = useState('#2563eb');
 
+  // Identificación y ubicación
+  const [tipoDocumento, setTipoDocumento] = useState<'cedula' | 'ruc' | 'pasaporte' | 'otro'>('cedula');
+  const [numeroDocumento, setNumeroDocumento] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [ciudad, setCiudad] = useState('');
+  const [provincia, setProvincia] = useState('');
+  const [pais, setPais] = useState('Ecuador');
+  const [sitioWeb, setSitioWeb] = useState('');
+  const [emailFacturacion, setEmailFacturacion] = useState('');
+
   // Paso 2 — plan y distribución (editable)
   const [planId, setPlanId] = useState<string>('oro');
   const [distribucion, setDistribucion] = useState<Partial<Record<ContentType, number>>>(
@@ -66,6 +76,44 @@ export function NewClientModal({ onClose }: Props) {
   const [objetivo, setObjetivo] = useState<MarketingObjective>('alcance');
 
   const totalPiezas = Object.values(distribucion).reduce((a: number, b) => a + (b ?? 0), 0);
+
+  const [servicios, setServicios] = useState<ContractedService[]>([]);
+
+  const addCustomService = () => {
+    const newService: ContractedService = {
+      id: `srv-${Date.now()}`,
+      nombre: '',
+      descripcion: '',
+      categoria: 'General',
+      precio: 0,
+      estado: 'activo',
+      prioridad: 'media',
+      progreso: 0,
+      hitos: [],
+      archivos: []
+    };
+    setServicios(prev => [...prev, newService]);
+  };
+
+  const removeCustomService = (srvId: string) => {
+    setServicios(prev => {
+      const filtered = prev.filter(s => s.id !== srvId);
+      const sum = filtered.reduce((acc, s) => acc + s.precio, 0);
+      setPrecioLista(sum);
+      return filtered;
+    });
+  };
+
+  const updateCustomService = (srvId: string, field: keyof ContractedService, value: any) => {
+    setServicios(prev => {
+      const updated = prev.map(s => (s.id === srvId ? { ...s, [field]: value } : s));
+      if (field === 'precio') {
+        const sum = updated.reduce((acc, s) => acc + s.precio, 0);
+        setPrecioLista(sum);
+      }
+      return updated;
+    });
+  };
 
   const selectPlan = (id: string) => {
     setPlanId(id);
@@ -95,9 +143,30 @@ export function NewClientModal({ onClose }: Props) {
       else if (!EMAIL_RE.test(email.trim())) e.email = 'Correo electrónico inválido.';
       if (!telefono.trim()) e.telefono = 'El teléfono es obligatorio.';
       else if (!PHONE_EC.test(telefono.trim().replace(/[\s-]/g, ''))) e.telefono = 'Número telefónico inválido. Usa +593XXXXXXXXX o 09XXXXXXXX.';
+      if (numeroDocumento.trim()) {
+        if (tipoDocumento === 'cedula' && !/^\d{10}$/.test(numeroDocumento.trim())) {
+          e.numeroDocumento = 'La cédula debe contener exactamente 10 dígitos.';
+        } else if (tipoDocumento === 'ruc' && !/^\d{13}$/.test(numeroDocumento.trim())) {
+          e.numeroDocumento = 'El RUC debe contener exactamente 13 dígitos.';
+        }
+      }
+      if (emailFacturacion.trim() && !EMAIL_RE.test(emailFacturacion.trim())) {
+        e.emailFacturacion = 'Correo electrónico de facturación inválido.';
+      }
     }
     if (step === 2) {
-      if (totalPiezas === 0) e.distribucion = 'El plan debe incluir al menos una pieza mensual.';
+      if (planId !== 'personalizado' && totalPiezas === 0) {
+        e.distribucion = 'El plan debe incluir al menos una pieza mensual.';
+      }
+      if (planId === 'personalizado' && totalPiezas === 0 && servicios.length === 0) {
+        e.distribucion = 'Un plan personalizado debe incluir al menos una pieza o un servicio contratado.';
+      }
+      if (planId === 'personalizado') {
+        const emptyName = servicios.some(s => !s.nombre.trim());
+        if (emptyName) {
+          e.distribucion = 'Todos los servicios agregados deben tener un nombre.';
+        }
+      }
       if (redes.length === 0) e.redes = 'Selecciona al menos una red social contratada.';
       if (!fechaInicio) e.fechas = 'Indica la fecha de inicio del contrato.';
       else if (fechaFin && fechaFin <= fechaInicio) e.fechas = 'La fecha de fin debe ser posterior al inicio.';
@@ -114,7 +183,7 @@ export function NewClientModal({ onClose }: Props) {
   const create = () => {
     if (!validateStep()) return;
     const id = `cl-${Date.now()}`;
-    const tipoMercado = mercado === 'Otro' ? mercadoOtro.trim() : mercado;
+    const tipoMercado = (mercado === 'Otro' ? mercadoOtro.trim() : mercado) || 'General';
     const client: Client = {
       id,
       nombre: nombre.trim(),
@@ -124,6 +193,14 @@ export function NewClientModal({ onClose }: Props) {
       responsable_cliente: contacto.trim() || undefined,
       email: email.trim() || undefined,
       telefono: telefono.trim() || undefined,
+      tipo_documento: tipoDocumento,
+      numero_documento: numeroDocumento.trim() || undefined,
+      direccion: direccion.trim() || undefined,
+      ciudad: ciudad.trim() || undefined,
+      provincia: provincia.trim() || undefined,
+      pais: pais.trim() || undefined,
+      sitio_web: sitioWeb.trim() || undefined,
+      email_facturacion: emailFacturacion.trim() || undefined,
       color_corporativo: color,
       account_manager_id: 'u1',
       account_manager_name: 'Andrea Solís',
@@ -140,7 +217,8 @@ export function NewClientModal({ onClose }: Props) {
         Object.entries(distribucion).filter(([, v]) => (v ?? 0) > 0),
       ) as Partial<Record<ContentType, number>>,
       redes_contratadas: redes,
-      objetivo_marketing: objetivo,
+      servicios_contratados: planId === 'personalizado' ? servicios : undefined,
+      objetivo_marketing: objetivo || 'alcance',
       estado: 'activo',
       semaforo: 'verde',
       piezas_activas: 0,
@@ -220,23 +298,93 @@ export function NewClientModal({ onClose }: Props) {
                   <FieldError k="telefono" />
                 </div>
               </div>
-              <div>
-                <label className={labelCls}>Correo *</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contacto@cliente.com" className={inputCls + errCls('email')} />
-                <FieldError k="email" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Correo *</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contacto@cliente.com" className={inputCls + errCls('email')} />
+                  <FieldError k="email" />
+                </div>
+                <div>
+                  <label className={labelCls}>Sitio Web (opcional)</label>
+                  <input value={sitioWeb} onChange={e => setSitioWeb(e.target.value)} placeholder="https://client.com" className={inputCls} />
+                </div>
               </div>
-              <div className="flex items-end gap-3">
+
+              {/* Identificación */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Tipo de Documento</label>
+                  <select
+                    value={tipoDocumento}
+                    onChange={e => setTipoDocumento(e.target.value as any)}
+                    className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-blue-400"
+                  >
+                    <option value="cedula">Cédula</option>
+                    <option value="ruc">RUC</option>
+                    <option value="pasaporte">Pasaporte</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Número de Documento</label>
+                  <input
+                    value={numeroDocumento}
+                    onChange={e => setNumeroDocumento(e.target.value)}
+                    placeholder="Número de identificación"
+                    className={inputCls + errCls('numeroDocumento')}
+                  />
+                  <FieldError k="numeroDocumento" />
+                </div>
+              </div>
+
+              {/* Ubicación / Dirección */}
+              <div className="border border-slate-100 bg-slate-50/50 rounded-2xl p-3.5 space-y-3">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Ubicación y Dirección</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className={labelCls}>Dirección Comercial</label>
+                    <input value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Av. República del Salvador y Suecia" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Ciudad</label>
+                    <input value={ciudad} onChange={e => setCiudad(e.target.value)} placeholder="Quito" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Provincia / Estado</label>
+                    <input value={provincia} onChange={e => setProvincia(e.target.value)} placeholder="Pichincha" className={inputCls} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>País</label>
+                    <input value={pais} onChange={e => setPais(e.target.value)} placeholder="Ecuador" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Correo de Facturación</label>
+                    <input
+                      type="email"
+                      value={emailFacturacion}
+                      onChange={e => setEmailFacturacion(e.target.value)}
+                      placeholder="facturacion@empresa.com"
+                      className={inputCls + errCls('emailFacturacion')}
+                    />
+                    <FieldError k="emailFacturacion" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className={labelCls}>Color corporativo (opcional)</label>
+                  <label className={labelCls}>Color corporativo</label>
                   <div className="flex items-center gap-2">
                     <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer" />
                     <span className="text-xs text-slate-400 font-mono">{color}</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className={labelCls}>Logo</label>
-                  <div className="text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl px-3 py-2.5">
-                    Se podrá subir desde el Brief
+                  <label className={labelCls}>Logo corporativo</label>
+                  <div className="text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl px-3 py-2.5 bg-white">
+                    Subir en el Brief Maestro
                   </div>
                 </div>
               </div>
@@ -247,7 +395,7 @@ export function NewClientModal({ onClose }: Props) {
             <>
               <div>
                 <label className={labelCls}>Tipo de plan</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PLAN_TEMPLATES.map(p => (
                     <button
                       key={p.id}
@@ -258,7 +406,9 @@ export function NewClientModal({ onClose }: Props) {
                     >
                       <div className="text-xl">{p.emoji}</div>
                       <div className={`text-xs font-bold mt-1 ${planId === p.id ? 'text-blue-700' : 'text-slate-700'}`}>{p.label}</div>
-                      <div className="text-[10px] text-slate-400">{p.piezas_mensuales} piezas/mes</div>
+                      <div className="text-[10px] text-slate-400">
+                        {p.id === 'personalizado' ? 'A medida' : `${p.piezas_mensuales} piezas/mes`}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -288,6 +438,94 @@ export function NewClientModal({ onClose }: Props) {
                   })}
                 </div>
               </div>
+
+              {planId === 'personalizado' && (
+                <div className="border border-slate-150 rounded-2xl p-4 space-y-3 bg-slate-50">
+                  <div className="flex items-center justify-between">
+                    <label className={labelCls + ' mb-0'}>Servicios Personalizados Contratados</label>
+                    <button
+                      type="button"
+                      onClick={addCustomService}
+                      className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                    >
+                      + Agregar servicio
+                    </button>
+                  </div>
+                  {servicios.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No hay servicios agregados. Haz clic en '+ Agregar servicio'.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {servicios.map((s) => (
+                        <div key={s.id} className="bg-white border border-slate-200 rounded-xl p-3 space-y-2 relative">
+                          <button
+                            type="button"
+                            onClick={() => removeCustomService(s.id)}
+                            className="absolute top-2 right-2 p-1 hover:bg-slate-50 rounded text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-[9px] font-semibold text-slate-400 uppercase">Nombre</p>
+                              <input
+                                type="text"
+                                value={s.nombre}
+                                placeholder="Ej: Landing Page, SEO"
+                                onChange={e => updateCustomService(s.id, 'nombre', e.target.value)}
+                                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-semibold text-slate-400 uppercase">Categoría</p>
+                              <input
+                                type="text"
+                                value={s.categoria || ''}
+                                placeholder="Ej: Desarrollo, Marketing"
+                                onChange={e => updateCustomService(s.id, 'categoria', e.target.value)}
+                                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <p className="text-[9px] font-semibold text-slate-400 uppercase">Precio (USD)</p>
+                              <input
+                                type="number"
+                                value={s.precio || ''}
+                                onChange={e => updateCustomService(s.id, 'precio', parseFloat(e.target.value) || 0)}
+                                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-semibold text-slate-400 uppercase">Responsable</p>
+                              <input
+                                type="text"
+                                value={s.responsable || ''}
+                                placeholder="Responsable"
+                                onChange={e => updateCustomService(s.id, 'responsable', e.target.value)}
+                                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-semibold text-slate-400 uppercase">Prioridad</p>
+                              <select
+                                value={s.prioridad || 'media'}
+                                onChange={e => updateCustomService(s.id, 'prioridad', e.target.value)}
+                                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400 bg-white"
+                              >
+                                <option value="baja">Baja</option>
+                                <option value="media">Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="critica">Crítica</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <FieldError k="distribucion" />
 

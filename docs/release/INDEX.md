@@ -8,8 +8,10 @@
 |---|---|
 | Arrancar como IA sin contexto | [AI_BOOTSTRAP_GUIDE.md](AI_BOOTSTRAP_GUIDE.md) → [PROJECT_CONTEXT_FOR_AI.md](PROJECT_CONTEXT_FOR_AI.md) |
 | Entender el estado en 1 min | [PROJECT_STATUS.md](PROJECT_STATUS.md) · [PROJECT_STATE.json](PROJECT_STATE.json) |
+| Entender el Hito V1 Estabilizado | [FPLUS_STABILIZED_V1_GUIDE.md](FPLUS_STABILIZED_V1_GUIDE.md) |
 | Saber dónde retomar | [AI_HANDOVER.md](AI_HANDOVER.md) · [KNOWN_ISSUES.md](KNOWN_ISSUES.md) |
 | Levantar el proyecto | [SETUP.md](SETUP.md) · [SYSTEM_SNAPSHOT.md](SYSTEM_SNAPSHOT.md) |
+
 
 ## 🧠 Para IA (consumo/arranque)
 - [AI_BOOTSTRAP_GUIDE.md](AI_BOOTSTRAP_GUIDE.md) — cómo empezar sin chat previo.

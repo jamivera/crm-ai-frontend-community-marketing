@@ -20,6 +20,7 @@ No se cambian sin una justificación técnica muy fuerte, documentada primero co
 | [ADR-009](ADR-009-storage-r2.md) | Supabase Storage con migración futura a Cloudflare R2 | ✅ Aceptada |
 | [ADR-010](ADR-010-ambientes-staging-first.md) | Ambientes cloud staging-first (refina §13) | ✅ Aceptada |
 | [ADR-011](ADR-011-arquitectura-identidad.md) | Arquitectura oficial de identidad (Trigger + Auth Hook + DAL + Edge) | ✅ Aceptada |
+| [ADR-012](ADR-012-claim-namespacing.md) | Espacio de nombres (namespacing) del claim de cliente en el JWT (refina §11) | ✅ Aceptada |
 
 ## Estados posibles
 
