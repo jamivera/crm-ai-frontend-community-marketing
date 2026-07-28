@@ -8,18 +8,27 @@ interface Props { onClose: () => void; }
 export function NewCampaignModal({ onClose }: Props) {
   const clients = useFplusStore(s => s.clients);
   const createCampaign = useFplusStore(s => s.createCampaign);
-  const addProjectHistoryEvent = useFplusStore(s => s.addProjectHistoryEvent);
   const navigate = useNavigate();
   const [nombre, setNombre] = useState('');
   const [clientId, setClientId] = useState(clients[0]?.id ?? '');
   const [tipo, setTipo] = useState<'organica' | 'pauta' | 'mixta'>('organica');
-  const [objetivo, setObjetivo] = useState<'awareness' | 'engagement' | 'leads' | 'ventas' | 'retencion'>('awareness');
+  const [plataforma, setPlataforma] = useState<'Meta Ads' | 'Google Ads' | 'TikTok Ads' | 'LinkedIn Ads'>('Meta Ads');
+  const [objetivo, setObjetivo] = useState('Reconocimiento');
+  const [funcionEstrategica, setFuncionEstrategica] = useState('Prospección');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [saving, setSaving] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   const client = clients.find(c => c.id === clientId);
+
+  const handlePlatformChange = (plat: 'Meta Ads' | 'Google Ads' | 'TikTok Ads' | 'LinkedIn Ads') => {
+    setPlataforma(plat);
+    if (plat === 'Meta Ads') setObjetivo('Reconocimiento');
+    else if (plat === 'Google Ads') setObjetivo('Ventas');
+    else if (plat === 'TikTok Ads') setObjetivo('Cobertura (Reach)');
+    else if (plat === 'LinkedIn Ads') setObjetivo('Conocimiento de la marca');
+  };
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +42,9 @@ export function NewCampaignModal({ onClose }: Props) {
       nombre: nombre.trim(),
       codigo_interno: `CAM-${id.slice(-4).toUpperCase()}`,
       tipo,
+      plataforma: tipo === 'organica' ? 'Organico' : plataforma,
       objetivo,
+      funcion_estrategica: tipo === 'organica' ? 'Orgánica general' : funcionEstrategica,
       estado: 'planificada',
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
@@ -42,12 +53,6 @@ export function NewCampaignModal({ onClose }: Props) {
       leads: 0,
       created_at: new Date().toISOString(),
     });
-    addProjectHistoryEvent(
-      clientId,
-      'Andrea Solís (Agencia)',
-      'campana',
-      `Campaña "${nombre.trim()}" creada de forma ${tipo} con objetivo de ${objetivo}.`
-    );
     setCreatedId(id);
     setSaving(false);
   }
@@ -111,17 +116,89 @@ export function NewCampaignModal({ onClose }: Props) {
                 <option value="mixta">Mixta</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Objetivo</label>
-              <select value={objetivo} onChange={e => setObjetivo(e.target.value as typeof objetivo)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="awareness">Awareness</option>
-                <option value="engagement">Engagement</option>
-                <option value="leads">Leads</option>
-                <option value="ventas">Ventas</option>
-                <option value="retencion">Retención</option>
-              </select>
-            </div>
+            {tipo !== 'organica' ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Plataforma</label>
+                <select value={plataforma} onChange={e => handlePlatformChange(e.target.value as any)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="Meta Ads">Meta Ads</option>
+                  <option value="Google Ads">Google Ads</option>
+                  <option value="TikTok Ads">TikTok Ads</option>
+                  <option value="LinkedIn Ads">LinkedIn Ads</option>
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Objetivo</label>
+                <select value={objetivo} onChange={e => setObjetivo(e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="Branding">Branding</option>
+                  <option value="Interacción">Interacción</option>
+                  <option value="Seguidores">Seguidores</option>
+                  <option value="Conversión">Conversión</option>
+                </select>
+              </div>
+            )}
           </div>
+
+          {tipo !== 'organica' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Objetivo Oficial</label>
+                <select value={objetivo} onChange={e => setObjetivo(e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                  {plataforma === 'Meta Ads' && (
+                    <>
+                      <option value="Reconocimiento">Reconocimiento</option>
+                      <option value="Tráfico">Tráfico</option>
+                      <option value="Interacción">Interacción</option>
+                      <option value="Clientes potenciales">Clientes potenciales</option>
+                      <option value="Promoción de la app">Promoción de la app</option>
+                      <option value="Ventas">Ventas</option>
+                    </>
+                  )}
+                  {plataforma === 'Google Ads' && (
+                    <>
+                      <option value="Ventas">Ventas</option>
+                      <option value="Clientes potenciales">Clientes potenciales</option>
+                      <option value="Tráfico del sitio web">Tráfico del sitio web</option>
+                      <option value="Cobertura y notoriedad de la marca">Cobertura y notoriedad de la marca</option>
+                      <option value="Promoción de la aplicación">Promoción de la aplicación</option>
+                    </>
+                  )}
+                  {plataforma === 'TikTok Ads' && (
+                    <>
+                      <option value="Cobertura (Reach)">Cobertura (Reach)</option>
+                      <option value="Tráfico (Traffic)">Tráfico (Traffic)</option>
+                      <option value="Visualizaciones de video (Video Views)">Visualizaciones de video (Video Views)</option>
+                      <option value="Generación de Iniciativas (Lead Gen)">Generación de Iniciativas (Lead Gen)</option>
+                      <option value="Conversiones">Conversiones</option>
+                    </>
+                  )}
+                  {plataforma === 'LinkedIn Ads' && (
+                    <>
+                      <option value="Conocimiento de la marca">Conocimiento de la marca</option>
+                      <option value="Visitas al sitio web">Visitas al sitio web</option>
+                      <option value="Interacción">Interacción</option>
+                      <option value="Visualizaciones de video">Visualizaciones de video</option>
+                      <option value="Generación de contactos (Lead Gen)">Generación de contactos (Lead Gen)</option>
+                      <option value="Conversiones en el sitio web">Conversiones en el sitio web</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Función Estratégica</label>
+                <select value={funcionEstrategica} onChange={e => setFuncionEstrategica(e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="Prospección">Prospección</option>
+                  <option value="Remarketing">Remarketing</option>
+                  <option value="Reconocimiento/posicionamiento">Reconocimiento/posicionamiento</option>
+                  <option value="Visitas al perfil">Visitas al perfil</option>
+                  <option value="Captación de leads">Captación de leads</option>
+                  <option value="Conversión">Conversión</option>
+                  <option value="Reactivación">Reactivación</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Fecha inicio <span className="text-red-500">*</span></label>

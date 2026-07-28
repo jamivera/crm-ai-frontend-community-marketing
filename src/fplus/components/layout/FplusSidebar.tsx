@@ -13,7 +13,7 @@ interface FplusSidebarProps {
 
 const CRM_ROLES: FplusRole[] = ['agency_admin', 'account_manager', 'super_admin'];
 
-export function FplusSidebar({ role, agencyName = 'FPLUS', onCloseMobile }: FplusSidebarProps) {
+export function FplusSidebar({ role, agencyName = 'Jamil Vera Technologies', onCloseMobile }: FplusSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -63,7 +63,7 @@ export function FplusSidebar({ role, agencyName = 'FPLUS', onCloseMobile }: Fplu
       {/* Logo / agency name */}
       <div className={`flex items-center h-14 border-b border-slate-100 px-4 gap-3 flex-shrink-0`}>
         <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-          <span className="text-white text-xs font-bold">F+</span>
+          <span className="text-white text-xs font-bold">JV</span>
         </div>
         {(!collapsed || onCloseMobile) && (
           <span className="text-sm font-semibold text-slate-800 truncate">{agencyName}</span>

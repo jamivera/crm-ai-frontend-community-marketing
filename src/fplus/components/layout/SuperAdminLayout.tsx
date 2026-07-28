@@ -34,10 +34,10 @@ export function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
         {/* Logo */}
         <div className="h-14 flex items-center px-4 gap-3 border-b border-slate-700">
           <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">F+</span>
+            <span className="text-white text-xs font-bold">JV</span>
           </div>
           <div>
-            <div className="text-white text-sm font-semibold leading-none">FPLUS</div>
+            <div className="text-white text-sm font-semibold leading-none">Jamil Vera Tech</div>
             <div className="text-slate-400 text-[10px] leading-none mt-0.5">Super Admin</div>
           </div>
         </div>

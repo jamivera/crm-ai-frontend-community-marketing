@@ -21,7 +21,7 @@ export const mockClients: Client[] = [
     agency_id: 'agency-pd',
     agency_name: 'Primero Digital',
     nombre: 'FPLUS',
-    empresa: 'FPLUS Technologies S.A.',
+    empresa: 'Jamil Vera Technologies',
     industria: 'Tecnología / SaaS',
     instagram_handle: 'fplusapp',
     meta_conectado: true,

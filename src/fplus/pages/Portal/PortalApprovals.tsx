@@ -24,11 +24,18 @@ export function PortalApprovalsList() {
   const { clientId } = usePortalContext();
   const contentPieces = useFplusStore(s => s.contentPieces);
   const portalComments = useFplusStore(s => s.portalComments);
+  const clients = useFplusStore(s => s.clients);
+  const client = clients.find(c => c.id === clientId);
 
+  const isAgency = location.pathname.startsWith('/fplus/clients/');
 
   const pending = contentPieces
-    .filter(cp => cp.client_id === clientId && PENDING_STATES.includes(cp.estado))
-    .filter(cp => validatePieceCompleteness(cp).isComplete)
+    .filter(cp => {
+      if (isAgency) {
+        return cp.client_id === clientId && cp.estado !== 'publicado' && cp.estado !== 'archivado';
+      }
+      return cp.client_id === clientId && PENDING_STATES.includes(cp.estado) && validatePieceCompleteness(cp).isComplete;
+    })
     .sort((a, b) => getPriority(a.fecha_publicacion).rank - getPriority(b.fecha_publicacion).rank);
 
   if (pending.length === 0) {
@@ -38,7 +45,11 @@ export function PortalApprovalsList() {
           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
         </div>
         <h2 className="text-base font-semibold text-slate-800 mb-2">¡Todo al día!</h2>
-        <p className="text-sm text-slate-400">No tienes piezas pendientes de aprobación por el momento.</p>
+        <p className="text-sm text-slate-400">
+          {isAgency 
+            ? 'No hay piezas de contenido activas en revisión por el momento.' 
+            : 'No tienes piezas pendientes de aprobación por el momento.'}
+        </p>
       </div>
     );
   }
@@ -46,27 +57,38 @@ export function PortalApprovalsList() {
   return (
     <div className="px-4 pt-5 space-y-4">
       <div>
-        <h1 className="text-lg font-bold text-slate-800">Pendientes</h1>
+        <h1 className="text-lg font-bold text-slate-800">
+          {isAgency ? 'Control de Aprobaciones' : 'Pendientes'}
+        </h1>
         <p className="text-xs text-slate-400 mt-0.5">
-          {pending.length} {pending.length === 1 ? 'pieza espera' : 'piezas esperan'} tu revisión
+          {isAgency 
+            ? `${pending.length} piezas en proceso de revisión o aprobación`
+            : `${pending.length} ${pending.length === 1 ? 'pieza espera' : 'piezas esperan'} tu revisión`}
         </p>
       </div>
 
       <div className="flex items-center gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
         <Clock className="w-4 h-4 shrink-0 text-amber-600" />
-        Revisa y aprueba para que podamos publicar a tiempo.
+        {isAgency 
+          ? 'Monitorea y gestiona los envíos a aprobación del cliente desde este listado.'
+          : 'Revisa y aprueba para que podamos publicar a tiempo.'}
       </div>
 
       <div className="space-y-3">
         {pending.map(cp => {
           const file = cp.archivos?.find(a => a.url);
+          const isSentToClient = PENDING_STATES.includes(cp.estado);
+          const isPendingSend = ['borrador', 'en_produccion', 'revision_interna', 'cambios_internos', 'listo_para_cliente', 'bloqueado'].includes(cp.estado);
+          const isApproved = ['aprobado_cliente', 'aprobado_final'].includes(cp.estado);
+          const isChanges = cp.estado === 'cambios_solicitados';
+
           return (
             <button
               key={cp.id}
               onClick={() => {
                 navigate(`${location.pathname.replace(/\/$/, '')}/${cp.id}`);
               }}
-              className="w-full flex gap-3 bg-white border border-slate-200 rounded-2xl p-3 text-left active:scale-[0.98] transition-transform"
+              className="w-full flex gap-3 bg-white border border-slate-200 rounded-2xl p-3 text-left active:scale-[0.98] transition-transform hover:border-slate-300"
             >
               {/* Miniatura del material cargado por la agencia */}
               <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center">
@@ -83,8 +105,31 @@ export function PortalApprovalsList() {
                     {getPriority(cp.fecha_publicacion).emoji} {getPriority(cp.fecha_publicacion).label}
                   </span>
                 </div>
+                
+                {/* Visual state indicator badge (Observation 1) */}
+                <div className="mt-1">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                    isSentToClient ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                    isPendingSend ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                    isApproved ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                    isChanges ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                    'bg-slate-50 text-slate-500 border-slate-200'
+                  }`}>
+                    {isAgency ? (
+                      isSentToClient ? `Enviado a ${client?.nombre || 'Cliente'} para revisión` :
+                      isPendingSend ? 'Pendiente de enviar a aprobación' :
+                      isApproved ? `Aprobado por ${client?.nombre || 'Cliente'}` :
+                      isChanges ? 'Cambios solicitados' : 'Borrador'
+                    ) : (
+                      isSentToClient ? 'Recibido para tu revisión' :
+                      isApproved ? 'Aprobado' :
+                      isChanges ? 'Cambios solicitados' : 'Borrador'
+                    )}
+                  </span>
+                </div>
+
                 {cp.copy_activo && (
-                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-snug mt-0.5">{cp.copy_activo}</p>
+                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-snug mt-1.5">{cp.copy_activo}</p>
                 )}
                 <div className="flex items-center gap-2 flex-wrap mt-1 text-[10px] text-slate-400">
                   <span className="capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</span>
@@ -305,6 +350,11 @@ export function PortalApprovalDetail() {
     );
   }
 
+  const isSentToClient = PENDING_STATES.includes(cp.estado);
+  const isPendingSend = ['borrador', 'en_produccion', 'revision_interna', 'cambios_internos', 'listo_para_cliente', 'bloqueado'].includes(cp.estado);
+  const isApproved = ['aprobado_cliente', 'aprobado_final'].includes(cp.estado);
+  const isChanges = cp.estado === 'cambios_solicitados';
+
   return (
     <div className="flex flex-col">
       {/* Header */}
@@ -317,7 +367,27 @@ export function PortalApprovalDetail() {
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-800 truncate">{cp.nombre}</p>
-          <p className="text-xs text-slate-400 capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] text-slate-400 capitalize">{CONTENT_TYPE_LABELS[cp.tipo]}</span>
+            <span className="text-slate-300 text-[10px]">•</span>
+            <span className={`text-[10px] font-bold ${
+              isSentToClient ? 'text-indigo-600' :
+              isPendingSend ? 'text-slate-500' :
+              isApproved ? 'text-emerald-600' :
+              isChanges ? 'text-amber-600' : 'text-slate-500'
+            }`}>
+              {isAgency ? (
+                isSentToClient ? `Enviado a ${client?.nombre || 'Cliente'} para revisión` :
+                isPendingSend ? 'Pendiente de enviar a aprobación' :
+                isApproved ? `Aprobado por ${client?.nombre || 'Cliente'}` :
+                isChanges ? 'Cambios solicitados' : 'Borrador'
+              ) : (
+                isSentToClient ? 'Recibido para tu revisión' :
+                isApproved ? 'Aprobado' :
+                isChanges ? 'Cambios solicitados' : 'Borrador'
+              )}
+            </span>
+          </div>
         </div>
         <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
           isPending ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
@@ -351,6 +421,30 @@ export function PortalApprovalDetail() {
         </div>
       ) : (
         <div className="px-4 py-4 space-y-4">
+          {/* Visual Indicator Banner (Agency Action Box) */}
+          {isAgency && isPendingSend && (
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left shadow-sm">
+              <div>
+                <p className="text-xs font-bold text-blue-800">Pieza pendiente de envío al cliente</p>
+                <p className="text-[10px] text-blue-600 mt-0.5">El cliente no puede visualizar esta pieza en su portal hasta que sea enviada.</p>
+              </div>
+              <button
+                onClick={() => {
+                  updateContentState(cp.id, 'enviado_cliente', 'Agencia');
+                  useFplusStore.getState().addProjectHistoryEvent(
+                    clientId,
+                    'Andrea Solís (Agencia)',
+                    'aprobacion',
+                    `Pieza "${cp.nombre}" enviada formalmente al cliente para su revisión.`
+                  );
+                  window.alert('🚀 Pieza enviada con éxito. El cliente ya puede verla y aprobarla en su portal.');
+                }}
+                className="shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
+              >
+                🚀 Enviar a aprobación
+              </button>
+            </div>
+          )}
         {/* Pieza planificada por IA: separar edición de planificación vs contenido */}
         {isAgency && cp.origen === 'planificada' && (
           <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 space-y-2.5">

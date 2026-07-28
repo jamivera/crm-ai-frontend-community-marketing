@@ -43,6 +43,14 @@ export default function ClientCampaigns() {
 
   const [autoBalance, setAutoBalance] = useState(true);
 
+  const [selectedGridPlatform, setSelectedGridPlatform] = useState<string>('Meta Ads');
+
+  useEffect(() => {
+    if (platforms.length > 0 && !platforms.includes(selectedGridPlatform)) {
+      setSelectedGridPlatform(platforms[0]);
+    }
+  }, [platforms]);
+
   // Sync / Reconcile on budget, platforms changes
   useEffect(() => {
     if (!client) return;
@@ -184,30 +192,50 @@ export default function ClientCampaigns() {
     if (client && (!client.campaign_rows || client.campaign_rows.length === 0)) {
       const initialRow = {
         id: `row-${Date.now()}`,
-        campaign_name: client.nomenclatura_campana || `Reconocimiento | ${client.nombre} | EC | 07-26`,
+        campaign_name: client.nomenclatura_campana || `Reconocimiento | ${client.nombre} | ME | 07-26`,
         adset_name: 'Público Local | 18-60 | EC',
         ad_name: `AD 01 | Reel | ${client.nombre} | V1`,
         segmentation: 'Público local en un radio de 8km, intereses gourmet',
         budget: Math.round(presupuestoEdit * 0.4) || 200,
         creative_id: piezasPauta[0]?.id || '',
         comments: 'Campaña propuesta por el motor Andrómeda.',
-        custom_values: {}
+        custom_values: {},
+        platform: 'Meta Ads',
+        concordancia: 'exacta' as const,
+        landing_page: 'https://',
       };
       updateClient(clientId, { campaign_rows: [initialRow] });
     }
   }, [client?.id]);
 
   const handleAddRow = () => {
+    let adsetName = 'Conjunto | Público Local | 18-60';
+    let adName = `AD ${campaignRows.length + 1} | Reel | V1`;
+    let segmentation = 'Segmentación propuesta';
+    if (selectedGridPlatform === 'Google Ads') {
+      adsetName = 'Grupo de Anuncios | Búsqueda Marca';
+      adName = 'KW: fplus app, CRM agencias';
+      segmentation = 'Búsqueda por palabras clave';
+    } else if (selectedGridPlatform === 'LinkedIn Ads') {
+      adsetName = 'Campaña | Directores Marketing';
+      adName = `AD ${campaignRows.length + 1} | Post Imagen`;
+      segmentation = 'Cargos: CMO, Director de Marketing; Seniority: Senior+';
+    }
+
     const newRow = {
       id: `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      campaign_name: `Campaña | ${client?.nombre || 'CLI'} | EC | 07-26`,
-      adset_name: 'Conjunto | Público Local | 18-60',
-      ad_name: `AD ${campaignRows.length + 1} | Reel | V1`,
-      segmentation: 'Segmentación propuesta',
+      campaign_name: `Campaña | ${client?.nombre || 'CLI'} | ${selectedGridPlatform.slice(0, 2).toUpperCase()} | 07-26`,
+      adset_name: adsetName,
+      ad_name: adName,
+      segmentation: segmentation,
       budget: 0,
       creative_id: piezasPauta[0]?.id || '',
       comments: '',
-      custom_values: {}
+      custom_values: {},
+      platform: selectedGridPlatform,
+      concordancia: 'exacta' as const,
+      landing_page: 'https://',
+      linkedin_target: 'Puestos de Toma de Decisiones',
     };
     const updated = [...campaignRows, newRow];
     updateClient(clientId, { campaign_rows: updated });
@@ -521,7 +549,7 @@ export default function ClientCampaigns() {
               <Megaphone className="w-4 h-4 text-violet-500" />
               Estructura Operativa de Campañas (Planificación de Anuncios)
             </h3>
-            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Define la nomenclatura de 3 niveles, segmentación y asignación de presupuesto por anuncio.</p>
+            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Define la nomenclatura, segmentación y asignación de presupuesto según la plataforma seleccionada.</p>
           </div>
           <div className="flex items-center gap-2 self-end">
             <button
@@ -539,17 +567,58 @@ export default function ClientCampaigns() {
           </div>
         </div>
 
+        {/* Platform tabs selector for grid (Observation 4 / Precision 2) */}
+        <div className="flex border-b border-slate-100 mb-3 gap-1 overflow-x-auto pb-1">
+          {platforms.map(p => (
+            <button
+              key={p}
+              onClick={() => setSelectedGridPlatform(p)}
+              className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all shrink-0 ${
+                selectedGridPlatform === p
+                  ? 'border-blue-600 text-blue-600 bg-blue-50/20'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {PLATFORM_EMOJI[p] || '🎯'} {p}
+            </button>
+          ))}
+        </div>
+
         <div className="overflow-x-auto border border-slate-100 rounded-xl bg-white">
           <table className="w-full text-left border-collapse text-[11px] min-w-[900px]">
             <thead>
               <tr className="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-100 text-[9px]">
-                <th className="p-3 font-semibold min-w-[160px]">Campaña (Nivel 1)</th>
-                <th className="p-3 font-semibold min-w-[160px]">Conjunto (Nivel 2)</th>
-                <th className="p-3 font-semibold min-w-[160px]">Anuncio (Nivel 3)</th>
-                <th className="p-3 font-semibold min-w-[140px]">Segmentación</th>
-                <th className="p-3 font-semibold min-w-[90px] text-right">Presupuesto</th>
-                <th className="p-3 font-semibold min-w-[150px]">Creativo Seleccionado</th>
-                <th className="p-3 font-semibold min-w-[140px]">Comentarios</th>
+                {selectedGridPlatform === 'Google Ads' ? (
+                  <>
+                    <th className="p-3 font-semibold min-w-[160px]">Campaña (Nivel 1)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Grupo de Anuncios (Nivel 2)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Keywords / Criterios</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Concordancia</th>
+                    <th className="p-3 font-semibold min-w-[90px] text-right">Presupuesto</th>
+                    <th className="p-3 font-semibold min-w-[150px]">Landing Page</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Comentarios</th>
+                  </>
+                ) : selectedGridPlatform === 'LinkedIn Ads' ? (
+                  <>
+                    <th className="p-3 font-semibold min-w-[160px]">Grupo de Campañas (Nivel 1)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Campaña (Nivel 2)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Anuncio (Nivel 3)</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Cargos / Target</th>
+                    <th className="p-3 font-semibold min-w-[90px] text-right">Presupuesto</th>
+                    <th className="p-3 font-semibold min-w-[150px]">Creativo Seleccionado</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Comentarios</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="p-3 font-semibold min-w-[160px]">Campaña (Nivel 1)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Conjunto (Nivel 2)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Anuncio (Nivel 3)</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Segmentación</th>
+                    <th className="p-3 font-semibold min-w-[90px] text-right">Presupuesto</th>
+                    <th className="p-3 font-semibold min-w-[150px]">Creativo Seleccionado</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Comentarios</th>
+                  </>
+                )}
                 {customColumns.map(col => (
                   <th key={col} className="p-3 font-semibold relative group min-w-[120px]">
                     <div className="flex items-center justify-between">
@@ -568,20 +637,20 @@ export default function ClientCampaigns() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {campaignRows.length === 0 ? (
+              {campaignRows.filter(r => (r.platform || 'Meta Ads') === selectedGridPlatform).length === 0 ? (
                 <tr>
                   <td colSpan={8 + customColumns.length} className="text-center py-8 text-slate-400 font-medium">
-                    No hay anuncios configurados. Haz clic en "+ Fila" para iniciar.
+                    No hay anuncios configurados para {selectedGridPlatform}. Haz clic en "+ Fila" para iniciar.
                   </td>
                 </tr>
               ) : (
-                campaignRows.map(row => {
+                campaignRows.filter(r => (r.platform || 'Meta Ads') === selectedGridPlatform).map(row => {
                   const selectedPiece = piezasPauta.find(cp => cp.id === row.creative_id);
                   const visual = selectedPiece ? getTypeVisual(selectedPiece.tipo) : null;
                   
                   return (
                     <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                      {/* Campaña */}
+                      {/* Campaña / Grupo */}
                       <td className="p-2">
                         <input
                           type="text"
@@ -590,7 +659,7 @@ export default function ClientCampaigns() {
                           className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 font-medium focus:bg-white focus:outline-none"
                         />
                       </td>
-                      {/* Conjunto */}
+                      {/* Conjunto / Campaña */}
                       <td className="p-2">
                         <input
                           type="text"
@@ -599,7 +668,7 @@ export default function ClientCampaigns() {
                           className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 focus:bg-white focus:outline-none"
                         />
                       </td>
-                      {/* Anuncio */}
+                      {/* Anuncio / Keywords */}
                       <td className="p-2">
                         <input
                           type="text"
@@ -608,15 +677,32 @@ export default function ClientCampaigns() {
                           className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 focus:bg-white focus:outline-none"
                         />
                       </td>
-                      {/* Segmentación */}
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          value={row.segmentation}
-                          onChange={e => handleUpdateRowField(row.id, 'segmentation', e.target.value)}
-                          className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-600 focus:bg-white focus:outline-none"
-                        />
-                      </td>
+
+                      {/* Dynamic middle column (Segmentación vs Concordancia vs Target) */}
+                      {selectedGridPlatform === 'Google Ads' ? (
+                        <td className="p-2">
+                          <select
+                            value={row.concordancia || 'exacta'}
+                            onChange={e => handleUpdateRowField(row.id, 'concordancia', e.target.value)}
+                            className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 focus:bg-white text-[10px] focus:outline-none cursor-pointer"
+                          >
+                            <option value="exacta">Exacta</option>
+                            <option value="frase">Frase</option>
+                            <option value="amplia">Amplia</option>
+                          </select>
+                        </td>
+                      ) : (
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={row.segmentation}
+                            onChange={e => handleUpdateRowField(row.id, 'segmentation', e.target.value)}
+                            className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-600 focus:bg-white focus:outline-none"
+                            placeholder={selectedGridPlatform === 'LinkedIn Ads' ? 'Ej. Cargos: CMO; Sectores: Tech' : 'Segmentación...'}
+                          />
+                        </td>
+                      )}
+
                       {/* Presupuesto */}
                       <td className="p-2">
                         <div className="flex items-center bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus-within:border-blue-500 p-1 focus-within:bg-white">
@@ -630,31 +716,45 @@ export default function ClientCampaigns() {
                           />
                         </div>
                       </td>
-                      {/* Creativo */}
-                      <td className="p-2">
-                        <div className="space-y-1">
-                          <select
-                            value={row.creative_id || ''}
-                            onChange={e => handleUpdateRowField(row.id, 'creative_id', e.target.value)}
-                            className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 focus:bg-white text-[10px] focus:outline-none cursor-pointer"
-                          >
-                            <option value="">-- Sin creativo --</option>
-                            {piezasPauta.map(cp => (
-                              <option key={cp.id} value={cp.id}>
-                                {cp.nombre}
-                              </option>
-                            ))}
-                          </select>
-                          {selectedPiece && visual && (
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 border border-slate-100 rounded text-[9px] text-slate-500 w-fit">
-                              <span>{visual.emoji}</span>
-                              <span className="font-semibold uppercase truncate max-w-[90px]">
-                                {CONTENT_TYPE_LABELS[selectedPiece.tipo]}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+
+                      {/* Dynamic Creative Selector vs Landing Page URL */}
+                      {selectedGridPlatform === 'Google Ads' ? (
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={row.landing_page || 'https://'}
+                            onChange={e => handleUpdateRowField(row.id, 'landing_page', e.target.value)}
+                            className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 focus:bg-white text-[10px] focus:outline-none"
+                            placeholder="https://..."
+                          />
+                        </td>
+                      ) : (
+                        <td className="p-2">
+                          <div className="space-y-1">
+                            <select
+                              value={row.creative_id || ''}
+                              onChange={e => handleUpdateRowField(row.id, 'creative_id', e.target.value)}
+                              className="w-full bg-transparent border-0 border-b border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-700 focus:bg-white text-[10px] focus:outline-none cursor-pointer"
+                            >
+                              <option value="">-- Sin creativo --</option>
+                              {piezasPauta.map(cp => (
+                                <option key={cp.id} value={cp.id}>
+                                  {cp.nombre}
+                                </option>
+                              ))}
+                            </select>
+                            {selectedPiece && visual && (
+                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 border border-slate-100 rounded text-[9px] text-slate-500 w-fit">
+                                <span>{visual.emoji}</span>
+                                <span className="font-semibold uppercase truncate max-w-[90px]">
+                                  {CONTENT_TYPE_LABELS[selectedPiece.tipo]}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      )}
+
                       {/* Comentarios */}
                       <td className="p-2">
                         <input
@@ -665,6 +765,7 @@ export default function ClientCampaigns() {
                           placeholder="Notas internas..."
                         />
                       </td>
+
                       {/* Custom columns values */}
                       {customColumns.map(col => (
                         <td key={col} className="p-2">
@@ -677,6 +778,7 @@ export default function ClientCampaigns() {
                           />
                         </td>
                       ))}
+
                       {/* Acciones */}
                       <td className="p-2 text-center">
                         <button

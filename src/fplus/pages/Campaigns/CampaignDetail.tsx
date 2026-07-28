@@ -227,7 +227,7 @@ export default function CampaignDetail() {
         <div className="grid sm:grid-cols-2 gap-4">
           <InfoCard title="Detalles">
             <InfoRow label="Tipo" value={campaign.tipo === 'organica' ? 'Orgánica' : campaign.tipo === 'pauta' ? 'Pauta' : 'Mixta'} />
-            <InfoRow label="Objetivo" value={{ awareness: 'Awareness', engagement: 'Engagement', leads: 'Leads', ventas: 'Ventas', retencion: 'Retención' }[campaign.objetivo]} />
+            <InfoRow label="Objetivo" value={campaign.objetivo} />
             <InfoRow label="Inicio" value={new Date(campaign.fecha_inicio).toLocaleDateString('es')} />
             <InfoRow label="Fin" value={new Date(campaign.fecha_fin).toLocaleDateString('es')} />
           </InfoCard>

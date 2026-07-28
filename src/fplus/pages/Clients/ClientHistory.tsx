@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useFplusStore } from '../../store';
 import {
   BookOpen,
@@ -19,13 +19,16 @@ type FilterCategory = 'todos' | 'contenido' | 'brief' | 'campana' | 'invitacion'
 
 export default function ClientHistory() {
   const { clientId = '' } = useParams<{ clientId: string }>();
+  const location = useLocation();
   const projectHistory = useFplusStore(s => s.projectHistory || []);
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('todos');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filtrar eventos por cliente actual
+  const isClientView = !location.pathname.startsWith('/fplus/clients/');
+
+  // Filtrar eventos por cliente actual y permisos de cliente (observación 2 / precisión 4)
   const clientEvents = projectHistory
-    .filter(ev => ev.client_id === clientId)
+    .filter(ev => ev.client_id === clientId && (!isClientView || !ev.es_interno))
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   // Filtrar por categoría y búsqueda de texto

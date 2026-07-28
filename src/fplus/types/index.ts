@@ -188,7 +188,9 @@ export interface Campaign {
   nombre: string;
   codigo_interno: string;
   tipo: 'organica' | 'pauta' | 'mixta';
-  objetivo: 'awareness' | 'engagement' | 'leads' | 'ventas' | 'retencion';
+  plataforma?: 'Meta Ads' | 'Google Ads' | 'TikTok Ads' | 'LinkedIn Ads' | 'Organico';
+  objetivo: string;
+  funcion_estrategica?: string;
   estado: 'planificada' | 'activa' | 'pausada' | 'completada' | 'cancelada';
   fecha_inicio: string;
   fecha_fin: string;
@@ -426,6 +428,7 @@ export interface BriefMaestro {
   horarios_preferidos: string;
   objetivo_principal: string;
   url_landing?: string;
+  metadata?: Record<string, any>;
   updated_at: string;
 }
 
@@ -538,4 +541,8 @@ export interface CampaignRow {
   creative_id?: string; // ContentPiece.id
   comments: string;
   custom_values?: Record<string, string>; // column_name -> value
+  platform?: string;
+  concordancia?: 'exacta' | 'frase' | 'amplia';
+  landing_page?: string;
+  linkedin_target?: string;
 }

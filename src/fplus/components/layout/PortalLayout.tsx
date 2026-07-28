@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Layers, CheckCircle, Sparkles, BarChart3, LogOut, ChevronLeft, Bell } from 'lucide-react';
+import { Home, Layers, CheckCircle, Sparkles, BarChart3, LogOut, ChevronLeft, Bell, Clock } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { clientIncludesRedes, clientIncludesPauta } from '../../utils/clientHelpers';
 import type { ContentState } from '../../types';
@@ -18,7 +18,7 @@ const PORTAL_PENDING_STATES: ContentState[] = ['enviado_cliente', 'en_revision_c
 export function PortalLayout({
   children,
   clientName = 'Cliente',
-  agencyName = 'FPLUS',
+  agencyName = 'Jamil Vera Technologies',
   isPremium = false,
   clientId = '1',
 }: PortalLayoutProps) {
@@ -51,6 +51,7 @@ export function PortalLayout({
       { label: 'Aprobar', href: `${base}/approvals`, icon: CheckCircle, badge: pendingCount },
     ] : []),
     { label: 'Mi Marca', href: `${base}/brand`, icon: Sparkles },
+    { label: 'Historial', href: `${base}/history`, icon: Clock },
     ...(isPremium && hasPauta ? [
       { label: 'Resultados', href: `${base}/metrics`, icon: BarChart3 },
     ] : []),

@@ -105,6 +105,23 @@ export default function BriefMaestro() {
   const [presupuestoPauta, setPresupuestoPauta] = useState<number>(client?.presupuesto_pauta ?? 0);
   const [pautaPlataformas, setPautaPlataformas] = useState<string[]>(client?.pauta_plataformas ?? ['Meta Ads']);
 
+  // Platform specific states
+  const [googleKeywords, setGoogleKeywords] = useState(existing?.metadata?.google_keywords ?? '');
+  const [googleLanding, setGoogleLanding] = useState(existing?.metadata?.google_landing ?? '');
+  const [googleCpa, setGoogleCpa] = useState(existing?.metadata?.google_cpa ?? '');
+
+  const [tiktokTrends, setTiktokTrends] = useState(existing?.metadata?.tiktok_trends ?? '');
+  const [tiktokFormat, setTiktokFormat] = useState(existing?.metadata?.tiktok_format ?? '');
+  const [tiktokFatiga, setTiktokFatiga] = useState(existing?.metadata?.tiktok_fatiga ?? '');
+
+  const [linkedinTarget, setLinkedinTarget] = useState(existing?.metadata?.linkedin_target ?? '');
+  const [linkedinFormat, setLinkedinFormat] = useState(existing?.metadata?.linkedin_format ?? '');
+  const [linkedinLeadMagnet, setLinkedinLeadMagnet] = useState(existing?.metadata?.linkedin_lead_magnet ?? '');
+
+  const [metaSeg, setMetaSeg] = useState(existing?.metadata?.meta_seg ?? '');
+  const [metaFormat, setMetaFormat] = useState(existing?.metadata?.meta_format ?? '');
+  const [metaHook, setMetaHook] = useState(existing?.metadata?.meta_hook ?? '');
+
   useEffect(() => {
     if (client) {
       setPresupuestoPauta(client.presupuesto_pauta ?? 0);
@@ -141,6 +158,20 @@ export default function BriefMaestro() {
       setHorarios(existing.horarios_preferidos ?? '');
       setObjetivo(existing.objetivo_principal ?? '');
       setUrlLanding(existing.url_landing ?? '');
+
+      // Sync platform specific metadata
+      setGoogleKeywords(existing.metadata?.google_keywords ?? '');
+      setGoogleLanding(existing.metadata?.google_landing ?? '');
+      setGoogleCpa(existing.metadata?.google_cpa ?? '');
+      setTiktokTrends(existing.metadata?.tiktok_trends ?? '');
+      setTiktokFormat(existing.metadata?.tiktok_format ?? '');
+      setTiktokFatiga(existing.metadata?.tiktok_fatiga ?? '');
+      setLinkedinTarget(existing.metadata?.linkedin_target ?? '');
+      setLinkedinFormat(existing.metadata?.linkedin_format ?? '');
+      setLinkedinLeadMagnet(existing.metadata?.linkedin_lead_magnet ?? '');
+      setMetaSeg(existing.metadata?.meta_seg ?? '');
+      setMetaFormat(existing.metadata?.meta_format ?? '');
+      setMetaHook(existing.metadata?.meta_hook ?? '');
     }
   }, [existing]);
 
@@ -199,6 +230,20 @@ export default function BriefMaestro() {
       horarios_preferidos: horarios,
       objetivo_principal: objetivo,
       url_landing: urlLanding || undefined,
+      metadata: {
+        google_keywords: googleKeywords,
+        google_landing: googleLanding,
+        google_cpa: googleCpa,
+        tiktok_trends: tiktokTrends,
+        tiktok_format: tiktokFormat,
+        tiktok_fatiga: tiktokFatiga,
+        linkedin_target: linkedinTarget,
+        linkedin_format: linkedinFormat,
+        linkedin_lead_magnet: linkedinLeadMagnet,
+        meta_seg: metaSeg,
+        meta_format: metaFormat,
+        meta_hook: metaHook,
+      },
       updated_at: new Date().toISOString(),
     });
 
@@ -593,6 +638,89 @@ export default function BriefMaestro() {
             />
             <p className="text-xs text-slate-400 mt-1">Se usará como base para los UTMs de publicaciones.</p>
           </Field>
+
+          {/* Platform Specific Questions (Observation 5) */}
+          {(plataformas.includes('instagram') || plataformas.includes('facebook') || plataformas.includes('google') || plataformas.includes('tiktok') || plataformas.includes('linkedin')) && (
+            <div className="pt-4 border-t border-slate-100 space-y-4">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Preguntas Específicas por Plataforma Contratada</h4>
+
+              {(plataformas.includes('instagram') || plataformas.includes('facebook')) && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
+                    <span>📘</span> Meta Ads (Facebook & Instagram)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Tipo de segmentación clave">
+                      <input type="text" value={metaSeg} onChange={e => setMetaSeg(e.target.value)} placeholder="Ej. Advantage+, Intereses locales, Similares" className={inp} />
+                    </Field>
+                    <Field label="Formatos clave a potenciar">
+                      <input type="text" value={metaFormat} onChange={e => setMetaFormat(e.target.value)} placeholder="Ej. Reels, Carruseles de producto" className={inp} />
+                    </Field>
+                  </div>
+                  <Field label="Gancho inicial sugerido (Hook)">
+                    <textarea value={metaHook} onChange={e => setMetaHook(e.target.value)} placeholder="Ej. '¿Cansado de perder tiempo con...?'" rows={2} className={ta} />
+                  </Field>
+                </div>
+              )}
+
+              {plataformas.includes('google') && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-red-700">
+                    <span>🔍</span> Google Ads (Búsqueda & Performance Max)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Palabras Clave Core (Semillas)">
+                      <input type="text" value={googleKeywords} onChange={e => setGoogleKeywords(e.target.value)} placeholder="Ej. crm para agencias, software gestion redes" className={inp} />
+                    </Field>
+                    <Field label="CPA / CPL objetivo deseado ($)">
+                      <input type="text" value={googleCpa} onChange={e => setGoogleCpa(e.target.value)} placeholder="Ej. $5 por lead registrado" className={inp} />
+                    </Field>
+                  </div>
+                  <Field label="Landing Page específica del producto">
+                    <input type="text" value={googleLanding} onChange={e => setGoogleLanding(e.target.value)} placeholder="https://miweb.com/landing-producto" className={inp} />
+                  </Field>
+                </div>
+              )}
+
+              {plataformas.includes('tiktok') && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <span>🎵</span> TikTok Ads (Spark Ads & In-Feed)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Enfoque de video preferido">
+                      <input type="text" value={tiktokFormat} onChange={e => setTiktokFormat(e.target.value)} placeholder="Ej. UGC (User Generated Content), Tendencias/Humor" className={inp} />
+                    </Field>
+                    <Field label="Frecuencia de renovación (fatiga)">
+                      <input type="text" value={tiktokFatiga} onChange={e => setTiktokFatiga(e.target.value)} placeholder="Ej. Cada 2 semanas" className={inp} />
+                    </Field>
+                  </div>
+                  <Field label="Tendencias musicales o retos aplicables">
+                    <textarea value={tiktokTrends} onChange={e => setTiktokTrends(e.target.value)} placeholder="Ej. Audios en tendencia del sector B2B, retos de oficina" rows={2} className={ta} />
+                  </Field>
+                </div>
+              )}
+
+              {plataformas.includes('linkedin') && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700">
+                    <span>💼</span> LinkedIn Ads (Sponsored Content & InMail)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Segmentación B2B (Cargos/Sectores)">
+                      <input type="text" value={linkedinTarget} onChange={e => setLinkedinTarget(e.target.value)} placeholder="Ej. Cargos: CMO, Director Mkt. Sector: SaaS" className={inp} />
+                    </Field>
+                    <Field label="Formato preferido de anuncio">
+                      <input type="text" value={linkedinFormat} onChange={e => setLinkedinFormat(e.target.value)} placeholder="Ej. Document Ads (PDF descarga), Single Image" className={inp} />
+                    </Field>
+                  </div>
+                  <Field label="Lead Magnet / Imán de contactos ofrecido">
+                    <textarea value={linkedinLeadMagnet} onChange={e => setLinkedinLeadMagnet(e.target.value)} placeholder="Ej. Ebook de 10 páginas sobre automatización, Demo gratuita de 15 min" rows={2} className={ta} />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
       )}
 

@@ -9,6 +9,7 @@ import type {
   ContentState, ContentType, Platform, HealthStatus,
   BriefMaestro, PublicationMetric, FplusNotification,
 } from '../types';
+import { CONTENT_STATE_LABELS } from '../constants';
 
 // ─── Local types (not persisted to backend) ────────────────────────────────────
 
@@ -46,6 +47,7 @@ export interface ProjectHistoryEvent {
   descripcion: string;
   timestamp: string;
   metadata?: Record<string, any>;
+  es_interno?: boolean;
 }
 
 const seedProjectHistory: ProjectHistoryEvent[] = [
@@ -272,6 +274,46 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
         });
       }
 
+      let phEvent: ProjectHistoryEvent | null = null;
+      if (piece) {
+        const stateLabel = CONTENT_STATE_LABELS[state] || state;
+        const actorLabel = actor === 'Agencia' ? 'Andrea Solís (Agencia)' : `${actor} (Cliente)`;
+        
+        let desc = `Cambio de estado de pieza "${piece.nombre}" a "${stateLabel}".`;
+        let cat: ProjectHistoryEvent['categoria'] = 'contenido';
+        let esInterno = false;
+
+        if (state === 'enviado_cliente' || state === 'en_revision_cliente') {
+          desc = `Pieza "${piece.nombre}" enviada formalmente al cliente para su revisión.`;
+          cat = 'aprobacion';
+        } else if (state === 'aprobado_final' || state === 'aprobado_cliente') {
+          desc = `Pieza "${piece.nombre}" aprobada oficialmente. Listo para publicar.`;
+          cat = 'aprobacion';
+        } else if (state === 'cambios_solicitados') {
+          desc = `Cliente solicitó cambios en la pieza: "${piece.nombre}".`;
+          cat = 'aprobacion';
+        } else if (state === 'revision_interna') {
+          desc = `Pieza "${piece.nombre}" enviada a revisión interna.`;
+          esInterno = true;
+        } else if (state === 'cambios_internos') {
+          desc = `Pieza "${piece.nombre}" devuelta para correcciones internas.`;
+          esInterno = true;
+        } else if (state === 'en_produccion') {
+          desc = `Pieza "${piece.nombre}" iniciada en etapa de producción creativa.`;
+          esInterno = true;
+        }
+
+        phEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: piece.client_id,
+          actor: actorLabel,
+          categoria: cat,
+          descripcion: desc,
+          timestamp: new Date().toISOString(),
+          es_interno: esInterno,
+        };
+      }
+
       return {
         contentPieces: s.contentPieces.map(cp =>
           cp.id === id
@@ -280,6 +322,7 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
         ),
         stateHistory: [...s.stateHistory, historyEvent],
         notifications: newNotifications,
+        projectHistory: phEvent ? [...(s.projectHistory || []), phEvent] : s.projectHistory,
       };
     }),
 
@@ -340,51 +383,176 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   // ─── Creation ──────────────────────────────────────────────────────────────
 
   createClient: (client) =>
-    set(s => ({ clients: [...s.clients, client] })),
+    set(s => {
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: client.id,
+        actor: 'Agencia',
+        categoria: 'configuracion',
+        descripcion: `Creación del cliente "${client.nombre}". Cuenta activada.`,
+        timestamp: new Date().toISOString(),
+      };
+      return {
+        clients: [...s.clients, client],
+        projectHistory: [...(s.projectHistory || []), phEvent],
+      };
+    }),
 
   updateClient: (id, data) =>
-    set(s => ({ clients: s.clients.map(c => c.id === id ? { ...c, ...data } : c) })),
+    set(s => {
+      const client = s.clients.find(c => c.id === id);
+      const changes: string[] = [];
+      if (data.nombre && data.nombre !== client?.nombre) changes.push(`nombre a "${data.nombre}"`);
+      if (data.presupuesto_pauta && data.presupuesto_pauta !== client?.presupuesto_pauta) changes.push(`presupuesto de pauta a $${data.presupuesto_pauta}`);
+      if (data.pauta_plataformas && JSON.stringify(data.pauta_plataformas) !== JSON.stringify(client?.pauta_plataformas)) changes.push(`plataformas de pauta a ${data.pauta_plataformas.join(', ')}`);
+      
+      let historyUpdate = {};
+      if (changes.length > 0 && client) {
+        const phEvent: ProjectHistoryEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: id,
+          actor: 'Agencia',
+          categoria: 'configuracion',
+          descripcion: `Configuración de cliente "${client.nombre}" actualizada: se modificó ${changes.join(', ')}.`,
+          timestamp: new Date().toISOString(),
+        };
+        historyUpdate = { projectHistory: [...(s.projectHistory || []), phEvent] };
+      }
+      return {
+        clients: s.clients.map(c => c.id === id ? { ...c, ...data } : c),
+        ...historyUpdate,
+      };
+    }),
 
   createCampaign: (campaign) =>
-    set(s => ({ campaigns: [...s.campaigns, campaign] })),
+    set(s => {
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: campaign.client_id,
+        actor: 'Agencia',
+        categoria: 'campana',
+        descripcion: `Nueva campaña "${campaign.nombre}" creada con objetivo oficial ${campaign.objetivo} y función estratégica ${campaign.funcion_estrategica || 'N/A'}.`,
+        timestamp: new Date().toISOString(),
+      };
+      return {
+        campaigns: [...s.campaigns, campaign],
+        projectHistory: [...(s.projectHistory || []), phEvent],
+      };
+    }),
 
   createContent: (piece) =>
-    set(s => ({ contentPieces: [...s.contentPieces, piece] })),
+    set(s => {
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: piece.client_id,
+        actor: 'Agencia',
+        categoria: 'contenido',
+        descripcion: `Nueva pieza de contenido planificada: "${piece.nombre}" (${piece.tipo}).`,
+        timestamp: new Date().toISOString(),
+      };
+      return {
+        contentPieces: [...s.contentPieces, piece],
+        projectHistory: [...(s.projectHistory || []), phEvent],
+      };
+    }),
 
   createManyContent: (pieces) =>
-    set(s => ({ contentPieces: [...s.contentPieces, ...pieces] })),
+    set(s => {
+      let historyUpdate = {};
+      if (pieces.length > 0) {
+        const phEvent: ProjectHistoryEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: pieces[0].client_id,
+          actor: 'Agencia',
+          categoria: 'contenido',
+          descripcion: `Planificación y lote creativo generado: se crearon ${pieces.length} nuevas piezas.`,
+          timestamp: new Date().toISOString(),
+        };
+        historyUpdate = { projectHistory: [...(s.projectHistory || []), phEvent] };
+      }
+      return {
+        contentPieces: [...s.contentPieces, ...pieces],
+        ...historyUpdate,
+      };
+    }),
 
   deleteContent: (id) =>
-    set(s => ({
-      contentPieces: s.contentPieces.filter(cp => cp.id !== id),
-      contentComments: s.contentComments.filter(cc => cc.content_piece_id !== id),
-      stateHistory: s.stateHistory.filter(h => h.content_piece_id !== id),
-    })),
+    set(s => {
+      const piece = s.contentPieces.find(cp => cp.id === id);
+      let historyUpdate = {};
+      if (piece) {
+        const phEvent: ProjectHistoryEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: piece.client_id,
+          actor: 'Agencia',
+          categoria: 'contenido',
+          descripcion: `Pieza de contenido "${piece.nombre}" eliminada del calendario.`,
+          timestamp: new Date().toISOString(),
+          es_interno: true,
+        };
+        historyUpdate = { projectHistory: [...(s.projectHistory || []), phEvent] };
+      }
+      return {
+        contentPieces: s.contentPieces.filter(cp => cp.id !== id),
+        contentComments: s.contentComments.filter(cc => cc.content_piece_id !== id),
+        stateHistory: s.stateHistory.filter(h => h.content_piece_id !== id),
+        ...historyUpdate,
+      };
+    }),
 
   archiveCampaignPlanning: (campaignId) =>
-    set(s => ({
-      contentPieces: s.contentPieces.map(cp =>
-        cp.campaign_id === campaignId && cp.estado !== 'publicado'
-          ? { ...cp, estado: 'archivado' as ContentState, updated_at: new Date().toISOString() }
-          : cp
-      )
-    })),
+    set(s => {
+      const pieces = s.contentPieces.filter(cp => cp.campaign_id === campaignId);
+      let historyUpdate = {};
+      if (pieces.length > 0) {
+        const phEvent: ProjectHistoryEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: pieces[0].client_id,
+          actor: 'Agencia',
+          categoria: 'campana',
+          descripcion: `Planificación de campaña archivada temporalmente.`,
+          timestamp: new Date().toISOString(),
+          es_interno: true,
+        };
+        historyUpdate = { projectHistory: [...(s.projectHistory || []), phEvent] };
+      }
+      return {
+        contentPieces: s.contentPieces.map(cp =>
+          cp.campaign_id === campaignId && cp.estado !== 'publicado'
+            ? { ...cp, estado: 'archivado' as ContentState, updated_at: new Date().toISOString() }
+            : cp
+        ),
+        ...historyUpdate,
+      };
+    }),
 
   clearMonthPlanning: (clientId, year, month, campaignId) =>
-    set(s => ({
-      contentPieces: s.contentPieces.map(cp => {
-        if (cp.client_id !== clientId) return cp;
-        if (cp.estado === 'publicado') return cp;
-        if (campaignId && campaignId !== 'todas' && cp.campaign_id !== campaignId) return cp;
-        if (cp.fecha_publicacion) {
-          const d = new Date(cp.fecha_publicacion);
-          if (d.getFullYear() === year && d.getMonth() === month) {
-            return { ...cp, estado: 'archivado' as ContentState, updated_at: new Date().toISOString() };
+    set(s => {
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: clientId,
+        actor: 'Agencia',
+        categoria: 'brief',
+        descripcion: `Limpieza e inactivación de planificación mensual de posts para ${month + 1}/${year}.`,
+        timestamp: new Date().toISOString(),
+        es_interno: true,
+      };
+      return {
+        contentPieces: s.contentPieces.map(cp => {
+          if (cp.client_id !== clientId) return cp;
+          if (cp.estado === 'publicado') return cp;
+          if (campaignId && campaignId !== 'todas' && cp.campaign_id !== campaignId) return cp;
+          if (cp.fecha_publicacion) {
+            const d = new Date(cp.fecha_publicacion);
+            if (d.getFullYear() === year && d.getMonth() === month) {
+              return { ...cp, estado: 'archivado' as ContentState, updated_at: new Date().toISOString() };
+            }
           }
-        }
-        return cp;
-      })
-    })),
+          return cp;
+        }),
+        projectHistory: [...(s.projectHistory || []), phEvent],
+      };
+    }),
 
   updateFileProcessingState: (pieceId, fileId, processingState) =>
     set(s => ({
@@ -402,35 +570,54 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
 
   uploadFileAndProcess: (pieceId, fileData) => {
     const now = new Date().toISOString();
-    set(s => ({
-      contentPieces: s.contentPieces.map(cp => {
-        if (cp.id === pieceId) {
-          const newFile = {
-            id: fileData.id,
-            nombre: fileData.nombre,
-            tipo: fileData.tipo,
-            url: fileData.url,
-            tamanio_bytes: fileData.size,
-            version: (cp.archivos[0]?.version ?? 0) + 1,
-            es_version_activa: true,
-            subido_por_nombre: 'Agencia',
-            created_at: now,
-            estado_procesamiento: 'pending' as const,
-            // Simular metadata técnica inicial
-            resolucion: fileData.tipo === 'video' ? '1080x1920 px' : '1080x1080 px',
-            duracion_segundos: fileData.tipo === 'video' ? 15 : undefined,
-            peso_formateado: fileData.size > 0 ? `${(fileData.size / 1024 / 1024).toFixed(1)} MB` : '4.2 MB',
-            formato: fileData.tipo === 'video' ? 'MP4' : 'PNG',
-          };
-          return {
-            ...cp,
-            archivos: [newFile],
-            updated_at: now,
-          };
-        }
-        return cp;
-      })
-    }));
+    set(s => {
+      const cp = s.contentPieces.find(c => c.id === pieceId);
+      let historyUpdate = {};
+      if (cp) {
+        const hasFiles = cp.archivos && cp.archivos.length > 0;
+        const desc = hasFiles
+          ? `Reemplazo de archivo multimedia en pieza "${cp.nombre}": nuevo archivo "${fileData.nombre}".`
+          : `Carga de archivo multimedia "${fileData.nombre}" en pieza "${cp.nombre}".`;
+        const phEvent: ProjectHistoryEvent = {
+          id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          client_id: cp.client_id,
+          actor: 'Agencia',
+          categoria: 'contenido',
+          descripcion: desc,
+          timestamp: now,
+        };
+        historyUpdate = { projectHistory: [...(s.projectHistory || []), phEvent] };
+      }
+      return {
+        contentPieces: s.contentPieces.map(c => {
+          if (c.id === pieceId) {
+            const newFile = {
+              id: fileData.id,
+              nombre: fileData.nombre,
+              tipo: fileData.tipo,
+              url: fileData.url,
+              tamanio_bytes: fileData.size,
+              version: (c.archivos[0]?.version ?? 0) + 1,
+              es_version_activa: true,
+              subido_por_nombre: 'Agencia',
+              created_at: now,
+              estado_procesamiento: 'pending' as const,
+              resolucion: fileData.tipo === 'video' ? '1080x1920 px' : '1080x1080 px',
+              duracion_segundos: fileData.tipo === 'video' ? 15 : undefined,
+              peso_formateado: fileData.size > 0 ? `${(fileData.size / 1024 / 1024).toFixed(1)} MB` : '4.2 MB',
+              formato: fileData.tipo === 'video' ? 'MP4' : 'PNG',
+            };
+            return {
+              ...c,
+              archivos: [newFile],
+              updated_at: now,
+            };
+          }
+          return c;
+        }),
+        ...historyUpdate,
+      };
+    });
 
     // Disparar flujo de eventos asíncronos simulando backend storage triggers
     setTimeout(() => {
@@ -656,7 +843,20 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   // ─── Brief ─────────────────────────────────────────────────────────────────
 
   saveBrief: (brief) =>
-    set(s => ({ briefs: { ...s.briefs, [brief.client_id]: brief } })),
+    set(s => {
+      const phEvent: ProjectHistoryEvent = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        client_id: brief.client_id,
+        actor: 'Agencia',
+        categoria: 'brief',
+        descripcion: `Respuestas y cambios guardados en el Brief Maestro del cliente.`,
+        timestamp: new Date().toISOString(),
+      };
+      return {
+        briefs: { ...s.briefs, [brief.client_id]: brief },
+        projectHistory: [...(s.projectHistory || []), phEvent],
+      };
+    }),
 
   getBrief: (clientId) => get().briefs[clientId],
 

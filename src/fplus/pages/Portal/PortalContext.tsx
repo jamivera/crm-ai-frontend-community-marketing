@@ -11,6 +11,7 @@ import PortalBrand from './PortalBrand';
 import PortalPauta from './PortalPauta';
 import PortalMetrics from './PortalMetrics';
 import Placeholder from '../Placeholder';
+import ClientHistory from '../Clients/ClientHistory';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,7 @@ export function PortalRouteWrapper() {
           <Route path="brand" element={<PortalBrand />} />
           <Route path="pauta" element={<PortalPauta />} />
           <Route path="metrics" element={<PortalMetrics />} />
+          <Route path="history" element={<ClientHistory />} />
           <Route path="profile" element={<Placeholder />} />
           <Route path="*" element={<Navigate to="" replace />} />
         </Routes>

@@ -77,8 +77,7 @@ export default function ClientMetrics() {
   const bestPosts = demoData.bestPosts;
 
   const sum = (fn: (m: any) => number) => {
-    // Helper to calculate sums for the breakdown table
-    if (activePlatform === 'todos') {
+    if (activePlatform === 'todos' || activePlatform === 'ver_todas') {
       return platforms.reduce((acc, p) => {
         const platData = getClientDemoMetrics(clientId, p, client);
         return acc + fn(platData);
@@ -121,22 +120,32 @@ export default function ClientMetrics() {
 
       {/* Selector de plataforma por pestaña si hay múltiples contratadas */}
       {platforms.length > 1 && (
-        <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/50 self-start max-w-max">
+        <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/50 self-start max-w-max overflow-x-auto">
           <button
             onClick={() => setActivePlatform('todos')}
-            className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg ${
+            className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg shrink-0 ${
               activePlatform === 'todos'
                 ? 'bg-white text-slate-800 shadow-sm'
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            Todos los canales
+            Consolidado
+          </button>
+          <button
+            onClick={() => setActivePlatform('ver_todas')}
+            className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg shrink-0 ${
+              activePlatform === 'ver_todas'
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Ver todas
           </button>
           {platforms.map(p => (
             <button
               key={p}
               onClick={() => setActivePlatform(p)}
-              className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg ${
+              className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg shrink-0 ${
                 activePlatform === p
                   ? 'bg-white text-slate-800 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600'
@@ -161,6 +170,12 @@ export default function ClientMetrics() {
               Este canal está configurado y a la espera de la primera sincronización de datos de pauta real. Las métricas se actualizarán automáticamente.
             </p>
           </div>
+        </div>
+      ) : activePlatform === 'ver_todas' ? (
+        <div className="space-y-12">
+          {platforms.map(p => (
+            <RenderChannelMetrics key={p} channelName={p} clientId={clientId} client={client} sum={sum} />
+          ))}
         </div>
       ) : (
         <>
@@ -285,6 +300,160 @@ export default function ClientMetrics() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function RenderChannelMetrics({
+  channelName,
+  clientId,
+  client,
+}: {
+  channelName: string;
+  clientId: string;
+  client: any;
+  sum: (fn: (m: any) => number) => number;
+}) {
+  const demoData = getClientDemoMetrics(clientId, channelName, client);
+  const totalAlcance = demoData.totalAlcance;
+  const totalInteracciones = Math.round(demoData.totalAlcance * 0.08);
+  const totalClicks = demoData.totalClicks;
+  const avgEngagement = demoData.avgEngagement;
+
+  const cards = [
+    { label: 'Alcance total', value: totalAlcance.toLocaleString('es'), icon: Eye, color: 'text-blue-500 bg-blue-50' },
+    { label: 'Interacciones', value: totalInteracciones.toLocaleString('es'), icon: Heart, color: 'text-pink-500 bg-pink-50' },
+    { label: 'Clics al link', value: totalClicks.toLocaleString('es'), icon: MousePointer, color: 'text-violet-500 bg-violet-50' },
+    { label: 'Engagement prom.', value: `${avgEngagement.toFixed(1)}%`, icon: TrendingUp, color: 'text-emerald-500 bg-emerald-50' },
+  ];
+
+  return (
+    <div className="space-y-6 pt-6 border-t border-slate-200 first:border-0 first:pt-0">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
+          Canal: {channelName}
+        </span>
+      </div>
+
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {cards.map(c => (
+          <div key={c.label} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${c.color}`}>
+              <c.icon className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-bold text-slate-800 leading-none">{c.value}</p>
+            <p className="text-[10px] text-slate-400 mt-1.5 font-semibold uppercase tracking-wider">{c.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Graphs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Desempeño de Visibilidad</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Alcance e impresiones semanales</p>
+          </div>
+          <div className="h-60 flex items-center justify-center">
+            <FplusChart
+              tipo="area"
+              data={demoData.areaData}
+              series={[
+                { key: 'Alcance', name: 'Alcance Único', color: '#4f46e5' },
+                { key: 'Impresiones', name: 'Impresiones Totales', color: '#3b82f6' }
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Clics y Leads</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Conversiones obtenidas semanalmente</p>
+          </div>
+          <div className="h-60 flex items-center justify-center">
+            <FplusChart
+              tipo="line"
+              data={demoData.lineData}
+              series={[
+                { key: 'Clics', name: 'Clics', color: '#8b5cf6' },
+                { key: 'Leads', name: 'Leads', color: '#10b981' }
+              ]}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Top Performing Publications */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-2 border-b pb-3">
+          <Award className="w-4 h-4 text-slate-500" />
+          <p className="text-sm font-bold text-slate-800">Publicaciones de Alto Desempeño ({channelName})</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {demoData.bestPosts.map(bp => (
+            <div key={bp.id} className="border border-slate-100 hover:border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow bg-white">
+              <div className={`h-20 bg-gradient-to-br ${bp.visual.gradient} flex items-center justify-center relative`}>
+                <span className="text-3xl">{bp.visual.emoji}</span>
+                <div className="absolute top-2 left-2">
+                  <PlatformIcon platform={bp.plataforma} showLabel={false} size={14} />
+                </div>
+                {bp.url && (
+                  <a href={bp.url} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 w-5 h-5 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-colors">
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                )}
+              </div>
+              <div className="p-3 flex-1 flex flex-col gap-2">
+                <p className="text-[11px] font-bold text-slate-800 line-clamp-1">{bp.nombre}</p>
+                <div className="grid grid-cols-3 gap-1 text-center">
+                  <div className="bg-slate-50 py-1 rounded">
+                    <p className="text-[9px] font-bold text-slate-700">{bp.reach.toLocaleString('es')}</p>
+                    <p className="text-[6px] text-slate-400 uppercase font-semibold">Alcance</p>
+                  </div>
+                  <div className="bg-slate-50 py-1 rounded">
+                    <p className="text-[9px] font-bold text-slate-700">{bp.likes}</p>
+                    <p className="text-[6px] text-slate-400 uppercase font-semibold">Likes</p>
+                  </div>
+                  <div className="bg-slate-50 py-1 rounded">
+                    <p className="text-[9px] font-bold text-slate-700">{bp.engagement}%</p>
+                    <p className="text-[6px] text-slate-400 uppercase font-semibold">Eng.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Inversión y CPC/CPM Table */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3 border-b pb-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Desglose de Pauta Publicitaria ({channelName})</p>
+          <span className="text-[9px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
+            Ingest Live
+          </span>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {[
+            { k: 'Impresiones', v: demoData.totalImpressions },
+            { k: 'CTR Promedio', v: demoData.ctrPromedio },
+            { k: 'CPC Promedio', v: demoData.cpcPromedio, money: true },
+            { k: 'CPM Promedio', v: demoData.cpmPromedio, money: true },
+            { k: 'Leads Atribuidos', v: demoData.totalLeads },
+            { k: 'Inversión Total', v: demoData.totalSpend, money: true },
+          ].map(ind => (
+            <div key={ind.k} className="text-center py-2 bg-slate-50 rounded-xl">
+              <p className="text-sm font-bold text-slate-700 leading-none">
+                {ind.money ? '$' : ''}{(Math.round(ind.v * 100) / 100).toLocaleString('es')}
+                {!ind.money && ind.k.includes('CTR') ? '%' : ''}
+              </p>
+              <p className="text-[9px] text-slate-400 mt-1">{ind.k}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
