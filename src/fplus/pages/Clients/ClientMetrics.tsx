@@ -1,464 +1,324 @@
 import { useState, useMemo } from 'react';
 import {
   Eye,
-  Heart,
-  MousePointer,
   TrendingUp,
-  Award,
   Sparkles,
-  ExternalLink
+  Megaphone,
+  Award,
+  ArrowRight,
+  Percent,
+  Coins,
+  DollarSign,
+  FileText
 } from 'lucide-react';
 import { useFplusStore } from '../../store';
 import { usePortalContext } from '../Portal/PortalContext';
 import { FplusChart } from '../../components/ui/FplusChart';
-import { PlatformIcon } from '../../components/ui/PlatformIcon';
-import { getClientDemoMetrics } from '../../services/metricsProvider';
+import { getUnifiedPlatformMetrics } from '../../services/metricsAdapter';
 import { ReportSelectionModal } from '../../components/modals/ReportSelectionModal';
 
 export default function ClientMetrics() {
   const { clientId } = usePortalContext();
-  const allPublications = useFplusStore(s => s.publications);
-  const publications = allPublications.filter(p => p.client_id === clientId);
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+  const campaigns = useFplusStore(s => s.campaigns);
+
+  // Available platforms configured for client
+  const activePlatforms = useMemo(() => {
+    return client?.pauta_plataformas || [];
+  }, [client]);
+
+  const [activePlatform, setActivePlatform] = useState<'Meta Ads' | 'Google Ads' | 'LinkedIn Ads' | 'TikTok Ads' | 'todos'>('todos');
   const [showReportModal, setShowReportModal] = useState(false);
 
-  const connectionBanner = !client?.meta_conectado ? (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-      <div>
-        <p className="text-xs font-bold text-amber-800 flex items-center justify-center sm:justify-start gap-1.5">
-          <span>⚠️ Modo Demostración (Datos de Referencia)</span>
-        </p>
-        <p className="text-[11px] text-amber-700 mt-0.5">
-          Mostrando analíticas simuladas. Conecta la cuenta de Meta del cliente para sincronizar estadísticas reales.
-        </p>
-      </div>
-      <button
-        onClick={() => {
-          if (window.confirm("¿Deseas iniciar la autenticación de Meta Graph API? (Simulado)")) {
-            useFplusStore.getState().updateClient(clientId, { meta_conectado: true });
-          }
-        }}
-        className="shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95 animate-pulse"
-      >
-        Conectar cuenta de Meta
-      </button>
-    </div>
-  ) : (
-    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
-      <span className="text-lg">✅</span>
-      <div>
-        <p className="text-xs font-bold text-emerald-800">Cuenta de Meta conectada</p>
-        <p className="text-[11px] text-emerald-700 mt-0.5">Sincronizando analíticas de Instagram, Facebook y Ads en tiempo real.</p>
-      </div>
-    </div>
-  );
+  // Consume the adapter dynamically (architecturally decoupled for API readiness)
+  const unifiedMetrics = useMemo(() => {
+    return getUnifiedPlatformMetrics(clientId, activePlatform, client, campaigns);
+  }, [clientId, activePlatform, client, campaigns]);
 
-  const [activePlatform, setActivePlatform] = useState<string>('todos');
-  const platforms = client?.pauta_plataformas?.length ? client.pauta_plataformas : ['Meta Ads'];
+  // Dynamic API Connection text based on selection (Point 4)
+  const apiText = useMemo(() => {
+    if (activePlatform === 'todos') return 'Contra APIs';
+    if (activePlatform === 'Meta Ads') return 'Contra API Meta';
+    return `Contra API ${activePlatform}`;
+  }, [activePlatform]);
 
-  const demoData = useMemo(() => {
-    return getClientDemoMetrics(clientId, activePlatform, client);
-  }, [clientId, activePlatform, client]);
+  // Check if there are campaigns or budget configuration to prevent false "Canal sin campañas" alerts
+  const hasData = useMemo(() => {
+    if (activePlatform === 'todos') {
+      return activePlatforms.length > 0;
+    }
+    const hasCamps = campaigns.some(c => c.client_id === clientId && c.plataforma === activePlatform && c.estado === 'activa');
+    const hasBudget = (client?.distribucion_pauta_overrides?.[activePlatform] ?? 0) > 0;
+    return hasCamps || hasBudget;
+  }, [activePlatform, activePlatforms, campaigns, clientId, client]);
 
-  const isEmpty = false;
+  // Map icon classes for standard renderers
+  const getIcon = (key: string) => {
+    switch (key) {
+      case 'spend': return Megaphone;
+      case 'leads': return TrendingUp;
+      case 'cpl': return Sparkles;
+      case 'reach': return Eye;
+      case 'impressions': return Eye;
+      case 'video_views': return Award;
+      case 'clicks': return ArrowRight;
+      case 'freq': return Percent;
+      case 'cpm': return Coins;
+      case 'ctr': return Percent;
+      case 'cpc': return Coins;
+      case 'roas': return DollarSign;
+      default: return Sparkles;
+    }
+  };
 
-  const totalAlcance = demoData.totalAlcance;
-  const totalInteracciones = Math.round(demoData.totalAlcance * 0.08);
-  const totalClicks = demoData.totalClicks;
-  const avgEngagement = demoData.avgEngagement;
-
-  const cards = [
-    { label: 'Alcance total', value: totalAlcance.toLocaleString('es'), icon: Eye, color: 'text-blue-500 bg-blue-50' },
-    { label: 'Interacciones', value: totalInteracciones.toLocaleString('es'), icon: Heart, color: 'text-pink-500 bg-pink-50' },
-    { label: 'Clics al link', value: totalClicks.toLocaleString('es'), icon: MousePointer, color: 'text-violet-500 bg-violet-50' },
-    { label: 'Engagement prom.', value: `${avgEngagement.toFixed(1)}%`, icon: TrendingUp, color: 'text-emerald-500 bg-emerald-50' },
-  ];
-
-  const areaData = demoData.areaData;
-  const lineData = demoData.lineData;
-  const bestPosts = demoData.bestPosts;
-
-  const sum = (fn: (m: any) => number) => {
-    if (activePlatform === 'todos' || activePlatform === 'ver_todas') {
-      return platforms.reduce((acc, p) => {
-        const platData = getClientDemoMetrics(clientId, p, client);
-        return acc + fn(platData);
-      }, 0);
-    } else {
-      return fn(demoData);
+  const getIconColor = (key: string) => {
+    switch (key) {
+      case 'spend': return 'text-violet-600 bg-violet-50';
+      case 'leads': return 'text-blue-600 bg-blue-50';
+      case 'cpl': return 'text-emerald-600 bg-emerald-50';
+      case 'reach': return 'text-pink-600 bg-pink-50';
+      case 'ctr': return 'text-amber-600 bg-amber-50';
+      case 'cpc': return 'text-indigo-600 bg-indigo-50';
+      default: return 'text-slate-600 bg-slate-50';
     }
   };
 
   return (
-    <div className="px-5 pt-6 pb-12 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="px-8 pt-10 pb-20 max-w-6xl mx-auto space-y-12">
+      
+      {/* 1. Header Area with dynamic API Status (Point 4) and report generation trigger */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 pb-8">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Métricas y Auditoría de Resultados</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {publications.length} {publications.length === 1 ? 'publicación' : 'publicaciones'} · 30 mediciones acumuladas
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Métricas y Auditoría de Resultados</h1>
+          <p className="text-sm text-slate-500 mt-2">
+            Panel de control operativo y monitor de campañas para gestores de la agencia.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 self-start">
           <button
             onClick={() => setShowReportModal(true)}
-            className="px-4 py-2 text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
             title="Generar informe PDF"
           >
+            <FileText className="w-3.5 h-3.5" />
             Generar informe mensual
           </button>
-          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-100 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            Meta API Ready
+          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-2xl border border-emerald-100/60 text-xs font-bold shadow-sm">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            {apiText}
           </div>
         </div>
       </div>
 
-      {/* Meta API Connection Alert */}
-      {connectionBanner}
-
-      {/* Selector de plataforma por pestaña si hay múltiples contratadas */}
-      {platforms.length > 1 && (
-        <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/50 self-start max-w-max overflow-x-auto">
+      {/* 2. Platform Selector (Point 2 - Ver todas is consolidated) */}
+      {activePlatforms.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2.5 bg-slate-100/80 p-2 rounded-2xl border border-slate-200/50 max-w-max">
           <button
             onClick={() => setActivePlatform('todos')}
-            className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg shrink-0 ${
+            className={`px-5 py-2.5 text-xs font-extrabold transition-all rounded-xl cursor-pointer ${
               activePlatform === 'todos'
-                ? 'bg-white text-slate-800 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Consolidado
-          </button>
-          <button
-            onClick={() => setActivePlatform('ver_todas')}
-            className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg shrink-0 ${
-              activePlatform === 'ver_todas'
-                ? 'bg-white text-slate-800 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
+                ? 'bg-white text-blue-600 shadow-md border border-slate-200/10'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             Ver todas
           </button>
-          {platforms.map(p => (
+          {activePlatforms.map(p => (
             <button
               key={p}
-              onClick={() => setActivePlatform(p)}
-              className={`px-3 py-1.5 text-xs font-semibold capitalize transition-all rounded-lg shrink-0 ${
+              onClick={() => setActivePlatform(p as any)}
+              className={`px-5 py-2.5 text-xs font-extrabold transition-all rounded-xl cursor-pointer ${
                 activePlatform === p
-                  ? 'bg-white text-slate-800 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
+                  ? 'bg-white text-blue-600 shadow-md border border-slate-200/10'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               {p}
             </button>
           ))}
         </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200/60 rounded-3xl p-6 text-center text-amber-800 text-sm font-semibold shadow-sm">
+          No hay plataformas configuradas con pauta activa en este momento.
+        </div>
       )}
 
-      {isEmpty ? (
-        <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center max-w-md mx-auto my-8 space-y-4 shadow-sm">
+      {/* 3. Metrics Render or empty check (Point 5 - Spacing/UX/UI updates) */}
+      {hasData ? (
+        <div className="space-y-12">
+          
+          {/* Grid of Dynamic KPIs */}
+          <div className="space-y-6">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
+              {activePlatform === 'todos' ? 'Métricas Consolidadas Generales' : `Métricas de ${activePlatform}`}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {unifiedMetrics.kpiCards.map(card => {
+                const Icon = getIcon(card.key);
+                const colorClass = getIconColor(card.key);
+                return (
+                  <div key={card.key} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{card.label}</p>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colorClass}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <p className="text-3xl font-black text-slate-850 leading-none mt-5 tracking-tight">{card.value}</p>
+                    <p className="text-[11px] text-slate-400 mt-2.5 leading-snug font-medium">{card.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 4. Evolution / Charts Block */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Evolución de Rendimiento</h3>
+                <p className="text-xs text-slate-500 mt-1">Impacto acumulado por semanas</p>
+              </div>
+              <div className="h-64 flex items-center justify-center">
+                <FplusChart
+                  tipo="area"
+                  data={unifiedMetrics.evolutionChartData}
+                  series={unifiedMetrics.evolutionChartSeries.slice(0, 1)}
+                />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversiones y Conversión semanal</h3>
+                <p className="text-xs text-slate-500 mt-1">Evolución del embudo semanal</p>
+              </div>
+              <div className="h-64 flex items-center justify-center">
+                <FplusChart
+                  tipo="line"
+                  data={unifiedMetrics.evolutionChartData}
+                  series={unifiedMetrics.evolutionChartSeries.slice(1, 2).length ? unifiedMetrics.evolutionChartSeries.slice(1, 2) : unifiedMetrics.evolutionChartSeries}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Campaign performance grid */}
+          {unifiedMetrics.campaigns.length > 0 && (
+            <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm space-y-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-5">
+                <div className="flex items-center gap-2.5">
+                  <Megaphone className="w-4 h-4 text-slate-400" />
+                  <h3 className="text-sm font-bold text-slate-800">Campañas Sincronizadas y Activas</h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {unifiedMetrics.campaigns.map(c => (
+                  <div key={c.id} className="border border-slate-100 hover:border-slate-200/80 rounded-2xl p-5 transition-colors space-y-4 bg-slate-50/20">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{c.name}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Objetivo: <span className="font-semibold text-slate-500">{c.objective}</span>
+                        </p>
+                      </div>
+                      <span className="text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100/50 px-2.5 py-0.5 rounded-full capitalize">
+                        {c.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 text-center pt-2">
+                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                        <p className="text-sm font-bold text-slate-700">{c.leads ?? 0}</p>
+                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">Leads</p>
+                      </div>
+                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                        <p className="text-sm font-bold text-slate-700">${c.cpl?.toFixed(2) ?? '0.00'}</p>
+                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">CPL</p>
+                      </div>
+                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                        <p className="text-sm font-bold text-slate-700">{c.roas ?? 3.5}x</p>
+                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">ROAS</p>
+                      </div>
+                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                        <p className="text-sm font-bold text-slate-700">${c.spend.toLocaleString('es')}</p>
+                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">Inversión</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 6. Extensible API-ready tables (Only displays if actual data exists, e.g. from campaign rows) */}
+          {unifiedMetrics.extraData?.gridRows && unifiedMetrics.extraData.gridRows.length > 0 && (
+            <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm space-y-6 hover:shadow-md transition-shadow">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-sm font-bold text-slate-800">
+                  Planificación Operativa / Palabras clave en {activePlatform}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1">Estructuras reales leídas de la planificación de anuncios.</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[10px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100 uppercase tracking-wider">
+                      <th className="p-3">Estructura Nivel 1</th>
+                      <th className="p-3">Estructura Nivel 2</th>
+                      <th className="p-3">Estructura Nivel 3</th>
+                      {activePlatform === 'Google Ads' ? (
+                        <th className="p-3">Concordancia</th>
+                      ) : (
+                        <th className="p-3">Segmentación</th>
+                      )}
+                      <th className="p-3 text-right">Presupuesto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {unifiedMetrics.extraData.gridRows.map((r: any) => (
+                      <tr key={r.id} className="text-slate-600 hover:bg-slate-50/50">
+                        <td className="p-3 font-semibold text-slate-800">{r.campaign_name}</td>
+                        <td className="p-3">{r.adset_name}</td>
+                        <td className="p-3">{r.ad_name}</td>
+                        {activePlatform === 'Google Ads' ? (
+                          <td className="p-3 capitalize">{r.concordancia || 'Exacta'}</td>
+                        ) : (
+                          <td className="p-3">{r.segmentation}</td>
+                        )}
+                        <td className="p-3 text-right font-bold text-slate-900">${r.budget} USD</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center max-w-md mx-auto space-y-4 shadow-sm">
           <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto border border-slate-100">
             <span className="text-3xl">📊</span>
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-bold text-slate-800">
-              Canal {activePlatform === 'todos' ? 'conectado' : `de ${activePlatform}`} sin datos aún
-            </h3>
+            <h3 className="text-sm font-bold text-slate-800">Canal sin campañas activas</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Este canal está configurado y a la espera de la primera sincronización de datos de pauta real. Las métricas se actualizarán automáticamente.
+              No disponemos de información histórica o activa registrada para esta plataforma en este momento. Las métricas aparecerán cuando se lance la primera campaña.
             </p>
           </div>
         </div>
-      ) : activePlatform === 'ver_todas' ? (
-        <div className="space-y-12">
-          {platforms.map(p => (
-            <RenderChannelMetrics key={p} channelName={p} clientId={clientId} client={client} sum={sum} />
-          ))}
-        </div>
-      ) : (
-        <>
-          {/* Main KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {cards.map(c => (
-              <div key={c.label} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${c.color}`}>
-                  <c.icon className="w-4 h-4" />
-                </div>
-                <p className="text-xl font-bold text-slate-800 leading-none">{c.value}</p>
-                <p className="text-[10px] text-slate-400 mt-1.5 font-semibold uppercase tracking-wider">{c.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Graphs */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Desempeño de Visibilidad</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Alcance e impresiones semanales</p>
-              </div>
-              <div className="h-60 flex items-center justify-center">
-                <FplusChart
-                  tipo="area"
-                  data={areaData}
-                  series={[
-                    { key: 'Alcance', name: 'Alcance Único', color: '#4f46e5' },
-                    { key: 'Impresiones', name: 'Impresiones Totales', color: '#3b82f6' }
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Clics y Leads</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Conversiones obtenidas semanalmente</p>
-              </div>
-              <div className="h-60 flex items-center justify-center">
-                <FplusChart
-                  tipo="line"
-                  data={lineData}
-                  series={[
-                    { key: 'Clics', name: 'Clics', color: '#8b5cf6' },
-                    { key: 'Leads', name: 'Leads', color: '#10b981' }
-                  ]}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Top Performing Publications */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 border-b pb-3">
-              <Award className="w-4 h-4 text-slate-500" />
-              <p className="text-sm font-bold text-slate-800">Publicaciones de Alto Desempeño</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {bestPosts.map(bp => (
-                <div key={bp.id} className="border border-slate-100 hover:border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow bg-white">
-                  <div className={`h-20 bg-gradient-to-br ${bp.visual.gradient} flex items-center justify-center relative`}>
-                    <span className="text-3xl">{bp.visual.emoji}</span>
-                    <div className="absolute top-2 left-2">
-                      <PlatformIcon platform={bp.plataforma} showLabel={false} size={14} />
-                    </div>
-                    {bp.url && (
-                      <a href={bp.url} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 w-5 h-5 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-colors">
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    )}
-                  </div>
-                  <div className="p-3 flex-1 flex flex-col gap-2">
-                    <p className="text-[11px] font-bold text-slate-800 line-clamp-1">{bp.nombre}</p>
-                    <div className="grid grid-cols-3 gap-1 text-center">
-                      <div className="bg-slate-50 py-1 rounded">
-                        <p className="text-[9px] font-bold text-slate-700">{bp.reach.toLocaleString('es')}</p>
-                        <p className="text-[6px] text-slate-400 uppercase font-semibold">Alcance</p>
-                      </div>
-                      <div className="bg-slate-50 py-1 rounded">
-                        <p className="text-[9px] font-bold text-slate-700">{bp.likes}</p>
-                        <p className="text-[6px] text-slate-400 uppercase font-semibold">Likes</p>
-                      </div>
-                      <div className="bg-slate-50 py-1 rounded">
-                        <p className="text-[9px] font-bold text-slate-700">{bp.engagement}%</p>
-                        <p className="text-[6px] text-slate-400 uppercase font-semibold">Eng.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Inversión y CPC/CPM Table */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3 border-b pb-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Desglose de Pauta Publicitaria</p>
-              <span className="text-[9px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
-                Meta Ads Live Ingest
-              </span>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {[
-                { k: 'Impresiones', v: sum(m => m.totalImpressions) },
-                { k: 'CTR Promedio', v: demoData.ctrPromedio },
-                { k: 'CPC Promedio', v: demoData.cpcPromedio, money: true },
-                { k: 'CPM Promedio', v: demoData.cpmPromedio, money: true },
-                { k: 'Leads Atribuidos', v: sum(m => m.totalLeads) },
-                { k: 'Inversión Total', v: sum(m => m.totalSpend), money: true },
-              ].map(ind => (
-                <div key={ind.k} className="text-center py-2 bg-slate-50 rounded-xl">
-                  <p className="text-sm font-bold text-slate-700 leading-none">
-                    {ind.money ? '$' : ''}{(Math.round(ind.v * 100) / 100).toLocaleString('es')}
-                    {!ind.money && ind.k.includes('CTR') ? '%' : ''}
-                  </p>
-                  <p className="text-[9px] text-slate-400 mt-1">{ind.k}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
       )}
+
+      {/* Report Selection Modal */}
       {showReportModal && (
         <ReportSelectionModal
           clientId={clientId}
           onClose={() => setShowReportModal(false)}
         />
       )}
-    </div>
-  );
-}
-
-function RenderChannelMetrics({
-  channelName,
-  clientId,
-  client,
-}: {
-  channelName: string;
-  clientId: string;
-  client: any;
-  sum: (fn: (m: any) => number) => number;
-}) {
-  const demoData = getClientDemoMetrics(clientId, channelName, client);
-  const totalAlcance = demoData.totalAlcance;
-  const totalInteracciones = Math.round(demoData.totalAlcance * 0.08);
-  const totalClicks = demoData.totalClicks;
-  const avgEngagement = demoData.avgEngagement;
-
-  const cards = [
-    { label: 'Alcance total', value: totalAlcance.toLocaleString('es'), icon: Eye, color: 'text-blue-500 bg-blue-50' },
-    { label: 'Interacciones', value: totalInteracciones.toLocaleString('es'), icon: Heart, color: 'text-pink-500 bg-pink-50' },
-    { label: 'Clics al link', value: totalClicks.toLocaleString('es'), icon: MousePointer, color: 'text-violet-500 bg-violet-50' },
-    { label: 'Engagement prom.', value: `${avgEngagement.toFixed(1)}%`, icon: TrendingUp, color: 'text-emerald-500 bg-emerald-50' },
-  ];
-
-  return (
-    <div className="space-y-6 pt-6 border-t border-slate-200 first:border-0 first:pt-0">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
-          Canal: {channelName}
-        </span>
-      </div>
-
-      {/* Main KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {cards.map(c => (
-          <div key={c.label} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${c.color}`}>
-              <c.icon className="w-4 h-4" />
-            </div>
-            <p className="text-xl font-bold text-slate-800 leading-none">{c.value}</p>
-            <p className="text-[10px] text-slate-400 mt-1.5 font-semibold uppercase tracking-wider">{c.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Graphs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Desempeño de Visibilidad</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Alcance e impresiones semanales</p>
-          </div>
-          <div className="h-60 flex items-center justify-center">
-            <FplusChart
-              tipo="area"
-              data={demoData.areaData}
-              series={[
-                { key: 'Alcance', name: 'Alcance Único', color: '#4f46e5' },
-                { key: 'Impresiones', name: 'Impresiones Totales', color: '#3b82f6' }
-              ]}
-            />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Clics y Leads</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Conversiones obtenidas semanalmente</p>
-          </div>
-          <div className="h-60 flex items-center justify-center">
-            <FplusChart
-              tipo="line"
-              data={demoData.lineData}
-              series={[
-                { key: 'Clics', name: 'Clics', color: '#8b5cf6' },
-                { key: 'Leads', name: 'Leads', color: '#10b981' }
-              ]}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Top Performing Publications */}
-      <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 border-b pb-3">
-          <Award className="w-4 h-4 text-slate-500" />
-          <p className="text-sm font-bold text-slate-800">Publicaciones de Alto Desempeño ({channelName})</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {demoData.bestPosts.map(bp => (
-            <div key={bp.id} className="border border-slate-100 hover:border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow bg-white">
-              <div className={`h-20 bg-gradient-to-br ${bp.visual.gradient} flex items-center justify-center relative`}>
-                <span className="text-3xl">{bp.visual.emoji}</span>
-                <div className="absolute top-2 left-2">
-                  <PlatformIcon platform={bp.plataforma} showLabel={false} size={14} />
-                </div>
-                {bp.url && (
-                  <a href={bp.url} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 w-5 h-5 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-colors">
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                )}
-              </div>
-              <div className="p-3 flex-1 flex flex-col gap-2">
-                <p className="text-[11px] font-bold text-slate-800 line-clamp-1">{bp.nombre}</p>
-                <div className="grid grid-cols-3 gap-1 text-center">
-                  <div className="bg-slate-50 py-1 rounded">
-                    <p className="text-[9px] font-bold text-slate-700">{bp.reach.toLocaleString('es')}</p>
-                    <p className="text-[6px] text-slate-400 uppercase font-semibold">Alcance</p>
-                  </div>
-                  <div className="bg-slate-50 py-1 rounded">
-                    <p className="text-[9px] font-bold text-slate-700">{bp.likes}</p>
-                    <p className="text-[6px] text-slate-400 uppercase font-semibold">Likes</p>
-                  </div>
-                  <div className="bg-slate-50 py-1 rounded">
-                    <p className="text-[9px] font-bold text-slate-700">{bp.engagement}%</p>
-                    <p className="text-[6px] text-slate-400 uppercase font-semibold">Eng.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Inversión y CPC/CPM Table */}
-      <div className="bg-white border border-slate-100 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3 border-b pb-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Desglose de Pauta Publicitaria ({channelName})</p>
-          <span className="text-[9px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
-            Ingest Live
-          </span>
-        </div>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {[
-            { k: 'Impresiones', v: demoData.totalImpressions },
-            { k: 'CTR Promedio', v: demoData.ctrPromedio },
-            { k: 'CPC Promedio', v: demoData.cpcPromedio, money: true },
-            { k: 'CPM Promedio', v: demoData.cpmPromedio, money: true },
-            { k: 'Leads Atribuidos', v: demoData.totalLeads },
-            { k: 'Inversión Total', v: demoData.totalSpend, money: true },
-          ].map(ind => (
-            <div key={ind.k} className="text-center py-2 bg-slate-50 rounded-xl">
-              <p className="text-sm font-bold text-slate-700 leading-none">
-                {ind.money ? '$' : ''}{(Math.round(ind.v * 100) / 100).toLocaleString('es')}
-                {!ind.money && ind.k.includes('CTR') ? '%' : ''}
-              </p>
-              <p className="text-[9px] text-slate-400 mt-1">{ind.k}</p>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
