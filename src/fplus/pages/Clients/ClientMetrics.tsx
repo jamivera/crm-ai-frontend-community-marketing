@@ -13,12 +13,14 @@ import { usePortalContext } from '../Portal/PortalContext';
 import { FplusChart } from '../../components/ui/FplusChart';
 import { PlatformIcon } from '../../components/ui/PlatformIcon';
 import { getClientDemoMetrics } from '../../services/metricsProvider';
+import { ReportSelectionModal } from '../../components/modals/ReportSelectionModal';
 
 export default function ClientMetrics() {
   const { clientId } = usePortalContext();
   const allPublications = useFplusStore(s => s.publications);
   const publications = allPublications.filter(p => p.client_id === clientId);
   const client = useFplusStore(s => s.clients.find(c => c.id === clientId));
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const connectionBanner = !client?.meta_conectado ? (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
@@ -99,12 +101,9 @@ export default function ClientMetrics() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              const platformsList = client?.redes_contratadas || ['Meta Ads'];
-              alert(`📄 Sincronizando e integrando informe mensual para: ${platformsList.join(', ')}\n\nReporte generado con éxito.`);
-            }}
+            onClick={() => setShowReportModal(true)}
             className="px-4 py-2 text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-            title="Generar informe PDF/PPTX"
+            title="Generar informe PDF"
           >
             Generar informe mensual
           </button>
@@ -299,6 +298,12 @@ export default function ClientMetrics() {
             </div>
           </div>
         </>
+      )}
+      {showReportModal && (
+        <ReportSelectionModal
+          clientId={clientId}
+          onClose={() => setShowReportModal(false)}
+        />
       )}
     </div>
   );

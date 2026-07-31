@@ -220,6 +220,10 @@ export default function ClientCampaigns() {
       adsetName = 'Campaña | Directores Marketing';
       adName = `AD ${campaignRows.length + 1} | Post Imagen`;
       segmentation = 'Cargos: CMO, Director de Marketing; Seniority: Senior+';
+    } else if (selectedGridPlatform === 'TikTok Ads') {
+      adsetName = 'Grupo de Anuncios | Audiencia Jóvenes';
+      adName = `AD ${campaignRows.length + 1} | TikTok Video | Spark`;
+      segmentation = 'Intereses: Tech, Gadgets; Edad: 18-34';
     }
 
     const newRow = {
@@ -608,6 +612,16 @@ export default function ClientCampaigns() {
                     <th className="p-3 font-semibold min-w-[150px]">Creativo Seleccionado</th>
                     <th className="p-3 font-semibold min-w-[140px]">Comentarios</th>
                   </>
+                ) : selectedGridPlatform === 'TikTok Ads' ? (
+                  <>
+                    <th className="p-3 font-semibold min-w-[160px]">Campaña (Nivel 1)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Grupo de Anuncios (Nivel 2)</th>
+                    <th className="p-3 font-semibold min-w-[160px]">Anuncio (Nivel 3)</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Segmentación / Audiencia</th>
+                    <th className="p-3 font-semibold min-w-[90px] text-right">Presupuesto</th>
+                    <th className="p-3 font-semibold min-w-[150px]">Creativo Seleccionado</th>
+                    <th className="p-3 font-semibold min-w-[140px]">Comentarios</th>
+                  </>
                 ) : (
                   <>
                     <th className="p-3 font-semibold min-w-[160px]">Campaña (Nivel 1)</th>
@@ -698,7 +712,13 @@ export default function ClientCampaigns() {
                             value={row.segmentation}
                             onChange={e => handleUpdateRowField(row.id, 'segmentation', e.target.value)}
                             className="w-full bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:ring-0 p-1 text-slate-600 focus:bg-white focus:outline-none"
-                            placeholder={selectedGridPlatform === 'LinkedIn Ads' ? 'Ej. Cargos: CMO; Sectores: Tech' : 'Segmentación...'}
+                            placeholder={
+                              selectedGridPlatform === 'LinkedIn Ads' 
+                                ? 'Ej. Cargos: CMO; Sectores: Tech' 
+                                : selectedGridPlatform === 'TikTok Ads' 
+                                  ? 'Ej. Intereses: Video, Gaming; Edad: 18-34' 
+                                  : 'Segmentación...'
+                            }
                           />
                         </td>
                       )}
