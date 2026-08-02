@@ -20,6 +20,9 @@ export function CompletePieceModal({ piece, onClose }: Props) {
   const updateContentState = useFplusStore(s => s.updateContentState);
   const uploadFileAndProcess = useFplusStore(s => s.uploadFileAndProcess);
   const client = useFplusStore(s => s.clients.find(c => c.id === piece.client_id));
+  const briefs = useFplusStore(s => s.briefs);
+  const brief = briefs[piece.client_id];
+  const isBriefComplete = !!(brief?.propuesta_valor && brief?.tono && brief.tono.length > 0);
 
   const [copy, setCopy] = useState(piece.copy_activo ?? '');
   const [hashtags, setHashtags] = useState<string[]>(piece.hashtags ?? []);
@@ -51,6 +54,7 @@ export function CompletePieceModal({ piece, onClose }: Props) {
         plataforma: piece.plataforma ?? 'instagram',
         objetivo: client.objetivo_marketing ?? 'alcance',
         tema: piece.nombre,
+        brief: brief,
       });
       setCopy(r.copy);
       setHashtags(prev => {
@@ -175,16 +179,22 @@ export function CompletePieceModal({ piece, onClose }: Props) {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Copy *</label>
-              <button
-                onClick={generarIA}
-                disabled={generating}
-                className="flex items-center gap-1 text-[10px] font-semibold bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 disabled:opacity-60"
-              >
-                {generating
-                  ? <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  : <Sparkles className="w-3 h-3" />}
-                {generating ? 'Generando…' : 'Generar con IA'}
-              </button>
+              {isBriefComplete ? (
+                <button
+                  onClick={generarIA}
+                  disabled={generating}
+                  className="flex items-center gap-1 text-[10px] font-semibold bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {generating
+                    ? <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    : <Sparkles className="w-3 h-3" />}
+                  {generating ? 'Generando…' : 'Generar con IA'}
+                </button>
+              ) : (
+                <span className="text-[9px] text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-1 rounded-lg font-bold">
+                  ⚠️ Completa el Brief Maestro para habilitar la IA
+                </span>
+              )}
             </div>
             <textarea
               value={copy}

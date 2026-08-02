@@ -40,6 +40,10 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
   const defaultMonth = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
   const defaultYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
 
+  const briefs = useFplusStore(s => s.briefs);
+  const brief = briefs[client.id];
+  const isBriefComplete = !!(brief?.propuesta_valor && brief?.tono && brief.tono.length > 0);
+
   const [year, setYear] = useState(initialYear ?? defaultYear);
   const [month, setMonth] = useState(initialMonth ?? defaultMonth);
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaigns[0]?.id || '');
@@ -47,7 +51,7 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
   const [seed, setSeed] = useState(0); // fuerza regeneración
   const [pieces, setPieces] = useState<ProposedPiece[] | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'ia' | 'manual'>('ia');
+  const [mode, setMode] = useState<'ia' | 'manual'>(isBriefComplete ? 'ia' : 'manual');
 
   const plan = useMemo(
     () => generatePlan({ client, year, month, objetivo }),
@@ -155,7 +159,7 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
         fecha_publicacion: `${p.fecha}T${p.hora}:00`,
         plataforma: p.plataforma,
         iteraciones: 0,
-        max_iteraciones: 3,
+        max_iteraciones: 5,
         archivos: [],
         hashtags: p.hashtags_sugeridos || [],
         origen: isExtra ? 'extraordinaria' : 'planificada',
@@ -234,10 +238,21 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
           {/* Mode Toggle */}
           <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
             <button
-              onClick={() => { setMode('ia'); setPieces(null); setValidationError(null); }}
+              onClick={() => {
+                if (isBriefComplete) {
+                  setMode('ia');
+                  setPieces(null);
+                  setValidationError(null);
+                }
+              }}
               className={`text-xs px-3 py-1 rounded-md transition-all ${
-                mode === 'ia' ? 'bg-white text-slate-800 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-800'
+                !isBriefComplete
+                  ? 'opacity-40 cursor-not-allowed text-slate-400'
+                  : mode === 'ia'
+                  ? 'bg-white text-slate-800 shadow-sm font-semibold'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
+              title={!isBriefComplete ? 'Completa el Brief Maestro para habilitar la IA' : undefined}
             >
               🤖 IA Andrómeda
             </button>
@@ -250,6 +265,16 @@ export function PlanCronopostModal({ client, onClose, initialYear, initialMonth,
               ✍️ Manual
             </button>
           </div>
+
+          {!isBriefComplete && (
+            <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2 text-amber-800 text-[10px] leading-relaxed">
+              <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-850">Planificador de IA Deshabilitado</p>
+                <p className="mt-0.5">El Brief Maestro de este cliente está incompleto. Debes completar la propuesta de valor y los tonos de comunicación en el brief antes de poder generar planificaciones automáticas.</p>
+              </div>
+            </div>
+          )}
 
           {mode === 'ia' && (
             <div className="flex gap-1.5">

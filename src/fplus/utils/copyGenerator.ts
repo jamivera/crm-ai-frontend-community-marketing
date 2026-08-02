@@ -14,6 +14,7 @@ export interface CopyInput {
   plataforma: Platform;
   objetivo: MarketingObjective;
   tema?: string; // nombre/tema de la pieza si existe
+  brief?: any; // the brief maestro data
 }
 
 export interface GeneratedCopy {
@@ -112,8 +113,33 @@ export async function generateCopy(input: CopyInput): Promise<GeneratedCopy> {
      .split('{industria_frase}').join(frase);
 
   const hook = fill(pick(HOOKS[input.objetivo], seed));
-  const body = fill(BODIES[input.objetivo]);
-  const cta = pick(CTAS[input.objetivo], seed);
+  let body = fill(BODIES[input.objetivo]);
+  let cta = pick(CTAS[input.objetivo], seed);
+
+  // Inyectar contexto estratégico real del Brief de la marca
+  if (input.brief) {
+    if (input.brief.propuesta_valor) {
+      body = `${body}\n\nEstrategia de marca: ${input.brief.propuesta_valor}`;
+    }
+    
+    // Inyectar datos obligatorios/contacto del Brief
+    const direccion = input.brief.ubicacion || input.brief.metadata?.address || input.brief.metadata?.google_keywords;
+    const horario = input.brief.horarios_preferidos || input.brief.metadata?.hours;
+    const telefono = input.brief.metadata?.phone || input.brief.metadata?.whatsapp;
+    
+    let infoStr = '';
+    if (direccion) infoStr += `📍 Dirección: ${direccion}\n`;
+    if (horario) infoStr += `⏰ Horario: ${horario}\n`;
+    if (telefono) infoStr += `📞 Contacto: ${telefono}\n`;
+    
+    if (infoStr) {
+      body = `${body}\n\n📌 Datos de contacto:\n${infoStr.trim()}`;
+    }
+
+    if (input.brief.url_landing) {
+      cta = `Visítanos en: ${input.brief.url_landing}`;
+    }
+  }
 
   const tags = await suggestHashtags({
     copy: `${hook} ${body}`,

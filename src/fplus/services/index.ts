@@ -7,6 +7,7 @@
 
 import type { DataAccessLayer } from './interfaces';
 import { clientService } from './supabase/clientService';
+import { briefService } from './supabase/briefService';
 
 // Servicios aún no migrados: se añaden con su implementación en los próximos
 // sprints (mismo molde que clientService). Se marcan como pendientes para que
@@ -18,7 +19,7 @@ const notImplemented = (name: string) =>
 
 export const services: DataAccessLayer = {
   clients: clientService,
-  briefs: notImplemented('briefs') as DataAccessLayer['briefs'],
+  briefs: briefService,
   content: notImplemented('content') as DataAccessLayer['content'],
   campaigns: notImplemented('campaigns') as DataAccessLayer['campaigns'],
   media: notImplemented('media') as DataAccessLayer['media'],

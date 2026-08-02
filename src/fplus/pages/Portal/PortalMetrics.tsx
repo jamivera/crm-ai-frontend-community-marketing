@@ -81,7 +81,7 @@ export default function PortalMetrics() {
   };
 
   return (
-    <div className="px-8 pt-10 pb-20 max-w-6xl mx-auto space-y-12">
+    <div className="px-4 sm:px-8 pt-6 sm:pt-10 pb-16 sm:pb-20 max-w-6xl mx-auto space-y-8 sm:space-y-12">
       
       {/* 1. Header Area with dynamic API Status (Point 4) - NO monthly report button (Point 6) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 pb-8">
@@ -132,31 +132,88 @@ export default function PortalMetrics() {
 
       {/* 3. Metrics Render or empty check (Point 5 - Spacing/UX/UI updates) */}
       {hasData ? (
-        <div className="space-y-12">
+        <div className="space-y-16">
           
           {/* Grid of Dynamic KPIs */}
-          <div className="space-y-6">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
-              {activePlatform === 'todos' ? 'Métricas Consolidadas Generales' : `Métricas de ${activePlatform}`}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {unifiedMetrics.kpiCards.map(card => {
-                const Icon = getIcon(card.key);
-                const colorClass = getIconColor(card.key);
-                return (
-                  <div key={card.key} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{card.label}</p>
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colorClass}`}>
-                        <Icon className="w-4 h-4" />
+          <div className="space-y-12">
+            {(() => {
+              const primaryCards = unifiedMetrics.kpiCards.filter(card =>
+                ['spend', 'leads', 'cpl', 'roas'].includes(card.key)
+              );
+              const secondaryCards = unifiedMetrics.kpiCards.filter(card =>
+                ['reach', 'impressions', 'clicks', 'ctr', 'cpc', 'cpm', 'freq', 'video_views'].includes(card.key)
+              );
+
+              return (
+                <div className="space-y-10">
+                  {primaryCards.length > 0 && (
+                    <div className="space-y-4">
+                      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
+                        Resultados Clave de Negocio
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {primaryCards.map(card => {
+                          const Icon = getIcon(card.key);
+                          const colorClass = getIconColor(card.key);
+                          // Soft gradient colors for premium look
+                          const bgGradient = 
+                            card.key === 'spend' ? 'bg-gradient-to-tr from-violet-50/20 to-white hover:border-violet-200' :
+                            card.key === 'leads' ? 'bg-gradient-to-tr from-blue-50/20 to-white hover:border-blue-200' :
+                            card.key === 'cpl' ? 'bg-gradient-to-tr from-emerald-50/20 to-white hover:border-emerald-200' :
+                            'bg-gradient-to-tr from-amber-50/20 to-white hover:border-amber-200';
+
+                          return (
+                            <div key={card.key} className={`bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-200 relative overflow-hidden group flex flex-col justify-between h-full min-h-[160px] ${bgGradient}`}>
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-450">{card.label}</p>
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colorClass}`}>
+                                  <Icon className="w-4 h-4" />
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-4xl font-extrabold text-slate-800 leading-none mt-6 tracking-tight">{card.value}</p>
+                                <p className="text-[11px] text-slate-400 mt-3 leading-snug font-medium">{card.description}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                    <p className="text-3xl font-black text-slate-850 leading-none mt-5 tracking-tight">{card.value}</p>
-                    <p className="text-[11px] text-slate-400 mt-2.5 leading-snug font-medium">{card.description}</p>
-                  </div>
-                );
-              })}
-            </div>
+                  )}
+
+                  {secondaryCards.length > 0 && (
+                    <div className="space-y-4 pt-8 border-t border-slate-100">
+                      <div className="px-1">
+                        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          Rendimiento y Entrega de Canal
+                        </h2>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Volumen, alcance e interacción de pauta publicitaria.</p>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {secondaryCards.map(card => {
+                          const Icon = getIcon(card.key);
+                          const colorClass = getIconColor(card.key);
+                          return (
+                            <div key={card.key} className="bg-white border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col justify-between h-full min-h-[110px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450 truncate">{card.label}</p>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
+                                  <Icon className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xl font-bold text-slate-700 leading-none mt-4 tracking-tight">{card.value}</p>
+                                <p className="text-[9px] text-slate-450 mt-2 leading-relaxed font-medium">{card.description}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* 4. Evolution / Charts Block */}
@@ -201,40 +258,51 @@ export default function PortalMetrics() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {unifiedMetrics.campaigns.map(c => (
-                  <div key={c.id} className="border border-slate-100 hover:border-slate-200/80 rounded-2xl p-5 transition-colors space-y-4 bg-slate-50/20">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs font-bold text-slate-800">{c.name}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          Objetivo: <span className="font-semibold text-slate-500">{c.objective}</span>
-                        </p>
-                      </div>
-                      <span className="text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100/50 px-2.5 py-0.5 rounded-full capitalize">
-                        {c.status}
-                      </span>
-                    </div>
+                {unifiedMetrics.campaigns.map(c => {
+                  const plat = c.plataforma || activePlatform;
+                  // Dynamic borders per platform channel
+                  const borderCol = 
+                    plat === 'Meta Ads' ? 'border-l-4 border-l-pink-500' :
+                    plat === 'Google Ads' ? 'border-l-4 border-l-blue-500' :
+                    plat === 'LinkedIn Ads' ? 'border-l-4 border-l-indigo-600' :
+                    plat === 'TikTok Ads' ? 'border-l-4 border-l-slate-800' :
+                    'border-l-4 border-l-slate-200';
 
-                    <div className="grid grid-cols-4 gap-2 text-center pt-2">
-                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
-                        <p className="text-sm font-bold text-slate-700">{c.leads ?? 0}</p>
-                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">Leads</p>
+                  return (
+                    <div key={c.id} className={`border border-slate-100 hover:border-slate-200 hover:shadow-sm rounded-2xl p-5 transition-all space-y-4 bg-slate-50/20 ${borderCol}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">{c.name}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Objetivo: <span className="font-semibold text-slate-500">{c.objective}</span>
+                          </p>
+                        </div>
+                        <span className="text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100/50 px-2.5 py-0.5 rounded-full capitalize">
+                          {c.status}
+                        </span>
                       </div>
-                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
-                        <p className="text-sm font-bold text-slate-700">${c.cpl?.toFixed(2) ?? '0.00'}</p>
-                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">CPL</p>
-                      </div>
-                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
-                        <p className="text-sm font-bold text-slate-700">{c.roas ?? 3.5}x</p>
-                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">ROAS</p>
-                      </div>
-                      <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
-                        <p className="text-sm font-bold text-slate-700">${c.spend.toLocaleString('es')}</p>
-                        <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">Inversión</p>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-2">
+                        <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                          <p className="text-sm font-bold text-slate-700">{c.leads ?? 0}</p>
+                          <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">Leads</p>
+                        </div>
+                        <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                          <p className="text-sm font-bold text-slate-700">${c.cpl?.toFixed(2) ?? '0.00'}</p>
+                          <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">CPL</p>
+                        </div>
+                        <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                          <p className="text-sm font-bold text-slate-700">{c.roas ?? 3.5}x</p>
+                          <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">ROAS</p>
+                        </div>
+                        <div className="bg-white border border-slate-100 py-2.5 rounded-xl">
+                          <p className="text-sm font-bold text-slate-700">${c.spend.toLocaleString('es')}</p>
+                          <p className="text-[8px] text-slate-400 uppercase mt-0.5 font-bold">Inversión</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

@@ -223,7 +223,7 @@ export default function PortalCalendar({ canCreate = false }: Props) {
   const visibleLegend = LEGEND;
 
   return (
-    <div className="px-4 pt-5 pb-6 space-y-4">
+    <div className="px-4 sm:px-8 pt-6 sm:pt-10 pb-16 sm:pb-20 max-w-6xl mx-auto space-y-8 sm:space-y-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

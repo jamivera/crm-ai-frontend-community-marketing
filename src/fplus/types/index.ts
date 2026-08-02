@@ -170,6 +170,10 @@ export interface Client {
   // Observaciones
   observaciones?: string;
   notas_internas?: string;
+  // Recordatorios Automáticos de Aprobación
+  recordatorio_automatico?: boolean;
+  intervalo_recordatorio?: number; // en horas (ej. 5 u 8)
+  ultimo_recordatorio_enviado?: string; // ISO string timestamp
   // Métricas rápidas (dashboard)
   piezas_activas: number;
   piezas_atrasadas: number;

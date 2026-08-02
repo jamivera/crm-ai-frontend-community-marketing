@@ -106,7 +106,7 @@ export default function PortalBrand() {
     ) : null;
 
   return (
-    <div className="px-4 pt-5 pb-8 space-y-4 max-w-2xl mx-auto">
+    <div className="px-4 sm:px-8 pt-6 sm:pt-10 pb-16 sm:pb-20 max-w-6xl mx-auto space-y-8 sm:space-y-12">
       <div>
         <h1 className="text-lg font-bold text-slate-800">Mi Marca</h1>
         <p className="text-xs text-slate-400 mt-0.5">La información estratégica de tu proyecto, siempre a mano</p>

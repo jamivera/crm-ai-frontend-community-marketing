@@ -8,9 +8,10 @@ interface StatCardProps {
   deltaLabel?: string;
   icon?: React.ReactNode;
   variant?: 'default' | 'danger' | 'warning';
+  onClick?: () => void;
 }
 
-export function StatCard({ label, value, delta, deltaLabel, icon, variant = 'default' }: StatCardProps) {
+export function StatCard({ label, value, delta, deltaLabel, icon, variant = 'default', onClick }: StatCardProps) {
   const variantClasses = {
     default: 'bg-white border-slate-200',
     danger: 'bg-red-50 border-red-200',
@@ -21,7 +22,12 @@ export function StatCard({ label, value, delta, deltaLabel, icon, variant = 'def
   const deltaIsNegative = delta !== undefined && delta < 0;
 
   return (
-    <div className={`rounded-xl border p-5 flex flex-col gap-2 ${variantClasses[variant]}`}>
+    <div
+      onClick={onClick}
+      className={`rounded-xl border p-5 flex flex-col gap-2 transition-all ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-slate-350 active:scale-[0.99]' : ''
+      } ${variantClasses[variant]}`}
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm text-slate-500 font-medium">{label}</span>
         {icon && <span className="text-slate-400">{icon}</span>}

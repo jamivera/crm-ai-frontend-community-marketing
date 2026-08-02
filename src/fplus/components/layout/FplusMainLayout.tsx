@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Bell, Search, ChevronDown, LogOut, Settings, User, FlaskConical, X, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FplusSidebar } from './FplusSidebar';
@@ -24,6 +24,41 @@ export function FplusMainLayout({ children }: FplusMainLayoutProps) {
   const notifications = useFplusStore(s => s.notifications) || [];
   const markNotificationRead = useFplusStore(s => s.markNotificationRead);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const clients = useFplusStore(s => s.clients) || [];
+  const campaigns = useFplusStore(s => s.campaigns) || [];
+  const contentPieces = useFplusStore(s => s.contentPieces) || [];
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (q.length < 2) return { clients: [], campaigns: [], pieces: [] };
+
+    const filteredClients = clients.filter(c =>
+      c.nombre.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.telefono?.toLowerCase().includes(q) ||
+      c.numero_documento?.toLowerCase().includes(q)
+    ).slice(0, 4);
+
+    const filteredCampaigns = campaigns.filter(c =>
+      c.nombre.toLowerCase().includes(q)
+    ).slice(0, 4);
+
+    const filteredPieces = contentPieces.filter(cp =>
+      cp.nombre.toLowerCase().includes(q) ||
+      cp.copy_activo?.toLowerCase().includes(q)
+    ).slice(0, 4);
+
+    return {
+      clients: filteredClients,
+      campaigns: filteredCampaigns,
+      pieces: filteredPieces
+    };
+  }, [searchQuery, clients, campaigns, contentPieces]);
+
+  const hasResults = searchResults.clients.length > 0 || searchResults.campaigns.length > 0 || searchResults.pieces.length > 0;
 
   // Filtrar notificaciones para esta agencia
   const currentAgencyId = (evoUser?.custom_attributes?.fplus_agency_id as string) || 'agency-pd';
@@ -75,16 +110,131 @@ export function FplusMainLayout({ children }: FplusMainLayoutProps) {
             <Menu className="w-5 h-5" />
           </button>
           {/* Search */}
-          <div className="flex-1 max-w-sm">
+          <div className="flex-1 max-w-sm relative">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar campañas, tareas, archivos... (Próximamente)"
-                disabled
-                className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-not-allowed placeholder:text-slate-400 opacity-75"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar clientes, campañas, números, correos..."
+                className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400 transition-all"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded-full"
+                >
+                  <X className="w-3 h-3 text-slate-450" />
+                </button>
+              )}
             </div>
+
+            {/* Dropdown menu of results */}
+            {searchQuery.trim().length >= 2 && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto py-2">
+                {!hasResults ? (
+                  <div className="px-4 py-6 text-center text-slate-400 text-xs">
+                    No se encontraron resultados para "{searchQuery}"
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-left">
+                    {/* Clientes */}
+                    {searchResults.clients.length > 0 && (
+                      <div>
+                        <div className="px-3 py-1 text-[9px] font-bold text-slate-450 uppercase tracking-wider bg-slate-50/50">
+                          Clientes
+                        </div>
+                        <div className="divide-y divide-slate-50">
+                          {searchResults.clients.map(c => (
+                            <button
+                              key={c.id}
+                              onClick={() => {
+                                navigate(`/fplus/clients/${c.id}`);
+                                setSearchQuery('');
+                              }}
+                              className="w-full px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-between text-left cursor-pointer"
+                            >
+                              <div>
+                                <p className="text-xs font-semibold text-slate-800">{c.nombre}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{c.email || 'Sin correo'} · {c.telefono || 'Sin teléfono'}</p>
+                              </div>
+                              <span className="text-[9px] font-medium bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                                Ver Marca
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Campañas */}
+                    {searchResults.campaigns.length > 0 && (
+                      <div>
+                        <div className="px-3 py-1 text-[9px] font-bold text-slate-450 uppercase tracking-wider bg-slate-50/50">
+                          Campañas
+                        </div>
+                        <div className="divide-y divide-slate-50">
+                          {searchResults.campaigns.map(c => {
+                            const clientName = clients.find(cl => cl.id === c.client_id)?.nombre || 'Marca';
+                            return (
+                              <button
+                                key={c.id}
+                                onClick={() => {
+                                  navigate(`/fplus/campaigns/${c.id}`);
+                                  setSearchQuery('');
+                                }}
+                                className="w-full px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-between text-left cursor-pointer"
+                              >
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-800">{c.nombre}</p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">{clientName} · Presupuesto: ${c.presupuesto_total?.toLocaleString('es') ?? '0'}</p>
+                                </div>
+                                <span className="text-[9px] font-medium bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full">
+                                  Ver Campaña
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Piezas */}
+                    {searchResults.pieces.length > 0 && (
+                      <div>
+                        <div className="px-3 py-1 text-[9px] font-bold text-slate-450 uppercase tracking-wider bg-slate-50/50">
+                          Piezas de Contenido
+                        </div>
+                        <div className="divide-y divide-slate-50">
+                          {searchResults.pieces.map(cp => {
+                            const clientName = clients.find(cl => cl.id === cp.client_id)?.nombre || 'Marca';
+                            return (
+                              <button
+                                key={cp.id}
+                                onClick={() => {
+                                  navigate(`/fplus/content/${cp.id}`);
+                                  setSearchQuery('');
+                                }}
+                                className="w-full px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-between text-left cursor-pointer"
+                              >
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <p className="text-xs font-semibold text-slate-800 truncate">{cp.nombre}</p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5 truncate">{clientName} · {cp.tipo} · {cp.estado}</p>
+                                </div>
+                                <span className="text-[9px] font-medium bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full shrink-0">
+                                  Ver Pieza
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

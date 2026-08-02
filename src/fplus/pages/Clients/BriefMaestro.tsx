@@ -35,13 +35,21 @@ const STEPS: { key: WizardStep; label: string; icon: React.ElementType }[] = [
 export default function BriefMaestro() {
   const { clientId = '' } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { clients, getBrief, saveBrief, updateClient, addProjectHistoryEvent } = useFplusStore();
+  const { clients, getBrief, saveBrief, loadBrief, updateClient, addProjectHistoryEvent } = useFplusStore();
 
   const client = clients.find(c => c.id === clientId);
   const existing = clientId ? getBrief(clientId) : undefined;
 
   const [step, setStep] = useState<WizardStep>('negocio');
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (clientId) {
+      setLoading(true);
+      loadBrief(clientId).finally(() => setLoading(false));
+    }
+  }, [clientId, loadBrief]);
 
   // ── Negocio ──
   const [propuestaValor, setPropuestaValor] = useState(existing?.propuesta_valor ?? '');
@@ -175,6 +183,17 @@ export default function BriefMaestro() {
     }
   }, [existing]);
 
+  if (loading && !existing) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-slate-500 font-semibold">Cargando Brief Maestro...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!client) {
     return (
       <div className="p-6 text-center text-slate-400">
@@ -199,9 +218,9 @@ export default function BriefMaestro() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  function handleSave(silent = false) {
+  async function handleSave(silent = false) {
     if (!clientId) return;
-    saveBrief({
+    await saveBrief({
       objetivos_comerciales: objetivosComerciales,
       servicios,
       productos,
@@ -291,7 +310,7 @@ export default function BriefMaestro() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => { handleSave(true); navigate(`/fplus/clients/${clientId}`); }}
+          onClick={async () => { await handleSave(true); navigate(`/fplus/clients/${clientId}`); }}
           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -314,7 +333,7 @@ export default function BriefMaestro() {
           return (
             <button
               key={s.key}
-              onClick={() => { handleSave(true); setStep(s.key); }}
+              onClick={async () => { await handleSave(true); setStep(s.key); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${
                 active ? 'bg-blue-600 text-white shadow-sm' :
                 done ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
@@ -728,7 +747,7 @@ export default function BriefMaestro() {
       <div className="flex justify-between">
         {currentIdx > 0 ? (
           <button
-            onClick={() => { handleSave(true); setStep(STEPS[currentIdx - 1].key); }}
+            onClick={async () => { await handleSave(true); setStep(STEPS[currentIdx - 1].key); }}
             className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
             ← Atrás
@@ -737,7 +756,7 @@ export default function BriefMaestro() {
         <div className="flex gap-2">
           {currentIdx < STEPS.length - 1 ? (
             <button
-              onClick={() => { handleSave(true); setStep(STEPS[currentIdx + 1].key); }}
+              onClick={async () => { await handleSave(true); setStep(STEPS[currentIdx + 1].key); }}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
             >
               Siguiente
@@ -745,8 +764,8 @@ export default function BriefMaestro() {
             </button>
           ) : (
             <button
-              onClick={() => {
-                handleSave(false);
+              onClick={async () => {
+                await handleSave(false);
                 navigate(`/fplus/clients/${clientId}/campaigns`);
               }}
               className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-sm"

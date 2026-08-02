@@ -48,6 +48,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
   const clients       = useFplusStore(s => s.clients);
   const brief         = briefs[clientId];
   const client        = clients.find(c => c.id === clientId);
+  const isBriefComplete = !!(brief?.propuesta_valor && brief?.tono && brief.tono.length > 0);
   // Solo las plataformas contratadas en el plan del cliente
   const plataformasPermitidas = client ? getAllowedPlatforms(client) : PLATAFORMAS;
 
@@ -209,7 +210,7 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
       hashtags: hashtags.length > 0 ? hashtags : undefined,
       incluye_cta: false,
       iteraciones: 0,
-      max_iteraciones: 3,
+      max_iteraciones: 5,
       account_manager_id: 'u1',
       account_manager_nombre: 'Andrea Solís',
       archivos: fileName && fileType ? [{
@@ -391,40 +392,47 @@ export function NewPieceModal({ clientId, clientNombre, defaultDate, onClose }: 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label data-field="copy" className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Copy *</label>
-                  <button
-                    onClick={async () => {
-                      if (!client) return;
-                      setCopyLoading(true);
-                      setCopyResult(null);
-                      try {
-                        const r = await generateCopy({
-                          clientNombre,
-                          industria: client.tipo_mercado ?? client.industria,
-                          tipo,
-                          plataforma,
-                          objetivo: client.objetivo_marketing ?? 'alcance',
-                          tema: nombre,
-                        });
-                        setCopy(r.copy);
-                        setHashtags(prev => {
-                          const ex = new Set(prev);
-                          return [...prev, ...r.hashtags.filter(t => !ex.has(t))];
-                        });
-                        setCopyResult(r);
-                      } finally {
-                        setCopyLoading(false);
-                      }
-                    }}
-                    disabled={copyLoading}
-                    className="flex items-center gap-1 text-[10px] font-semibold bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 disabled:opacity-60"
-                  >
-                    {copyLoading ? (
-                      <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3 h-3" />
-                    )}
-                    {copyLoading ? 'Generando…' : 'Generar con IA'}
-                  </button>
+                  {isBriefComplete ? (
+                    <button
+                      onClick={async () => {
+                        if (!client) return;
+                        setCopyLoading(true);
+                        setCopyResult(null);
+                        try {
+                          const r = await generateCopy({
+                            clientNombre,
+                            industria: client.tipo_mercado ?? client.industria,
+                            tipo,
+                            plataforma,
+                            objetivo: client.objetivo_marketing ?? 'alcance',
+                            tema: nombre,
+                            brief,
+                          });
+                          setCopy(r.copy);
+                          setHashtags(prev => {
+                            const ex = new Set(prev);
+                            return [...prev, ...r.hashtags.filter(t => !ex.has(t))];
+                          });
+                          setCopyResult(r);
+                        } finally {
+                          setCopyLoading(false);
+                        }
+                      }}
+                      disabled={copyLoading}
+                      className="flex items-center gap-1 text-[10px] font-semibold bg-violet-600 text-white px-2.5 py-1 rounded-lg hover:bg-violet-700 disabled:opacity-60"
+                    >
+                      {copyLoading ? (
+                        <span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3" />
+                      )}
+                      {copyLoading ? 'Generando…' : 'Generar con IA'}
+                    </button>
+                  ) : (
+                    <span className="text-[9px] text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-1 rounded-lg font-bold">
+                      ⚠️ Completa el Brief Maestro para habilitar la IA
+                    </span>
+                  )}
                 </div>
                 <textarea
                   value={copy}

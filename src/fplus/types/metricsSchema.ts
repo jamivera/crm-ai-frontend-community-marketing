@@ -27,6 +27,7 @@ export interface UnifiedCampaignRow {
   roas?: number;
   cpm?: number;
   frequency?: number;
+  plataforma?: string;
 }
 
 export interface UnifiedChartPoint {

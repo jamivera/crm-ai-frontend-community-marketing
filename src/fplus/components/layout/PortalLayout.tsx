@@ -69,9 +69,9 @@ export function PortalLayout({
   // El shell de Evo fija body{overflow:hidden}; el portal gestiona su propio
   // scroll con altura de viewport dinámica (100dvh) para móviles.
   return (
-    <div className="h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto overscroll-contain bg-slate-50 flex flex-col max-w-lg mx-auto relative">
+    <div className="h-screen supports-[height:100dvh]:h-[100dvh] overflow-y-auto overscroll-contain bg-slate-50 flex flex-col md:max-w-6xl max-w-lg mx-auto relative w-full shadow-sm">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+      <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-2">
           {!isRootPath && (
             <button
@@ -85,6 +85,25 @@ export function PortalLayout({
           <div>
             <div className="text-[11px] text-slate-400 font-medium tracking-wide uppercase">{agencyName}</div>
             <div className="text-sm font-semibold text-slate-800">{clientName}</div>
+          </div>
+          {/* Desktop Nav Items */}
+          <div className="hidden md:flex items-center gap-1.5 ml-8 border-l border-slate-100 pl-6">
+            {navItems.map(item => {
+              const active = isActive(item);
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => navigate(item.href)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+                    active ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -100,7 +119,7 @@ export function PortalLayout({
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               )}
             </button>
-
+ 
             {notificationsOpen && (
               <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 py-1 z-50 max-h-80 overflow-y-auto">
                 <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
@@ -142,7 +161,7 @@ export function PortalLayout({
               </div>
             )}
           </div>
-
+ 
           <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
             {clientName.charAt(0)}
           </div>
@@ -160,14 +179,14 @@ export function PortalLayout({
           </button>
         </div>
       </header>
-
+ 
       {/* Content */}
       <main className="flex-1 pb-20 overflow-y-auto">
         {children}
       </main>
-
+ 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-slate-200 flex z-10">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-slate-200 flex z-10 md:hidden">
         {navItems.map(item => {
           const active = isActive(item);
           const Icon = item.icon;

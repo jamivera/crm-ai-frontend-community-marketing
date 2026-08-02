@@ -68,7 +68,8 @@ export function getUnifiedPlatformMetrics(
           ctr: Number(cCtr.toFixed(2)),
           cpl: Number(cCpl.toFixed(2)),
           cpc: params.cpc,
-          roas: c.roas || params.roas
+          roas: c.roas || params.roas,
+          plataforma: c.plataforma || p
         });
       });
     } else {

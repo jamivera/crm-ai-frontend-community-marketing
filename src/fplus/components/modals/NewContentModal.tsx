@@ -49,7 +49,7 @@ export function NewContentModal({ onClose, preselectedClientId }: Props) {
       account_manager_id: 'am1',
       account_manager_nombre: client?.account_manager_name ?? 'Juan Pérez',
       iteraciones: 0,
-      max_iteraciones: 3,
+      max_iteraciones: 5,
       archivos: [],
       fecha_limite: new Date(fechaLimite).toISOString(),
       created_at: now,

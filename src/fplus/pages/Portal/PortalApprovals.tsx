@@ -55,7 +55,7 @@ export function PortalApprovalsList() {
   }
 
   return (
-    <div className="px-4 pt-5 space-y-4">
+    <div className="px-4 sm:px-8 pt-6 sm:pt-10 pb-16 sm:pb-20 max-w-6xl mx-auto space-y-8 sm:space-y-12">
       <div>
         <h1 className="text-lg font-bold text-slate-800">
           {isAgency ? 'Control de Aprobaciones' : 'Pendientes'}
@@ -631,7 +631,7 @@ export function PortalApprovalDetail() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Copy</p>
-                      {!isAgency && isPending && (
+                      {!isAgency && isPending && cp.iteraciones < 5 && (
                         <button
                           onClick={startEditing}
                           className="text-xs text-blue-600 font-semibold hover:underline"
@@ -693,7 +693,7 @@ export function PortalApprovalDetail() {
                   value={new Date(cp.fecha_limite).toLocaleDateString('es', { day: 'numeric', month: 'long' })}
                 />
               )}
-              {isAgency && <MetaRow label="Iteración" value={`${cp.iteraciones} de ${cp.max_iteraciones}`} />}
+              <MetaRow label="Cambios utilizados" value={`${cp.iteraciones} de 5`} />
             </>
           )}
         </div>
@@ -829,8 +829,25 @@ export function PortalApprovalDetail() {
 
         {/* Action buttons */}
         {!isAgency && isPending && (
-          <div className="space-y-2 pt-2 pb-4">
-            {showChangesInput && (
+          <div className="space-y-3 pt-2 pb-4">
+            {/* Contador de cambios */}
+            <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-2">
+              <span className="font-medium">Solicitudes de cambios</span>
+              <span className="font-bold text-slate-700">{cp.iteraciones} de 5 utilizadas</span>
+            </div>
+
+            {/* Advertencia si llegó al límite */}
+            {cp.iteraciones >= 5 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex gap-2 text-orange-855 text-xs leading-relaxed">
+                <AlertCircle className="w-4 h-4 shrink-0 text-orange-500 mt-0.5" />
+                <div>
+                  <p className="font-bold text-orange-800">Límite de cambios alcanzado</p>
+                  <p className="mt-0.5">Has utilizado las 5 solicitudes de cambio permitidas para esta pieza. Para proceder, debes aprobar el contenido en su estado actual o contactar a tu ejecutivo de cuenta.</p>
+                </div>
+              </div>
+            )}
+
+            {showChangesInput && cp.iteraciones < 5 && (
               <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-orange-800">
@@ -861,18 +878,29 @@ export function PortalApprovalDetail() {
               <CheckCircle2 className="w-5 h-5" />
               {hasMediaReady ? 'Aprobar' : 'Aprobar (Espera procesamiento)'}
             </button>
-            <button
-              onClick={handleRequestChanges}
-              disabled={(showChangesInput && !changesText.trim()) || !hasMediaReady}
-              className={`w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all border ${
-                showChangesInput
-                  ? 'bg-orange-500 text-white border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed'
-                  : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
-            >
-              <AlertCircle className="w-5 h-5" />
-              {showChangesInput ? 'Enviar comentarios de revisión' : 'Solicitar revisión'}
-            </button>
+
+            {cp.iteraciones < 5 ? (
+              <button
+                onClick={handleRequestChanges}
+                disabled={(showChangesInput && !changesText.trim()) || !hasMediaReady}
+                className={`w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all border ${
+                  showChangesInput
+                    ? 'bg-orange-500 text-white border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                    : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                <AlertCircle className="w-5 h-5" />
+                {showChangesInput ? 'Enviar comentarios de revisión' : 'Solicitar revisión'}
+              </button>
+            ) : (
+              <button
+                disabled
+                className="w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+              >
+                <AlertCircle className="w-5 h-5 text-slate-300" />
+                Límite de cambios alcanzado
+              </button>
+            )}
           </div>
         )}
       </div>

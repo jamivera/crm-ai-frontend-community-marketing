@@ -10,6 +10,7 @@ import type {
   BriefMaestro, PublicationMetric, FplusNotification,
 } from '../types';
 import { CONTENT_STATE_LABELS } from '../constants';
+import { services, hasSupabase } from '../services';
 
 // ─── Local types (not persisted to backend) ────────────────────────────────────
 
@@ -214,7 +215,8 @@ interface FplusStore {
   updateLead: (id: string, data: Partial<Lead>) => void;
 
   // ─── Brief actions ─────────────────────────────────────────────────────────
-  saveBrief: (brief: BriefMaestro) => void;
+  saveBrief: (brief: BriefMaestro) => Promise<void>;
+  loadBrief: (clientId: string) => Promise<void>;
   getBrief: (clientId: string) => BriefMaestro | undefined;
 
   // ─── Project History actions ───────────────────────────────────────────────
@@ -716,6 +718,8 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
   requestChanges: (contentId, comment, clientNombre) =>
     set(s => {
       const piece = s.contentPieces.find(cp => cp.id === contentId);
+      if (!piece || piece.iteraciones >= 5) return {};
+
       const client = s.clients.find(c => c.id === piece?.client_id);
       const agencyId = client?.agency_id || 'agency-pd';
 
@@ -749,7 +753,12 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
       return {
         contentPieces: s.contentPieces.map(cp =>
           cp.id === contentId
-            ? { ...cp, estado: 'cambios_solicitados' as ContentState, updated_at: new Date().toISOString() }
+            ? {
+                ...cp,
+                estado: 'cambios_solicitados' as ContentState,
+                iteraciones: Math.min(5, cp.iteraciones + 1),
+                updated_at: new Date().toISOString()
+              }
             : cp
         ),
         stateHistory: [...s.stateHistory, historyEvent],
@@ -842,7 +851,27 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
 
   // ─── Brief ─────────────────────────────────────────────────────────────────
 
-  saveBrief: (brief) =>
+  loadBrief: async (clientId) => {
+    if (hasSupabase()) {
+      const { data, error } = await services.briefs.get(clientId);
+      if (!error && data) {
+        set(s => ({
+          briefs: { ...s.briefs, [clientId]: data }
+        }));
+      }
+    }
+  },
+
+  saveBrief: async (brief) => {
+    if (hasSupabase()) {
+      const { data, error } = await services.briefs.save(brief);
+      if (error) {
+        console.error('Error saving brief to Supabase:', error);
+      } else if (data) {
+        brief = data;
+      }
+    }
+
     set(s => {
       const phEvent: ProjectHistoryEvent = {
         id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -856,7 +885,8 @@ export const useFplusStore = create<FplusStore>()(persist((set, get) => ({
         briefs: { ...s.briefs, [brief.client_id]: brief },
         projectHistory: [...(s.projectHistory || []), phEvent],
       };
-    }),
+    });
+  },
 
   getBrief: (clientId) => get().briefs[clientId],
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { FplusRole } from '../../types';
 import { getMenuForRole, getMenuSections } from './FplusMenuItems';
 import { useFplusRole } from '../../hooks/useFplusRole';
@@ -10,8 +10,6 @@ interface FplusSidebarProps {
   agencyName?: string;
   onCloseMobile?: () => void;
 }
-
-const CRM_ROLES: FplusRole[] = ['agency_admin', 'account_manager', 'super_admin'];
 
 export function FplusSidebar({ role, agencyName = 'Jamil Vera Technologies', onCloseMobile }: FplusSidebarProps) {
   const location = useLocation();
@@ -33,7 +31,6 @@ export function FplusSidebar({ role, agencyName = 'Jamil Vera Technologies', onC
   const { clientId, isClient } = useFplusRole();
   const items = getMenuForRole(role);
   const sections = getMenuSections(items);
-  const canAccessCRM = CRM_ROLES.includes(role);
 
   const resolvePortalHref = (href: string) => {
     return isClient && clientId && href.startsWith('/fplus/portal/')
@@ -70,34 +67,10 @@ export function FplusSidebar({ role, agencyName = 'Jamil Vera Technologies', onC
         )}
       </div>
 
-      {/* Workspace switcher — only for roles with CRM access */}
-      {canAccessCRM && (!collapsed || onCloseMobile) && (
-        <div className="px-3 pt-3 pb-1 flex-shrink-0">
-          <div className="grid grid-cols-2 bg-slate-100 rounded-lg p-0.5 gap-0.5">
-            <button
-              className="py-1.5 rounded-md text-[11px] font-semibold bg-white text-green-700 shadow-sm animate-fade-in"
-              disabled
-            >
-              ✦ Content
-            </button>
-            <button
-              onClick={() => { navigate('/conversations'); onCloseMobile?.(); }}
-              className="py-1.5 rounded-md text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              🗂 CRM
-            </button>
-          </div>
-        </div>
-      )}
-      {canAccessCRM && collapsed && !onCloseMobile && (
-        <div className="px-2 pt-2 pb-1 flex-shrink-0">
-          <button
-            onClick={() => { navigate('/conversations'); }}
-            title="Ir al CRM"
-            className="w-full flex items-center justify-center py-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
-          >
-            <ArrowLeftRight className="w-3.5 h-3.5" />
-          </button>
+      {/* Menu Header Label */}
+      {(!collapsed || onCloseMobile) && (
+        <div className="px-5 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          Menú
         </div>
       )}
 
